@@ -1,0 +1,6 @@
+*~
+*.swp
+*.pyo
+*.pyc
+index.wsgi
+db
