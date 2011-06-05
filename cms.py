@@ -51,6 +51,15 @@ def f_read(*path_elements):
 	except IOError:
 		return ""
 
+def f_check_disablefile(*path_elements):
+	path = PATHSEP.join(path_elements)
+	if not f_exists(path):
+		return False
+	data = f_read(path)
+	if not data:
+		return True # Empty file
+	return stringBool(data)
+
 def f_mtime(*path_elements):
 	try:
 		return datetime.fromtimestamp(os.stat(PATHSEP.join(path_elements)).st_mtime)
@@ -120,7 +129,7 @@ class CMSDatabase:
 		res = []
 		for groupname in f_subdirList(self.pageBase):
 			path = mkpath(self.pageBase, groupname)
-			if f_exists(path, "disabled"):
+			if f_check_disablefile(path, "disabled"):
 				continue
 			navlabel = f_read(path, "nav_label").strip()
 			res.append( (groupname, navlabel) )
@@ -132,7 +141,7 @@ class CMSDatabase:
 		gpath = mkpath(self.pageBase, self.__validateName(groupname))
 		for pagename in f_subdirList(gpath):
 			path = mkpath(gpath, pagename)
-			if f_exists(path, "disabled"):
+			if f_check_disablefile(path, "disabled"):
 				continue
 			navlabel = f_read(path, "nav_label").strip()
 			res.append( (pagename, navlabel) )
