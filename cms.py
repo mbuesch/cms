@@ -20,6 +20,8 @@ import os
 from stat import S_ISDIR
 from datetime import datetime
 import re
+import Image
+from StringIO import StringIO
 
 
 def stringBool(string):
@@ -82,8 +84,22 @@ def f_subdirList(*path_elements):
 	except OSError:
 		return []
 
+def validateName(name):
+	# Validate a name string for use as safe path component
+	# Raises CMSException on failure.
+	if name.startswith('.'):
+		# No ".", ".." and hidden files.
+		raise CMSException(404)
+	validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_."
+	def validateChar(char):
+		if char not in validChars:
+			raise CMSException(404)
+	map(validateChar, name)
+	return name
+
 class CMSException(Exception):
 	statusTab = {
+		400: "400 Bad Request",
 		404: "404 Not Found",
 		405: "405 Method Not Allowed",
 		409: "409 Conflict",
@@ -99,24 +115,14 @@ class CMSException(Exception):
 		self.message = message
 
 class CMSDatabase:
-	validNameChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_"
-
 	def __init__(self, basePath):
 		self.pageBase = mkpath(basePath, "pages")
 		self.macroBase = mkpath(basePath, "macros")
 
-	@staticmethod
-	def __validateName(name):
-		def validateChar(char):
-			if char not in CMSDatabase.validNameChars:
-				raise CMSException(404)
-		map(validateChar, name)
-		return name
-
 	def getPage(self, groupname, pagename):
 		path = mkpath(self.pageBase,
-			      self.__validateName(groupname),
-			      self.__validateName(pagename))
+			      validateName(groupname),
+			      validateName(pagename))
 		title = f_read(path, "title").strip()
 		if not title:
 			title = f_read(path, "nav_label").strip()
@@ -138,7 +144,7 @@ class CMSDatabase:
 	def getPageNames(self, groupname):
 		# Returns list of (pagename, navlabel)
 		res = []
-		gpath = mkpath(self.pageBase, self.__validateName(groupname))
+		gpath = mkpath(self.pageBase, validateName(groupname))
 		for pagename in f_subdirList(gpath):
 			path = mkpath(gpath, pagename)
 			if f_check_disablefile(path, "disabled"):
@@ -151,7 +157,7 @@ class CMSDatabase:
 		def macroLineFilter(line):
 			line = line.strip()
 			return line and not line.startswith("#")
-		lines = f_read(self.macroBase, self.__validateName(name)).splitlines()
+		lines = f_read(self.macroBase, validateName(name)).splitlines()
 		return "\n".join(filter(macroLineFilter, lines))
 
 class CMS:
@@ -164,10 +170,12 @@ class CMS:
 
 	def __init__(self,
 		     dbPath,
+		     imagesPath,
 		     basePath="/cms",
 		     cssPath="/cms.css",
 		     cssPrintPath="/cms-print.css",
 		     homeLabel="Home"):
+		self.imagesPath = imagesPath
 		self.basePath = basePath
 		self.cssPath = cssPath
 		self.cssPrintPath = cssPrintPath
@@ -322,23 +330,42 @@ class CMS:
 				raise CMSException(404)
 		return (groupname, pagename)
 
-	def __genPage(self, path, cssPath):
+	def __getImageThumbnail(self, imagename, query):
+		try:
+			width = int(query["w"][0])
+			height = int(query["h"][0])
+		except (KeyError, IndexError, ValueError), e:
+			raise CMSException(400)
+		try:
+			imagename = validateName(imagename)
+			img = Image.open(mkpath(self.imagesPath, imagename))
+			img.thumbnail((width, height), Image.ANTIALIAS)
+			output = StringIO()
+			img.save(output, "JPEG")
+			data = output.getvalue()
+		except (IOError), e:
+			raise CMSException(404)
+		return (data, "image/jpeg")
+
+	def __genPage(self, path, cssPath, query):
 		(groupname, pagename) = self.__parsePagePath(path)
+		if groupname == "__thumbs":
+			return self.__getImageThumbnail(pagename, query)
 		(pageTitle, pageData, stamp) = self.db.getPage(groupname, pagename)
 		pageData = self.__expandMacros(pageData)
 		data = [self.__genHtmlHeader(pageTitle, cssPath)]
 		data.append(self.__genHtmlBody(groupname, pagename,
 					       pageTitle, pageData, stamp))
 		data.append(self.__genHtmlFooter())
-		return "".join(data)
+		return ("".join(data), "text/html")
 
 	def get(self, path, query={}):
 		cssPath = self.cssPath
 		try:
 			if stringBool(query["print"][0]):
 				cssPath = self.cssPrintPath
-		except KeyError: pass
-		return (self.__genPage(path, cssPath), "text/html")
+		except (KeyError, IndexError), e: pass
+		return self.__genPage(path, cssPath, query)
 
 	def post(self, path, query={}):
 		raise CMSException(405)
