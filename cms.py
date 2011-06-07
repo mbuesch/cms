@@ -338,7 +338,7 @@ class CMS:
 			if stringBool(query["print"][0]):
 				cssPath = self.cssPrintPath
 		except KeyError: pass
-		return self.__genPage(path, cssPath)
+		return (self.__genPage(path, cssPath), "text/html")
 
 	def post(self, path, query={}):
 		raise CMSException(405)
