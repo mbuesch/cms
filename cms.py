@@ -322,6 +322,13 @@ class CMS:
 				match.group(0)
 		# Expand the parameters
 		macrovalue = self.macro_param_re.sub(expandParam, macrovalue)
+		# Expand variables
+		vars = {
+			"$GROUP"	: self.currentGroupname,
+			"$PAGE"		: self.currentPagename,
+		}
+		for var in vars.keys():
+			macrovalue = macrovalue.replace(var, vars[var])
 		# Sanitize strings
 		macrovalue = self.macro_strsan_re.sub(sanitize, macrovalue)
 		# Expand the conditionals
@@ -390,6 +397,8 @@ class CMS:
 
 	def __generate(self, path, cssPath, query):
 		(groupname, pagename) = self.__parsePagePath(path)
+		self.currentGroupname = groupname
+		self.currentPagename = pagename
 		if groupname == "__thumbs":
 			return self.__getImageThumbnail(pagename, query)
 		return self.__getHtmlPage(groupname, pagename, cssPath)
