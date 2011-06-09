@@ -312,7 +312,9 @@ class CMS:
 		def sanitize(match):
 			validChars = "abcdefghijklmnopqrstuvwxyz1234567890"
 			string = match.group(1).lower()
-			return "".join(map(lambda c: c if c in validChars else "_", string))
+			string = "".join(map(lambda c: c if c in validChars else "_", string))
+			string = re.sub(r'_+', '_', string).strip('_')
+			return string
 		macroname = match.group(1)
 		parameters = map(lambda p: p.strip(), match.group(2).split(","))
 		# Get the raw macro value
