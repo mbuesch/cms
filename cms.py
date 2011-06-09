@@ -22,6 +22,22 @@ from datetime import datetime
 import re
 import Image
 from StringIO import StringIO
+from beaker.cache import cache_region, cache_regions
+
+cache_regions.update(
+	{
+		"html" : {
+			"expire"	: 3600,
+			"type"		: "memory",
+		},
+		"image" : {
+			"expire"	: 86400,
+			"type"		: "file",
+			"data_dir"	: "/tmp/www-cache/data",
+			"lock_dir"	: "/tmp/www-cache/lock",
+		},
+	},
+)
 
 
 def stringBool(string):
@@ -330,6 +346,7 @@ class CMS:
 				raise CMSException(404)
 		return (groupname, pagename)
 
+	@cache_region("image", "thumbnail")
 	def __getImageThumbnail(self, imagename, query):
 		try:
 			width = int(query["w"][0])
@@ -347,10 +364,8 @@ class CMS:
 			raise CMSException(404)
 		return (data, "image/jpeg")
 
-	def __genPage(self, path, cssPath, query):
-		(groupname, pagename) = self.__parsePagePath(path)
-		if groupname == "__thumbs":
-			return self.__getImageThumbnail(pagename, query)
+	@cache_region("html", "page")
+	def __getHtmlPage(self, groupname, pagename, cssPath):
 		(pageTitle, pageData, stamp) = self.db.getPage(groupname, pagename)
 		pageData = self.__expandMacros(pageData)
 		data = [self.__genHtmlHeader(pageTitle, cssPath)]
@@ -359,13 +374,19 @@ class CMS:
 		data.append(self.__genHtmlFooter())
 		return ("".join(data), "text/html")
 
+	def __generate(self, path, cssPath, query):
+		(groupname, pagename) = self.__parsePagePath(path)
+		if groupname == "__thumbs":
+			return self.__getImageThumbnail(pagename, query)
+		return self.__getHtmlPage(groupname, pagename, cssPath)
+
 	def get(self, path, query={}):
 		cssPath = self.cssPath
 		try:
 			if stringBool(query["print"][0]):
 				cssPath = self.cssPrintPath
 		except (KeyError, IndexError), e: pass
-		return self.__genPage(path, cssPath, query)
+		return self.__generate(path, cssPath, query)
 
 	def post(self, path, query={}):
 		raise CMSException(405)
