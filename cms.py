@@ -336,6 +336,8 @@ class CMS:
 			(macrovalue, n) = self.macro_ifcond_re.subn(expandCond, macrovalue)
 			if not n:
 				break
+		# Expand recursive macros
+		macrovalue = self.__expandMacros(macrovalue)
 		return macrovalue
 
 	def __expandMacros(self, data):
