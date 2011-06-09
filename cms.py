@@ -182,7 +182,9 @@ class CMS:
 	# Macro parameter expansion: $1, $2, $3...
 	macro_param_re = re.compile(r'\$(\d+)', re.DOTALL)
 	# Macro if-conditional: $(if COND,THEN,ELSE)
-	macro_ifcond_re = re.compile(r'\$\(if\s+([^,\)]*),([^,\)]*),([^,\)]*)\)', re.DOTALL)
+	macro_ifcond_re = re.compile(r'\$\(if\s+([^,\)]*),([^,\)]*)(?:,([^,\)]*))?\)', re.DOTALL)
+	# Macro string sanitize: $(sanitize STRING)
+	macro_strsan_re = re.compile(r'\$\(sanitize\s+([^,\)]*)\)', re.DOTALL)
 
 	def __init__(self,
 		     dbPath,
@@ -303,7 +305,14 @@ class CMS:
 		def expandCond(match):
 			if match.group(1).strip(): # Check cond. for non-empty
 				return match.group(2) # THEN-branch
-			return match.group(3) # ELSE-branch
+			try:
+				return match.group(3) # ELSE-branch
+			except IndexError:
+				return "" # No ELSE branch. Return empty string.
+		def sanitize(match):
+			validChars = "abcdefghijklmnopqrstuvwxyz1234567890"
+			string = match.group(1).lower()
+			return "".join(map(lambda c: c if c in validChars else "_", string))
 		macroname = match.group(1)
 		parameters = map(lambda p: p.strip(), match.group(2).split(","))
 		# Get the raw macro value
@@ -313,8 +322,13 @@ class CMS:
 				match.group(0)
 		# Expand the parameters
 		macrovalue = self.macro_param_re.sub(expandParam, macrovalue)
+		# Sanitize strings
+		macrovalue = self.macro_strsan_re.sub(sanitize, macrovalue)
 		# Expand the conditionals
-		macrovalue = self.macro_ifcond_re.sub(expandCond, macrovalue)
+		while True:
+			(macrovalue, n) = self.macro_ifcond_re.subn(expandCond, macrovalue)
+			if not n:
+				break
 		return macrovalue
 
 	def __expandMacros(self, data):
