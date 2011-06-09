@@ -294,7 +294,7 @@ class CMS:
 
 		return "\n".join(body)
 
-	def __expandOneMacro(self, match):
+	def __expandOneMacro(self, match, recurseLevel):
 		def expandParam(match):
 			pnumber = int(match.group(1))
 			try:
@@ -339,11 +339,14 @@ class CMS:
 			if not n:
 				break
 		# Expand recursive macros
-		macrovalue = self.__expandMacros(macrovalue)
+		macrovalue = self.__expandMacros(macrovalue, recurseLevel + 1)
 		return macrovalue
 
-	def __expandMacros(self, data):
-		return self.macro_re.sub(self.__expandOneMacro, data)
+	def __expandMacros(self, data, recurseLevel=0):
+		if recurseLevel > 8:
+			raise CMSException(500, "Exceed macro recurse depth")
+		return self.macro_re.sub(lambda m: self.__expandOneMacro(m, recurseLevel),
+					 data)
 
 	def __parsePagePath(self, path):
 		rootpages = (
@@ -424,7 +427,12 @@ class CMS:
 		html.append('<h1>An error occurred</h1>')
 		html.append('<p>We\'re sorry for the inconvenience. ')
 		html.append('The page could not be accessed, because:</p>')
-		html.append('<p style="font-size: xx-large;">%s</p>' % cmsExcept.httpStatus)
+		html.append('<p style="font-size: xx-large;">')
+		html.append(cmsExcept.httpStatus)
+		if cmsExcept.message:
+			html.append('<br />')
+			html.append(cmsExcept.message)
+		html.append('</p>')
 		html.append('<p>You may visit the <a href="%s">main page</a>' %\
 			    self.__makePageUrl(None, None))
 		html.append('and navigate manually to your desired target page.</p>')
