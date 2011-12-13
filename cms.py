@@ -189,10 +189,12 @@ class CMS:
 	def __init__(self,
 		     dbPath,
 		     imagesPath,
+		     domain,
 		     basePath="/cms",
 		     cssPath="/cms.css",
 		     cssPrintPath="/cms-print.css",
 		     homeLabel="Home"):
+		self.domain = domain
 		self.imagesPath = imagesPath
 		self.basePath = basePath
 		self.cssPath = cssPath
@@ -233,6 +235,10 @@ class CMS:
 		if groupname:
 			return "/".join( (self.basePath, groupname, pagename + ".html") )
 		return self.basePath
+
+	def __makeFullPageUrl(self, groupname, pagename, protocol="http"):
+		return "%s://%s%s" % (protocol, self.domain,
+				      self.__makePageUrl(groupname, pagename))
 
 	def __genHtmlBody(self, groupname, pagename, pageTitle, pageData, stamp):
 		body = []
@@ -282,6 +288,13 @@ class CMS:
 		body.append('\t<div class="formatlinks">')
 		url = self.__makePageUrl(groupname, pagename) + "?print=1"
 		body.append('\t\t<a href="%s" target="_blank">Printer-friendly layout</a>' % url)
+		body.append('\t</div>')
+
+		# SSL
+		body.append('\t<div class="ssl">')
+		body.append('\t\t<a href="%s">https (SSL) encrypted</a>' %\
+			    self.__makeFullPageUrl(groupname, pagename,
+			    			   protocol="https"))
 		body.append('\t</div>')
 
 		# Checker links
