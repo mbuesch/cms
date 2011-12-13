@@ -134,6 +134,7 @@ class CMSDatabase:
 	def __init__(self, basePath):
 		self.pageBase = mkpath(basePath, "pages")
 		self.macroBase = mkpath(basePath, "macros")
+		self.stringBase = mkpath(basePath, "strings")
 
 	def getPage(self, groupname, pagename):
 		path = mkpath(self.pageBase,
@@ -176,6 +177,13 @@ class CMSDatabase:
 		lines = f_read(self.macroBase, validateName(name)).splitlines()
 		return "\n".join(filter(macroLineFilter, lines))
 
+	def getString(self, name, default=None):
+		name = validateName(name)
+		string = f_read(self.stringBase, name).strip()
+		if string:
+			return string
+		return name if default is None else default
+
 class CMS:
 	# Macro call: @name(param1, param2, ...)
 	macro_re = re.compile(r'@(\w+)\(([^\)]*)\)', re.DOTALL)
@@ -192,14 +200,12 @@ class CMS:
 		     domain,
 		     basePath="/cms",
 		     cssPath="/cms.css",
-		     cssPrintPath="/cms-print.css",
-		     homeLabel="Home"):
+		     cssPrintPath="/cms-print.css"):
 		self.domain = domain
 		self.imagesPath = imagesPath
 		self.basePath = basePath
 		self.cssPath = cssPath
 		self.cssPrintPath = cssPrintPath
-		self.homeLabel = homeLabel
 
 		self.db = CMSDatabase(dbPath)
 
@@ -253,8 +259,9 @@ class CMS:
 		body.append('<div class="navbar">\n')
 		body.append('\t<div class="navgroup">')
 		body.append('\t\t<div class="navhome">')
-		body.append('\t\t\t<a href="%s">%s</a>' % (self.__makePageUrl(None, None),
-							   self.homeLabel))
+		body.append('\t\t\t<a href="%s">%s</a>' %\
+			    (self.__makePageUrl(None, None),
+			     self.db.getString("home")))
 		body.append('\t\t</div>')
 		body.append('\t</div>\n')
 		navGroups = self.db.getGroupNames()
@@ -287,20 +294,24 @@ class CMS:
 		# Format links
 		body.append('\t<div class="formatlinks">')
 		url = self.__makePageUrl(groupname, pagename) + "?print=1"
-		body.append('\t\t<a href="%s" target="_blank">Printer-friendly layout</a>' % url)
+		body.append('\t\t<a href="%s" target="_blank">%s</a>' %\
+			    (url, self.db.getString("printer-layout")))
 		body.append('\t</div>')
 
 		# SSL
 		body.append('\t<div class="ssl">')
-		body.append('\t\t<a href="%s">https (SSL) encrypted</a>' %\
-			    self.__makeFullPageUrl(groupname, pagename,
-			    			   protocol="https"))
+		body.append('\t\t<a href="%s">%s</a>' %\
+			    (self.__makeFullPageUrl(groupname, pagename,
+						    protocol="https"),
+			     self.db.getString("ssl-encrypted")))
 		body.append('\t</div>')
 
 		# Checker links
 		body.append('\t<div class="checker">')
-		body.append('\t\t<a href="http://validator.w3.org/check?uri=referer">xhtml</a> /')
-		body.append('\t\t<a href="http://jigsaw.w3.org/css-validator/check/referer">css</a>')
+		body.append('\t\t<a href="http://validator.w3.org/check?uri=referer">%s</a> /' %\
+			    self.db.getString("checker-xhtml"))
+		body.append('\t\t<a href="http://jigsaw.w3.org/css-validator/check/referer">%s</a>' %\
+			    self.db.getString("checker-css"))
 		body.append('\t</div>\n')
 
 		body.append('</div>\n') # Main body end
