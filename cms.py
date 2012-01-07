@@ -107,10 +107,9 @@ def validateName(name):
 		# No ".", ".." and hidden files.
 		raise CMSException(404)
 	validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_."
-	def validateChar(char):
+	for char in name:
 		if char not in validChars:
 			raise CMSException(404)
-	map(validateChar, name)
 	return name
 
 class CMSException(Exception):
@@ -336,11 +335,11 @@ class CMS:
 		def sanitize(match):
 			validChars = "abcdefghijklmnopqrstuvwxyz1234567890"
 			string = match.group(1).lower()
-			string = "".join(map(lambda c: c if c in validChars else "_", string))
+			string = "".join(( c if c in validChars else '_' for c in string ))
 			string = re.sub(r'_+', '_', string).strip('_')
 			return string
 		macroname = match.group(1)
-		parameters = map(lambda p: p.strip(), match.group(2).split(","))
+		parameters = [ p.strip() for p in match.group(2).split(",") ]
 		# Get the raw macro value
 		macrovalue = self.db.getMacro(macroname)
 		if not macrovalue:
