@@ -107,9 +107,8 @@ def validateName(name):
 		# No ".", ".." and hidden files.
 		raise CMSException(404)
 	validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_."
-	for char in name:
-		if char not in validChars:
-			raise CMSException(404)
+	if [ c for c in name if c not in validChars ]:
+		raise CMSException(404)
 	return name
 
 class CMSException(Exception):
@@ -126,7 +125,7 @@ class CMSException(Exception):
 		try:
 			self.httpStatus = self.statusTab[httpStatus]
 		except (KeyError), e:
-			self.httpStatus = str(httpStatus)
+			self.httpStatus = self.statusTab[500]
 		self.message = message
 
 class CMSDatabase:
