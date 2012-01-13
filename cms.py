@@ -417,6 +417,8 @@ class CMS:
 #	@cache_region("html", "page")
 	def __getHtmlPage(self, groupname, pagename, cssPath):
 		(pageTitle, pageData, stamp) = self.db.getPage(groupname, pagename)
+		if not pageData:
+			raise CMSException(404)
 		pageData = self.__expandMacros(pageData)
 		data = [self.__genHtmlHeader(pageTitle, cssPath)]
 		data.append(self.__genHtmlBody(groupname, pagename,
