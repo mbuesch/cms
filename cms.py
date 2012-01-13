@@ -25,6 +25,8 @@ import Image
 from StringIO import StringIO
 from beaker.cache import cache_region, cache_regions
 
+CACHE_BASEDIR = "/tmp/www-cache/"
+
 cache_regions.update(
 	{
 #		"html" : {
@@ -34,8 +36,8 @@ cache_regions.update(
 		"image" : {
 			"expire"	: 86400,
 			"type"		: "file",
-			"data_dir"	: "/tmp/www-cache/data",
-			"lock_dir"	: "/tmp/www-cache/lock",
+			"data_dir"	: CACHE_BASEDIR + "/image/data",
+			"lock_dir"	: CACHE_BASEDIR + "/image/lock",
 		},
 	},
 )
