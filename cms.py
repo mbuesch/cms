@@ -390,8 +390,9 @@ class CMS:
 				groupname = path[1]
 				pagename = path[2]
 			except IndexError: pass
-			if pagename.endswith(".html"):
-				pagename = pagename[:-5]
+			for suffix in (".html", ".htm", ".php"):
+				if pagename.endswith(suffix):
+					pagename = pagename[:-len(suffix)]
 			if not groupname or not pagename:
 				raise CMSException(404)
 		return (groupname, pagename)
@@ -457,7 +458,7 @@ class CMS:
 			html.append('<br />')
 			html.append(cmsExcept.message)
 		html.append('</p>')
-		html.append('<p>You may visit the <a href="%s">main page</a>' %\
+		html.append('<p>You may visit the <a href="%s" style="font-size: xx-large;">main page</a>' %\
 			    self.__makePageUrl(None, None))
 		html.append('and navigate manually to your desired target page.</p>')
 		html.append(self.__genHtmlFooter())
