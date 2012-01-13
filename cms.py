@@ -162,7 +162,8 @@ class CMSDatabase:
 			if f_check_disablefile(path, "disabled"):
 				continue
 			navlabel = f_read(path, "nav_label").strip()
-			res.append( (groupname, navlabel) )
+			prio = f_read_int(path, "priority")
+			res.append( (groupname, navlabel, prio) )
 		return res
 
 	def getPageNames(self, groupname):
@@ -174,7 +175,8 @@ class CMSDatabase:
 			if f_check_disablefile(path, "disabled"):
 				continue
 			navlabel = f_read(path, "nav_label").strip()
-			res.append( (pagename, navlabel) )
+			prio = f_read_int(path, "priority")
+			res.append( (pagename, navlabel, prio) )
 		return res
 
 	def getMacro(self, name):
@@ -275,15 +277,24 @@ class CMS:
 		body.append('\t\t</div>')
 		body.append('\t</div>\n')
 		navGroups = self.db.getGroupNames()
-		navGroups.sort(key=lambda (name, label): label)
-		for (navgroupname, navgrouplabel) in navGroups:
-			body.append('\t<div class="navgroup">')
+		def getNavPrio(element):
+			name, label, prio = element
+			if prio is None:
+				prio = 999
+			return "%03d_%s" % (prio, label)
+		navGroups.sort(key=getNavPrio)
+		for navGroupElement in navGroups:
+			navgroupname, navgrouplabel, navgroupprio = navGroupElement
+			body.append('\t<div class="navgroup"> '
+				    '<!-- %s -->' % getNavPrio(navGroupElement))
 			if navgrouplabel:
 				body.append('\t\t<div class="navhead">%s</div>' % navgrouplabel)
 			navPages = self.db.getPageNames(navgroupname)
-			navPages.sort(key=lambda (name, label): label)
-			for (navpagename, navpagelabel) in navPages:
-				body.append('\t\t<div class="navelem">')
+			navPages.sort(key=getNavPrio)
+			for navPageElement in navPages:
+				(navpagename, navpagelabel, navpageprio) = navPageElement
+				body.append('\t\t<div class="navelem"> '
+					    '<!-- %s -->' % getNavPrio(navPageElement))
 				url = self.__makePageUrl(navgroupname, navpagename)
 				body.append('\t\t\t<a href="%s">%s</a>' % (url, navpagelabel))
 				body.append('\t\t</div>')
