@@ -50,7 +50,7 @@ def stringBool(string):
 	if s in ("false", "no", "off"):
 		return False
 	try:
-		return bool(int(s))
+		return bool(int(s, 10))
 	except ValueError:
 		return False
 
@@ -341,7 +341,7 @@ class CMS:
 
 	def __expandOneMacro(self, match, recurseLevel):
 		def expandParam(match):
-			pnumber = int(match.group(1))
+			pnumber = int(match.group(1), 10)
 			try:
 				assert(pnumber >= 1)
 				return parameters[pnumber - 1]
@@ -423,8 +423,8 @@ class CMS:
 	@cache_region("image", "thumbnail")
 	def __getImageThumbnail(self, imagename, query):
 		try:
-			width = int(query["w"][0])
-			height = int(query["h"][0])
+			width = int(query["w"][0], 10)
+			height = int(query["h"][0], 10)
 		except (KeyError, IndexError, ValueError), e:
 			raise CMSException(400)
 		try:
