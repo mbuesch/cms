@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-#   Copyright (C) 2011 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2012 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -26,10 +26,10 @@ from beaker.cache import cache_region, cache_regions
 
 cache_regions.update(
 	{
-		"html" : {
-			"expire"	: 3600,
-			"type"		: "memory",
-		},
+#		"html" : {
+#			"expire"	: 3600,
+#			"type"		: "memory",
+#		},
 		"image" : {
 			"expire"	: 86400,
 			"type"		: "file",
@@ -415,7 +415,7 @@ class CMS:
 			raise CMSException(404)
 		return (data, "image/jpeg")
 
-	@cache_region("html", "page")
+#	@cache_region("html", "page")
 	def __getHtmlPage(self, groupname, pagename, cssPath):
 		(pageTitle, pageData, stamp) = self.db.getPage(groupname, pagename)
 		pageData = self.__expandMacros(pageData)
