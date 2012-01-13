@@ -57,33 +57,39 @@ def stringBool(string):
 PATHSEP = "/"
 
 def mkpath(*path_elements):
-	return "/".join(path_elements)
+	return PATHSEP.join(path_elements)
 
 def f_exists(*path_elements):
 	try:
-		os.stat(PATHSEP.join(path_elements))
+		os.stat(mkpath(*path_elements))
 	except OSError:
 		return False
 	return True
 
 def f_read(*path_elements):
 	try:
-		return file(PATHSEP.join(path_elements), "rb").read()
+		return file(mkpath(*path_elements), "rb").read()
 	except IOError:
 		return ""
 
+def f_read_int(*path_elements):
+	data = f_read(*path_elements)
+	try:
+		return int(data.strip(), 10)
+	except ValueError:
+		return None
+
 def f_check_disablefile(*path_elements):
-	path = PATHSEP.join(path_elements)
-	if not f_exists(path):
+	if not f_exists(*path_elements):
 		return False
-	data = f_read(path)
+	data = f_read(*path_elements)
 	if not data:
 		return True # Empty file
 	return stringBool(data)
 
 def f_mtime(*path_elements):
 	try:
-		return datetime.fromtimestamp(os.stat(PATHSEP.join(path_elements)).st_mtime)
+		return datetime.fromtimestamp(os.stat(mkpath(*path_elements)).st_mtime)
 	except OSError:
 		return datetime.now()
 
@@ -97,7 +103,7 @@ def f_subdirList(*path_elements):
 		except OSError:
 			return False
 		return True
-	path = PATHSEP.join(path_elements)
+	path = mkpath(*path_elements)
 	try:
 		return filter(dirfilter, os.listdir(path))
 	except OSError:
