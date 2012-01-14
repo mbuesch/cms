@@ -342,11 +342,11 @@ class CMS:
 	def __expandOneMacro(self, match, recurseLevel):
 		def expandParam(match):
 			pnumber = int(match.group(1), 10)
-			try:
-				assert(pnumber >= 1)
+			if pnumber >= 1 and pnumber <= len(parameters):
 				return parameters[pnumber - 1]
-			except IndexError, AssertionError:
-				return "" # Param not given
+			if pnumber == 0:
+				return macroname
+			return "" # Param not given or invalid
 		def expandCond(match):
 			if match.group(1).strip(): # Check cond. for non-empty
 				return match.group(2) # THEN-branch
@@ -370,19 +370,18 @@ class CMS:
 		# Expand the parameters
 		macrovalue = self.macro_param_re.sub(expandParam, macrovalue)
 		# Expand variables
-		vars = {
-			"$GROUP"	: self.currentGroupname,
-			"$PAGE"		: self.currentPagename,
-		}
-		for var in vars.keys():
-			macrovalue = macrovalue.replace(var, vars[var])
+		exvars = (
+			("$GROUP"	, self.currentGroupname),
+			("$PAGE"	, self.currentPagename),
+		)
+		for var, value in exvars:
+			macrovalue = macrovalue.replace(var, value)
 		# Sanitize strings
 		macrovalue = self.macro_strsan_re.sub(sanitize, macrovalue)
 		# Expand the conditionals
-		while True:
-			(macrovalue, n) = self.macro_ifcond_re.subn(expandCond, macrovalue)
-			if not n:
-				break
+		n = 1
+		while n:
+			macrovalue, n = self.macro_ifcond_re.subn(expandCond, macrovalue)
 		# Expand recursive macros
 		macrovalue = self.__expandMacros(macrovalue, recurseLevel + 1)
 		return macrovalue
