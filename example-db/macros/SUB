@@ -1,0 +1,6 @@
+<div class="submain">
+$(if $1,<h2>)
+$(if $1$2,<a name="$(if $2,$2,$(sanitize $1))" href="/cms/$(if $GROUP,$GROUP/)$(if $PAGE,$PAGE.html)#$(if $2,$2,$(sanitize $1))">)
+$(if $1,$1)
+$(if $1$2,</a>)
+$(if $1,</h2>)
