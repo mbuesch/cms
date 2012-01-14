@@ -485,7 +485,7 @@ class CMS:
 		html.append('and navigate manually to your desired target page.</p>')
 		html.append(self.__genHtmlFooter())
 
-		return "\n".join(html)
+		return ("\n".join(html), "text/html")
 
 if __name__ == "__main__":
 	if len(sys.argv) != 2:
