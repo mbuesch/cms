@@ -1,0 +1,41 @@
+@import "cms.css";
+
+body {
+	background: #FFFFFF;
+}
+
+.logo {
+	visibility: hidden;
+}
+
+.navbar {
+	visibility: hidden;
+}
+
+.checker {
+	visibility: hidden;
+}
+
+.formatlinks {
+	visibility: hidden;
+}
+
+.ssl {
+	visibility: hidden;
+}
+
+.titlebar {
+	position: static;
+	top: 0;
+	left: 0;
+	width: 100%;
+	margin: 0;
+	text-align: left;
+}
+
+.main {
+	position: static;
+	top: 0;
+	left: 0;
+	margin: 0;
+}
