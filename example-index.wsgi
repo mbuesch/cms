@@ -44,7 +44,7 @@ def application(environ, start_response):
 	if response_mime.lower() == "text/html":
 		delta = datetime.now() - startStamp
 		sec = float(delta.seconds) + float(delta.microseconds) / 1000000
-		response_body += "\n<!-- generated in %.4f seconds -->" % sec
+		response_body += "\n<!-- generated in %.3f seconds -->" % sec
 	start_response(status,
 		       [ ('Content-Type', response_mime),
 			 ('Content-Length', str(len(response_body))) ])
