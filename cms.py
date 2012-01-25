@@ -271,9 +271,13 @@ class CMS:
 		body.append('<div class="navbar">\n')
 		body.append('\t<div class="navgroup">')
 		body.append('\t\t<div class="navhome">')
+		if not groupname:
+			body.append('\t\t<div class="navactive">')
 		body.append('\t\t\t<a href="%s">%s</a>' %\
 			    (self.__makePageUrl(None, None),
 			     self.db.getString("home")))
+		if not groupname:
+			body.append('\t\t</div> <!-- class="navactive" -->')
 		body.append('\t\t</div>')
 		body.append('\t</div>\n')
 		navGroups = self.db.getGroupNames()
@@ -294,9 +298,17 @@ class CMS:
 			for navPageElement in navPages:
 				(navpagename, navpagelabel, navpageprio) = navPageElement
 				body.append('\t\t<div class="navelem"> '
-					    '<!-- %s -->' % getNavPrio(navPageElement))
+					    '<!-- %s -->' %\
+					    getNavPrio(navPageElement))
+				if navgroupname == groupname and\
+				   navpagename == pagename:
+					body.append('\t\t<div class="navactive">')
 				url = self.__makePageUrl(navgroupname, navpagename)
-				body.append('\t\t\t<a href="%s">%s</a>' % (url, navpagelabel))
+				body.append('\t\t\t<a href="%s">%s</a>' %\
+					    (url, navpagelabel))
+				if navgroupname == groupname and\
+				   navpagename == pagename:
+					body.append('\t\t</div> <!-- class="navactive" -->')
 				body.append('\t\t</div>')
 			body.append('\t</div>\n')
 		body.append('</div>\n')
