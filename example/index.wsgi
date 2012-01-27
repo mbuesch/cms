@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-# Path to "cms.py" and CMS "db" directory
-cmsBase		= "/home/www/cms"
-# Path to static content files
-wwwBase		= "/var/www/"
 # Website domain
 domain		= "example.com"
+# Path to "cms.py" and CMS "db" directory
+cmsBase		= "/var/cms"
+# Path to static content files
+wwwBase		= "/var/www"
 # URL rewriting rules
 rewriteURLs = {
 #	"FROM-URL"	: "TO-URL",
