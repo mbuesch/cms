@@ -89,9 +89,9 @@ def f_check_disablefile(*path_elements):
 
 def f_mtime(*path_elements):
 	try:
-		return datetime.fromtimestamp(os.stat(mkpath(*path_elements)).st_mtime)
+		return datetime.utcfromtimestamp(os.stat(mkpath(*path_elements)).st_mtime)
 	except OSError:
-		return datetime.now()
+		return datetime.utcnow()
 
 def f_subdirList(*path_elements):
 	def dirfilter(dentry):
@@ -317,13 +317,14 @@ class CMS:
 
 		body.append('<div class="main">\n') # Main body start
 
-		body.append('<!-- BEGIN: main part -->')
+		# Page content
+		body.append('<!-- BEGIN: page content -->')
 		body.append(pageData)
-		body.append('<!-- END: main part -->\n')
+		body.append('<!-- END: page content -->\n')
 
 		# Last-modified date
 		body.append('\t<div class="modifystamp">')
-		body.append('\t\tUpdated: %s' % stamp.strftime("%A %d %B %Y %H:%M"))
+		body.append(stamp.strftime('\t\tUpdated: %A %d %B %Y %H:%M (UTC)'))
 		body.append('\t</div>')
 
 		# Format links
