@@ -58,6 +58,8 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	padding-bottom: 10px;
 	border: 1px solid #000000;
 	border-radius: 15px;
+	-moz-border-radius: 15px;
+	-webkit-border-radius: 15px;
 }
 
 .navgroup {
