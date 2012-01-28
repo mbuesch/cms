@@ -155,7 +155,7 @@ class CMSDatabase:
 		return (title, data, stamp)
 
 	def getGroupNames(self):
-		# Returns list of (groupname, navlabel)
+		# Returns list of (groupname, navlabel, prio)
 		res = []
 		for groupname in f_subdirList(self.pageBase):
 			path = mkpath(self.pageBase, groupname)
@@ -167,7 +167,7 @@ class CMSDatabase:
 		return res
 
 	def getPageNames(self, groupname):
-		# Returns list of (pagename, navlabel)
+		# Returns list of (pagename, navlabel, prio)
 		res = []
 		gpath = mkpath(self.pageBase, validateName(groupname))
 		for pagename in f_subdirList(gpath):
@@ -202,6 +202,8 @@ class CMS:
 	macro_ifcond_re = re.compile(r'\$\(if\s+([^,\)]*),([^,\)]*)(?:,([^,\)]*))?\)', re.DOTALL)
 	# Macro string sanitize: $(sanitize STRING)
 	macro_strsan_re = re.compile(r'\$\(sanitize\s+([^,\)]*)\)', re.DOTALL)
+	# Content comment <!--- comment --->
+	comment_re = re.compile(r'<!---(.*)--->', re.DOTALL)
 
 	def __init__(self,
 		     dbPath,
@@ -404,6 +406,9 @@ class CMS:
 		return self.macro_re.sub(lambda m: self.__expandOneMacro(m, recurseLevel),
 					 data)
 
+	def __handleContentComments(self, data):
+		return self.comment_re.sub("", data)
+
 	def __parsePagePath(self, path):
 		rootpages = (
 			"/",
@@ -455,6 +460,7 @@ class CMS:
 		if not pageData:
 			raise CMSException(404)
 		pageData = self.__expandMacros(pageData)
+		pageData = self.__handleContentComments(pageData)
 		data = [self.__genHtmlHeader(pageTitle, cssPath)]
 		data.append(self.__genHtmlBody(groupname, pagename,
 					       pageTitle, pageData, stamp))
