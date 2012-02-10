@@ -24,6 +24,7 @@ import re
 import Image
 from StringIO import StringIO
 from beaker.cache import cache_region, cache_regions
+import urllib
 
 CACHE_BASEDIR = "/tmp/www-cache/"
 
@@ -343,11 +344,21 @@ class CMS:
 		body.append('\t</div>')
 
 		# Checker links
+		pageUrlQuoted = urllib.quote_plus(self.__makeFullPageUrl(groupname, pagename))
 		body.append('\t<div class="checker">')
-		body.append('\t\t<a href="http://validator.w3.org/check?uri=referer">%s</a> /' %\
-			    self.db.getString("checker-xhtml"))
-		body.append('\t\t<a href="http://jigsaw.w3.org/css-validator/check/referer">%s</a>' %\
-			    self.db.getString("checker-css"))
+		checkerUrl = "http://validator.w3.org/check?"\
+			     "uri=" + pageUrlQuoted + "&amp;"\
+			     "charset=%28detect+automatically%29&amp;"\
+			     "doctype=Inline&amp;group=0&amp;"\
+			     "user-agent=W3C_Validator%2F1.2"
+		body.append('\t\t<a href="%s">%s</a> /' %\
+			    (checkerUrl, self.db.getString("checker-xhtml")))
+		checkerUrl = "http://jigsaw.w3.org/css-validator/validator?"\
+			     "uri=" + pageUrlQuoted + "&amp;profile=css3&amp;"\
+			     "usermedium=all&amp;warning=1&amp;"\
+			     "vextwarning=true&amp;lang=en"
+		body.append('\t\t<a href="%s">%s</a>' %\
+			    (checkerUrl, self.db.getString("checker-css")))
 		body.append('\t</div>\n')
 
 		body.append('</div>\n') # Main body end
