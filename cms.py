@@ -287,7 +287,7 @@ class CMS:
 		def getNavPrio(element):
 			name, label, prio = element
 			if prio is None:
-				prio = 999
+				prio = 500
 			return "%03d_%s" % (prio, label)
 		navGroups.sort(key=getNavPrio)
 		for navGroupElement in navGroups:
