@@ -35,7 +35,7 @@ cache_regions.update(
 #			"type"		: "memory",
 #		},
 		"image" : {
-			"expire"	: 86400,
+			"expire"	: 2592000, # 30 days
 			"type"		: "file",
 			"data_dir"	: CACHE_BASEDIR + "/image/data",
 			"lock_dir"	: CACHE_BASEDIR + "/image/lock",
