@@ -516,15 +516,3 @@ class CMS:
 		html.append(self.__genHtmlFooter())
 
 		return ("\n".join(html), "text/html")
-
-if __name__ == "__main__":
-	if len(sys.argv) != 2:
-		print "Usage: %s /path/to/page" % sys.argv[0]
-		sys.exit(1)
-	path = sys.argv[1]
-	try:
-		cms = CMS("./db")
-		sys.stdout.write(cms.get(path))
-	except (CMSException), e:
-		sys.stdout.write(cms.getErrorPage(e))
-	cms.shutdown()
