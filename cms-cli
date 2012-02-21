@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+#
+#   simple WSGI/Python based CMS script
+#   commandline interface
+#
+#   Copyright (C) 2012 Michael Buesch <m@bues.ch>
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys
+import getopt
+from cms import *
+
+
+def usage():
+	print("Usage: %s [OPTIONS] [ACTION]" % sys.argv[0])
+	print("")
+	print("Options:")
+	print("  -d|--db PATH           Path to database. Default: ./db")
+	print("  -i|--images PATH       Path to images. Default: ./images")
+	print("  -D|--domain DOMAIN     The domain name. Default: example.com")
+	print("")
+	print("Actions:")
+	print("  GET <path>             Do a GET request on 'path'")
+
+def main():
+	action = None
+	path = "/"
+	opt_db = "./db"
+	opt_images = "./images"
+	opt_domain = "example.com"
+
+	try:
+		(opts, args) = getopt.getopt(sys.argv[1:],
+			"hd:i:D:",
+			[ "help", "db=", "images=", "domain=", ])
+	except (getopt.GetoptError), e:
+		usage()
+		return 1
+	for (o, v) in opts:
+		if o in ("-h", "--help"):
+			usage()
+			return 0
+		if o in ("-d", "--db"):
+			opt_db = v
+		if o in ("-i", "--images"):
+			opt_images = v
+		if o in ("-D", "--domain"):
+			opt_domain = v
+	if len(args) >= 1:
+		action = args[0]
+	if len(args) >= 2:
+		path = args[1]
+	if not action:
+		print("No action specified")
+		return 1
+	cms = None
+	try:
+		cms = CMS(dbPath=opt_db,
+			  imagesPath=opt_images,
+			  domain=opt_domain)
+		if action.upper() == "GET":
+			data, mime = cms.get(path)
+		else:
+			assert(0)
+		cms.shutdown()
+	except (CMSException), e:
+		if cms:
+			data, mime = cms.getErrorPage(e)
+		else:
+			data, mime = "CMSException", "text/html"
+	if mime == "text/html":
+		result = data
+	else:
+		result = mime
+	sys.stdout.write(result + "\n")
+	sys.stdout.flush()
+	return 0
+
+if __name__ == "__main__":
+	sys.exit(main())
