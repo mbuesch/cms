@@ -194,18 +194,110 @@ class CMSDatabase:
 			return string
 		return name if default is None else default
 
-class CMS:
+class CMSStatementResolver(object):
 	# Macro call: @name(param1, param2, ...)
 	macro_re = re.compile(r'@(\w+)\(([^\)]*)\)', re.DOTALL)
 	# Macro parameter expansion: $1, $2, $3...
 	macro_param_re = re.compile(r'\$(\d+)', re.DOTALL)
-	# Macro if-conditional: $(if COND,THEN,ELSE)
-	macro_ifcond_re = re.compile(r'\$\(if\s+([^,\)]*),([^,\)]*)(?:,([^,\)]*))?\)', re.DOTALL)
-	# Macro string sanitize: $(sanitize STRING)
-	macro_strsan_re = re.compile(r'\$\(sanitize\s+([^,\)]*)\)', re.DOTALL)
 	# Content comment <!--- comment --->
 	comment_re = re.compile(r'<!---(.*)--->', re.DOTALL)
 
+	def __init__(self, cms):
+		self.cms = cms
+
+	def setNames(self, groupname, pagename):
+		self.groupname, self.pagename = groupname, pagename
+
+	# Statement:  $(if CONDITION, THEN, ELSE)
+	# Statement:  $(if CONDITION, THEN)
+	def __stmt_if(self, d):
+		# CONDITION
+		i, condition = self.__expandRecStmts(d, ',')
+		# THEN branch
+		cons, b_then = self.__expandRecStmts(d[i:], ',)')
+		i += cons
+		if i <= 0 or d[i - 1] == ')':  # No ELSE branch
+			b_else = ""
+		else:  # Have ELSE branch. Expand it.
+			cons, b_else = self.__expandRecStmts(d[i:], ')')
+			i += cons
+		result = b_then if condition.strip() else b_else
+		return i, result
+
+	# Statement:  $(sanitize STRING)
+	def __stmt_sanitize(self, d):
+		cons, string = self.__expandRecStmts(d, ')')
+		validChars = "abcdefghijklmnopqrstuvwxyz1234567890"
+		string = string.lower()
+		string = "".join( c if c in validChars else '_' for c in string )
+		string = re.sub(r'_+', '_', string).strip('_')
+		return cons, string
+
+	def __expandRecStmts(self, d, stopchars=""):
+		# Recursively expand statements
+		ret, i = [], 0
+		while i < len(d):
+			di = d[i]
+			cons, res = 1, di
+			if di in stopchars:
+				i += cons
+				break
+			try:
+				if di == '$':
+					if d[i : i + 5] == "$(if ":
+						i += 5
+						cons, res = self.__stmt_if(d[i:])
+					if d[i : i + 11] == "$(sanitize ":
+						i += 11
+						cons, res = self.__stmt_sanitize(d[i:])
+			except IndexError: pass
+			ret.append(res)
+			i += cons
+		return i, "".join(ret)
+
+	def __resolveStatements(self, data):
+		# Remove comments
+		data = self.comment_re.sub("", data)
+		# Expand variables
+		exvars = (
+			("$GROUP"	, self.groupname),
+			("$PAGE"	, self.pagename),
+		)
+		for var, value in exvars:
+			data = data.replace(var, value)
+		# Expand recursive statements
+		unused, data = self.__expandRecStmts(data)
+		return data
+
+	def __resolveOneMacro(self, match, recurseLevel):
+		if recurseLevel > 16:
+			raise CMSException(500, "Exceed macro recurse depth")
+		def expandParam(match):
+			pnumber = int(match.group(1), 10)
+			if pnumber >= 1 and pnumber <= len(parameters):
+				return parameters[pnumber - 1]
+			if pnumber == 0:
+				return macroname
+			return "" # Param not given or invalid
+		macroname = match.group(1)
+		parameters = [ p.strip() for p in match.group(2).split(",") ]
+		# Get the raw macro value
+		macrovalue = self.cms.db.getMacro(macroname)
+		if not macrovalue:
+			return "\n<!-- WARNING: INVALID MACRO USED: %s -->\n" %\
+				match.group(0)
+		# Expand the macro parameters
+		macrovalue = self.macro_param_re.sub(expandParam, macrovalue)
+		# Resolve statements and recursive macro calls
+		return self.resolve(macrovalue, recurseLevel)
+
+	def resolve(self, data, recurseLevel=0):
+		data = self.__resolveStatements(data)
+		return self.macro_re.sub(
+			lambda m: self.__resolveOneMacro(m, recurseLevel + 1),
+			data)
+
+class CMS:
 	def __init__(self,
 		     dbPath,
 		     imagesPath,
@@ -220,6 +312,7 @@ class CMS:
 		self.cssPrintPath = cssPrintPath
 
 		self.db = CMSDatabase(dbPath)
+		self.resolver = CMSStatementResolver(self)
 
 	def shutdown(self):
 		pass
@@ -365,62 +458,6 @@ class CMS:
 
 		return "\n".join(body)
 
-	def __expandOneMacro(self, match, recurseLevel):
-		def expandParam(match):
-			pnumber = int(match.group(1), 10)
-			if pnumber >= 1 and pnumber <= len(parameters):
-				return parameters[pnumber - 1]
-			if pnumber == 0:
-				return macroname
-			return "" # Param not given or invalid
-		def expandCond(match):
-			if match.group(1).strip(): # Check cond. for non-empty
-				return match.group(2) # THEN-branch
-			try:
-				return match.group(3) # ELSE-branch
-			except IndexError:
-				return "" # No ELSE branch. Return empty string.
-		def sanitize(match):
-			validChars = "abcdefghijklmnopqrstuvwxyz1234567890"
-			string = match.group(1).lower()
-			string = "".join(( c if c in validChars else '_' for c in string ))
-			string = re.sub(r'_+', '_', string).strip('_')
-			return string
-		macroname = match.group(1)
-		parameters = [ p.strip() for p in match.group(2).split(",") ]
-		# Get the raw macro value
-		macrovalue = self.db.getMacro(macroname)
-		if not macrovalue:
-			return "\n<!-- WARNING: INVALID MACRO USED: %s -->\n" %\
-				match.group(0)
-		# Expand the parameters
-		macrovalue = self.macro_param_re.sub(expandParam, macrovalue)
-		# Expand variables
-		exvars = (
-			("$GROUP"	, self.currentGroupname),
-			("$PAGE"	, self.currentPagename),
-		)
-		for var, value in exvars:
-			macrovalue = macrovalue.replace(var, value)
-		# Sanitize strings
-		macrovalue = self.macro_strsan_re.sub(sanitize, macrovalue)
-		# Expand the conditionals
-		n = 1
-		while n:
-			macrovalue, n = self.macro_ifcond_re.subn(expandCond, macrovalue)
-		# Expand recursive macros
-		macrovalue = self.__expandMacros(macrovalue, recurseLevel + 1)
-		return macrovalue
-
-	def __expandMacros(self, data, recurseLevel=0):
-		if recurseLevel > 8:
-			raise CMSException(500, "Exceed macro recurse depth")
-		return self.macro_re.sub(lambda m: self.__expandOneMacro(m, recurseLevel),
-					 data)
-
-	def __handleContentComments(self, data):
-		return self.comment_re.sub("", data)
-
 	def __parsePagePath(self, path):
 		rootpages = (
 			"/",
@@ -471,8 +508,8 @@ class CMS:
 		(pageTitle, pageData, stamp) = self.db.getPage(groupname, pagename)
 		if not pageData:
 			raise CMSException(404)
-		pageData = self.__expandMacros(pageData)
-		pageData = self.__handleContentComments(pageData)
+		self.resolver.setNames(groupname, pagename)
+		pageData = self.resolver.resolve(pageData)
 		data = [self.__genHtmlHeader(pageTitle, cssPath)]
 		data.append(self.__genHtmlBody(groupname, pagename,
 					       pageTitle, pageData, stamp))
@@ -481,8 +518,6 @@ class CMS:
 
 	def __generate(self, path, cssPath, query):
 		(groupname, pagename) = self.__parsePagePath(path)
-		self.currentGroupname = groupname
-		self.currentPagename = pagename
 		if groupname == "__thumbs":
 			return self.__getImageThumbnail(pagename, query)
 		return self.__getHtmlPage(groupname, pagename, cssPath)
