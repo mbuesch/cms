@@ -287,7 +287,7 @@ class CMSStatementResolver(object):
 				break
 			try:
 				if di == '$':
-					handler = lambda x: (cons, res) # nop
+					handler = lambda s, x: (cons, res) # nop
 					for (stmt, h) in self.__stmtHandlers:
 						if d[i:i+len(stmt)] == stmt:
 							handler, i = h, i + len(stmt)
