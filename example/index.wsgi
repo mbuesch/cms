@@ -51,6 +51,6 @@ def application(environ, start_response):
 	return (response_body,)
 
 cms = CMS(dbPath = cmsBase + "/db",
-	  imagesPath = wwwBase + "/images",
+	  wwwPath = wwwBase,
 	  domain = domain)
 atexit.register(cms.shutdown)
