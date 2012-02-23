@@ -26,7 +26,7 @@ from StringIO import StringIO
 import urllib
 
 
-def stringBool(string):
+def stringBool(string, default=False):
 	s = string.lower()
 	if s in ("true", "yes", "on"):
 		return True
@@ -35,7 +35,7 @@ def stringBool(string):
 	try:
 		return bool(int(s, 10))
 	except ValueError:
-		return False
+		return default
 
 PATHSEP = "/"
 
@@ -129,7 +129,7 @@ class CMSException(Exception):
 			self.httpStatus = self.statusTab[500]
 		self.message = message
 
-class CMSDatabase:
+class CMSDatabase(object):
 	def __init__(self, basePath):
 		self.pageBase = mkpath(basePath, "pages")
 		self.macroBase = mkpath(basePath, "macros")
@@ -322,7 +322,27 @@ class CMSStatementResolver(object):
 			lambda m: self.__resolveOneMacro(m, recurseLevel + 1),
 			data)
 
-class CMS:
+class CMSQuery(object):
+	def __init__(self, queryDict):
+		self.queryDict = queryDict
+
+	def get(self, name, default=""):
+		try:
+			return self.queryDict[name][0]
+		except (KeyError, IndexError), e:
+			return default
+
+	def getInt(self, name, default=0):
+		try:
+			return int(self.get(name, str(int(default))), 10)
+		except (ValueError), e:
+			return default
+
+	def getBool(self, name, default=False):
+		string = self.get(name, str(bool(default)))
+		return stringBool(string, default)
+
+class CMS(object):
 	def __init__(self,
 		     dbPath,
 		     wwwPath,
@@ -520,24 +540,10 @@ class CMS:
 				raise CMSException(404)
 		return (groupname, pagename)
 
-	@staticmethod
-	def __getQuery(query, name, default):
-		try:
-			return query[name][0]
-		except (KeyError, IndexError), e:
-			return default
-
-	@staticmethod
-	def __getQueryInt(query, name, default):
-		try:
-			return int(CMS.__getQuery(query, name, str(default)), 10)
-		except (ValueError), e:
-			return default
-
 	def __getImageThumbnail(self, imagename, query):
-		width = CMS.__getQueryInt(query, "w", 300)
-		height = CMS.__getQueryInt(query, "h", 300)
-		qual = CMS.__getQueryInt(query, "q", 1)
+		width = query.getInt("w", 300)
+		height = query.getInt("h", 300)
+		qual = query.getInt("q", 1)
 		qualities = {
 			0 : Image.NEAREST,
 			1 : Image.BILINEAR,
@@ -578,11 +584,10 @@ class CMS:
 		return self.__getHtmlPage(groupname, pagename, cssUrlPath)
 
 	def get(self, path, query={}):
+		query = CMSQuery(query)
 		cssUrlPath = self.cssUrlPath
-		try:#XXX
-			if stringBool(query["print"][0]):
-				cssUrlPath = self.cssPrintUrlPath
-		except (KeyError, IndexError), e: pass
+		if query.getBool("print"):
+			cssUrlPath = self.cssPrintUrlPath
 		return self.__generate(path, cssUrlPath, query)
 
 	def post(self, path, query={}):
