@@ -23,25 +23,7 @@ from datetime import datetime
 import re
 import Image
 from StringIO import StringIO
-from beaker.cache import cache_region, cache_regions
 import urllib
-
-CACHE_BASEDIR = "/tmp/www-cache/"
-
-cache_regions.update(
-	{
-#		"html" : {
-#			"expire"	: 3600,
-#			"type"		: "memory",
-#		},
-		"image" : {
-			"expire"	: 2592000, # 30 days
-			"type"		: "file",
-			"data_dir"	: CACHE_BASEDIR + "/image/data",
-			"lock_dir"	: CACHE_BASEDIR + "/image/lock",
-		},
-	},
-)
 
 
 def stringBool(string):
@@ -552,7 +534,6 @@ class CMS:
 		except (ValueError), e:
 			return default
 
-#	@cache_region("image", "thumbnail")
 	def __getImageThumbnail(self, imagename, query):
 		width = CMS.__getQueryInt(query, "w", 300)
 		height = CMS.__getQueryInt(query, "h", 300)
@@ -578,7 +559,6 @@ class CMS:
 			raise CMSException(404)
 		return (data, "image/jpeg")
 
-#	@cache_region("html", "page")
 	def __getHtmlPage(self, groupname, pagename, cssUrlPath):
 		(pageTitle, pageData, stamp) = self.db.getPage(groupname, pagename)
 		if not pageData:
