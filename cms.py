@@ -287,6 +287,8 @@ class CMSStatementResolver(object):
 		exvars = (
 			("$GROUP"	, self.groupname),
 			("$PAGE"	, self.pagename),
+			("$IMAGES_DIR"	, self.cms.imagesDir),
+			("$THUMBS_DIR"	, self.cms.urlBase + "/__thumbs"),
 		)
 		for var, value in exvars:
 			data = data.replace(var, value)

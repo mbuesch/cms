@@ -1,6 +1,6 @@
 # Add a picture with automatic preview
-# @AUTOIMG(imagefile)
+# @AUTOIMG(imagefile, (width), (height), (quality))
 
-<a href="/images/$1">
-	<img src="/cms/__thumbs/$1?w=300&amp;h=300" alt="$1" />
+<a href="$IMAGES_DIR/$1">
+	<img src="$THUMBS_DIR/$1?w=$(if $2,$2,300)&amp;h=$(if $3,$3,300)&amp;q=$(if $4,$4,1)" alt="Image preview of $1" />
 </a>
