@@ -28,7 +28,8 @@ def usage():
 	print("")
 	print("Options:")
 	print("  -d|--db PATH           Path to database. Default: ./db")
-	print("  -i|--images PATH       Path to images. Default: ./images")
+	print("  -w|--www PATH          Path to the static data. Default: ./www-data")
+	print("  -i|--images SUBPATH    Path to images. Default: /images")
 	print("  -D|--domain DOMAIN     The domain name. Default: example.com")
 	print("")
 	print("Actions:")
@@ -38,13 +39,14 @@ def main():
 	action = None
 	path = "/"
 	opt_db = "./db"
-	opt_images = "./images"
+	opt_www = "./www-data"
+	opt_images = "/images"
 	opt_domain = "example.com"
 
 	try:
 		(opts, args) = getopt.getopt(sys.argv[1:],
-			"hd:i:D:",
-			[ "help", "db=", "images=", "domain=", ])
+			"hd:w:i:D:",
+			[ "help", "db=", "www=", "images=", "domain=", ])
 	except (getopt.GetoptError), e:
 		usage()
 		return 1
@@ -54,6 +56,8 @@ def main():
 			return 0
 		if o in ("-d", "--db"):
 			opt_db = v
+		if o in ("-w", "--www"):
+			opt_www = v
 		if o in ("-i", "--images"):
 			opt_images = v
 		if o in ("-D", "--domain"):
@@ -68,7 +72,8 @@ def main():
 	cms = None
 	try:
 		cms = CMS(dbPath=opt_db,
-			  imagesPath=opt_images,
+			  wwwPath=opt_www,
+			  imagesDir=opt_images,
 			  domain=opt_domain)
 		if action.upper() == "GET":
 			data, mime = cms.get(path)

@@ -4,3 +4,4 @@
 *.pyc
 index.wsgi
 db
+www-data

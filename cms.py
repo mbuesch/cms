@@ -110,16 +110,25 @@ def f_subdirList(*path_elements):
 	except OSError:
 		return []
 
-def validateName(name):
-	# Validate a name string for use as safe path component
+def validateSafePathComponent(pcomp):
+	# Validate a path component. Avoid any directory change.
 	# Raises CMSException on failure.
-	if name.startswith('.'):
+	if pcomp.startswith('.'):
 		# No ".", ".." and hidden files.
 		raise CMSException(404)
 	validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_."
-	if [ c for c in name if c not in validChars ]:
+	if [ c for c in pcomp if c not in validChars ]:
 		raise CMSException(404)
-	return name
+	return pcomp
+
+def validateSafePath(path):
+	# Validate a path. Avoid going back in the hierarchy (. and ..)
+	# Raises CMSException on failure.
+	for pcomp in path.split(PATHSEP):
+		validateSafePathComponent(pcomp)
+	return path
+
+validateName = validateSafePathComponent
 
 class CMSException(Exception):
 	statusTab = {
@@ -233,6 +242,31 @@ class CMSStatementResolver(object):
 		string = re.sub(r'_+', '_', string).strip('_')
 		return cons, string
 
+	# Statement:  $(file_exists RELATIVE_PATH)
+	# Statement:  $(file_exists RELATIVE_PATH, DOES_NOT_EXIST)
+	# Checks if a file exists relative to the wwwPath base.
+	# Returns the path, if the file exists or an empty string if it doesn't.
+	# If DOES_NOT_EXIST is specified, it returns this if the file doesn't exist.
+	def __stmt_fileExists(self, d):
+		i, relpath = self.__expandRecStmts(d, ',)')
+		if i <= 0 or d[i - 1] == ')':
+			enoent = "" # Empty string for nonexisting case.
+		else:  # Predefined string for nonexisting case.
+			cons, enoent = self.__expandRecStmts(d[i:], ')')
+			i += cons
+		try:
+			exists = f_exists(self.cms.wwwPath,
+					  validateSafePath(relpath))
+		except (CMSException), e:
+			exists = False
+		return i, (relpath if exists else enoent)
+
+	__stmtHandlers = (
+		("$(if ",		__stmt_if),
+		("$(sanitize ",		__stmt_sanitize),
+		("$(file_exists ",	__stmt_fileExists),
+	)
+
 	def __expandRecStmts(self, d, stopchars=""):
 		# Recursively expand statements
 		ret, i = [], 0
@@ -244,12 +278,12 @@ class CMSStatementResolver(object):
 				break
 			try:
 				if di == '$':
-					if d[i : i + 5] == "$(if ":
-						i += 5
-						cons, res = self.__stmt_if(d[i:])
-					if d[i : i + 11] == "$(sanitize ":
-						i += 11
-						cons, res = self.__stmt_sanitize(d[i:])
+					handler = lambda x: (cons, res) # nop
+					for (stmt, h) in self.__stmtHandlers:
+						if d[i:i+len(stmt)] == stmt:
+							handler, i = h, i + len(stmt)
+							break
+					cons, res = handler(self, d[i:])
 			except IndexError: pass
 			ret.append(res)
 			i += cons
@@ -300,16 +334,26 @@ class CMSStatementResolver(object):
 class CMS:
 	def __init__(self,
 		     dbPath,
-		     imagesPath,
-		     domain,
-		     basePath="/cms",
-		     cssPath="/cms.css",
-		     cssPrintPath="/cms-print.css"):
+		     wwwPath,
+		     imagesDir="/images",
+		     domain="example.com",
+		     urlBase="/cms",
+		     cssUrlPath="/cms.css",
+		     cssPrintUrlPath="/cms-print.css"):
+		# dbPath => Unix path to the database directory.
+		# wwwPath => Unix path to the static www data.
+		# imagesDir => Subdirectory path, based on wwwPath, to
+		#	the images directory.
+		# domain => The site domain name.
+		# urlBase => URL base component to the HTTP server CMS mapping.
+		# cssUrlBase => URL subpath to the main CSS.
+		# cssPrintUrlBase => URL subpath to the "print" CSS.
+		self.wwwPath = wwwPath
+		self.imagesDir = imagesDir
 		self.domain = domain
-		self.imagesPath = imagesPath
-		self.basePath = basePath
-		self.cssPath = cssPath
-		self.cssPrintPath = cssPrintPath
+		self.urlBase = urlBase
+		self.cssUrlPath = cssUrlPath
+		self.cssPrintUrlPath = cssPrintUrlPath
 
 		self.db = CMSDatabase(dbPath)
 		self.resolver = CMSStatementResolver(self)
@@ -317,7 +361,7 @@ class CMS:
 	def shutdown(self):
 		pass
 
-	def __genHtmlHeader(self, title, cssPath):
+	def __genHtmlHeader(self, title, cssUrlPath):
 		header = """<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -335,7 +379,7 @@ class CMS:
 </head>
 <body>
 """		%\
-		(datetime.now().isoformat(), title, cssPath)
+		(datetime.now().isoformat(), title, cssUrlPath)
 		return header
 
 	def __genHtmlFooter(self):
@@ -347,8 +391,8 @@ class CMS:
 
 	def __makePageUrl(self, groupname, pagename):
 		if groupname:
-			return "/".join( (self.basePath, groupname, pagename + ".html") )
-		return self.basePath
+			return "/".join( (self.urlBase, groupname, pagename + ".html") )
+		return self.urlBase
 
 	def __makeFullPageUrl(self, groupname, pagename, protocol="http"):
 		return "%s://%s%s" % (protocol, self.domain,
@@ -358,7 +402,7 @@ class CMS:
 		body = []
 
 		# Generate logo / title bar
-		body.append('<a href="%s">' % self.basePath)
+		body.append('<a href="%s">' % self.urlBase)
 		body.append('\t<img class="logo" alt="logo" src="/logo.png" />')
 		body.append('</a>\n')
 		body.append('<h1 class="titlebar">%s</h1>\n' % pageTitle)
@@ -493,8 +537,8 @@ class CMS:
 		except (KeyError, IndexError, ValueError), e:
 			raise CMSException(400)
 		try:
-			imagename = validateName(imagename)
-			img = Image.open(mkpath(self.imagesPath, imagename))
+			img = Image.open(mkpath(self.wwwPath, self.imagesDir,
+					validateSafePathComponent(imagename)))
 			img.thumbnail((width, height), Image.ANTIALIAS)
 			output = StringIO()
 			img.save(output, "JPEG")
@@ -504,38 +548,38 @@ class CMS:
 		return (data, "image/jpeg")
 
 #	@cache_region("html", "page")
-	def __getHtmlPage(self, groupname, pagename, cssPath):
+	def __getHtmlPage(self, groupname, pagename, cssUrlPath):
 		(pageTitle, pageData, stamp) = self.db.getPage(groupname, pagename)
 		if not pageData:
 			raise CMSException(404)
 		self.resolver.setNames(groupname, pagename)
 		pageData = self.resolver.resolve(pageData)
-		data = [self.__genHtmlHeader(pageTitle, cssPath)]
+		data = [self.__genHtmlHeader(pageTitle, cssUrlPath)]
 		data.append(self.__genHtmlBody(groupname, pagename,
 					       pageTitle, pageData, stamp))
 		data.append(self.__genHtmlFooter())
 		return ("".join(data), "text/html")
 
-	def __generate(self, path, cssPath, query):
+	def __generate(self, path, cssUrlPath, query):
 		(groupname, pagename) = self.__parsePagePath(path)
 		if groupname == "__thumbs":
 			return self.__getImageThumbnail(pagename, query)
-		return self.__getHtmlPage(groupname, pagename, cssPath)
+		return self.__getHtmlPage(groupname, pagename, cssUrlPath)
 
 	def get(self, path, query={}):
-		cssPath = self.cssPath
+		cssUrlPath = self.cssUrlPath
 		try:
 			if stringBool(query["print"][0]):
-				cssPath = self.cssPrintPath
+				cssUrlPath = self.cssPrintUrlPath
 		except (KeyError, IndexError), e: pass
-		return self.__generate(path, cssPath, query)
+		return self.__generate(path, cssUrlPath, query)
 
 	def post(self, path, query={}):
 		raise CMSException(405)
 
 	def getErrorPage(self, cmsExcept):
 		html = [self.__genHtmlHeader("Error - %s" % cmsExcept.httpStatus,
-					     self.cssPath)]
+					     self.cssUrlPath)]
 		html.append('<h1>An error occurred</h1>')
 		html.append('<p>We\'re sorry for the inconvenience. ')
 		html.append('The page could not be accessed, because:</p>')
