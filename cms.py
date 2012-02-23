@@ -538,17 +538,39 @@ class CMS:
 				raise CMSException(404)
 		return (groupname, pagename)
 
+	@staticmethod
+	def __getQuery(query, name, default):
+		try:
+			return query[name][0]
+		except (KeyError, IndexError), e:
+			return default
+
+	@staticmethod
+	def __getQueryInt(query, name, default):
+		try:
+			return int(CMS.__getQuery(query, name, str(default)), 10)
+		except (ValueError), e:
+			return default
+
 	@cache_region("image", "thumbnail")
 	def __getImageThumbnail(self, imagename, query):
+		width = CMS.__getQueryInt(query, "w", 300)
+		height = CMS.__getQueryInt(query, "h", 300)
+		qual = CMS.__getQueryInt(query, "q", 1)
+		qualities = {
+			0 : Image.NEAREST,
+			1 : Image.BILINEAR,
+			2 : Image.BICUBIC,
+			3 : Image.ANTIALIAS,
+		}
 		try:
-			width = int(query["w"][0], 10)
-			height = int(query["h"][0], 10)
-		except (KeyError, IndexError, ValueError), e:
-			width, height = 300, 300  # Sane defaults
+			qual = qualities[qual]
+		except (KeyError), e:
+			qual = qualities[1]
 		try:
 			img = Image.open(mkpath(self.wwwPath, self.imagesDir,
 					validateSafePathComponent(imagename)))
-			img.thumbnail((width, height), Image.ANTIALIAS)
+			img.thumbnail((width, height), qual)
 			output = StringIO()
 			img.save(output, "JPEG")
 			data = output.getvalue()
@@ -577,7 +599,7 @@ class CMS:
 
 	def get(self, path, query={}):
 		cssUrlPath = self.cssUrlPath
-		try:
+		try:#XXX
 			if stringBool(query["print"][0]):
 				cssUrlPath = self.cssPrintUrlPath
 		except (KeyError, IndexError), e: pass
