@@ -552,7 +552,7 @@ class CMS:
 		except (ValueError), e:
 			return default
 
-	@cache_region("image", "thumbnail")
+#	@cache_region("image", "thumbnail")
 	def __getImageThumbnail(self, imagename, query):
 		width = CMS.__getQueryInt(query, "w", 300)
 		height = CMS.__getQueryInt(query, "h", 300)
