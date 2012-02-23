@@ -544,7 +544,7 @@ class CMS:
 			width = int(query["w"][0], 10)
 			height = int(query["h"][0], 10)
 		except (KeyError, IndexError, ValueError), e:
-			raise CMSException(400)
+			width, height = 300, 300  # Sane defaults
 		try:
 			img = Image.open(mkpath(self.wwwPath, self.imagesDir,
 					validateSafePathComponent(imagename)))

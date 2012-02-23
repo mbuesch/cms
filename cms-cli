@@ -86,10 +86,10 @@ def main():
 		else:
 			data, mime = "CMSException", "text/html"
 	if mime == "text/html":
-		result = data
+		result = data + "\n"
 	else:
-		result = mime
-	sys.stdout.write(result + "\n")
+		result = data
+	sys.stdout.write(result)
 	sys.stdout.flush()
 	return 0
 
