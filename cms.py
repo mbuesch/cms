@@ -233,7 +233,15 @@ class CMSStatementResolver(object):
 		result = b_then if condition.strip() else b_else
 		return i, result
 
+	# Statement:  $(strip STRING)
+	# Strip whitespace at the start and at the end of the string.
+	def __stmt_strip(self, d):
+		i, string = self.__expandRecStmts(d, ')')
+		return i, string.strip()
+
 	# Statement:  $(sanitize STRING)
+	# Sanitize a string.
+	# Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
 	def __stmt_sanitize(self, d):
 		cons, string = self.__expandRecStmts(d, ')')
 		validChars = "abcdefghijklmnopqrstuvwxyz1234567890"
@@ -263,6 +271,7 @@ class CMSStatementResolver(object):
 
 	__stmtHandlers = (
 		("$(if ",		__stmt_if),
+		("$(strip ",		__stmt_strip),
 		("$(sanitize ",		__stmt_sanitize),
 		("$(file_exists ",	__stmt_fileExists),
 	)
