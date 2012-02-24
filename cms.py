@@ -516,31 +516,19 @@ class CMS(object):
 		return "\n".join(body)
 
 	def __parsePagePath(self, path):
-		rootpages = (
-			"/",
-			"/index.htm",
-			"/index.html",
-			"/index.php",
-		)
-		path = path.strip()
-		if not path.startswith("/"):
-			path = "/" + path
-		groupname = ""
-		pagename = ""
-		if path not in rootpages:
-			path = path.split("/")
-			if len(path) > 3:
-				raise CMSException(404)
-			try:
-				groupname = path[1]
-				pagename = path[2]
-			except IndexError: pass
-			for suffix in (".html", ".htm", ".php"):
-				if pagename.endswith(suffix):
-					pagename = pagename[:-len(suffix)]
+		path = path.strip().lstrip('/')
+		for suffix in ('.html', '.htm', '.php'):
+			if path.endswith(suffix):
+				path = path[:-len(suffix)]
+				break
+		groupname, pagename = '', ''
+		if path not in ('', 'index.htm', 'index.html', 'index.php'):
+			path = path.split('/')
+			if len(path) == 2:
+				groupname, pagename = path[0], path[1]
 			if not groupname or not pagename:
 				raise CMSException(404)
-		return (groupname, pagename)
+		return groupname, pagename
 
 	def __getImageThumbnail(self, imagename, query):
 		width = query.getInt("w", 300)
@@ -568,7 +556,7 @@ class CMS(object):
 		return (data, "image/jpeg")
 
 	def __getHtmlPage(self, groupname, pagename, cssUrlPath):
-		(pageTitle, pageData, stamp) = self.db.getPage(groupname, pagename)
+		pageTitle, pageData, stamp = self.db.getPage(groupname, pagename)
 		if not pageData:
 			raise CMSException(404)
 		self.resolver.setNames(groupname, pagename)
@@ -580,7 +568,7 @@ class CMS(object):
 		return ("".join(data), "text/html")
 
 	def __generate(self, path, cssUrlPath, query):
-		(groupname, pagename) = self.__parsePagePath(path)
+		groupname, pagename = self.__parsePagePath(path)
 		if groupname == "__thumbs":
 			return self.__getImageThumbnail(pagename, query)
 		return self.__getHtmlPage(groupname, pagename, cssUrlPath)
