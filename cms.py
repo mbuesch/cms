@@ -113,20 +113,22 @@ def validateSafePath(path):
 validateName = validateSafePathComponent
 
 class CMSException(Exception):
-	statusTab = {
-		400: "400 Bad Request",
-		404: "404 Not Found",
-		405: "405 Method Not Allowed",
-		409: "409 Conflict",
-		500: "500 Internal Server Error",
+	__stats = {
+		400 : "Bad Request",
+		404 : "Not Found",
+		405 : "Method Not Allowed",
+		409 : "Conflict",
+		500 : "Internal Server Error",
 	}
 
-	def __init__(self, httpStatus=500, message=""):
-		self.httpStatusNumber = httpStatus
+	def __init__(self, httpStatusNumber=500, message=""):
 		try:
-			self.httpStatus = self.statusTab[httpStatus]
-		except (KeyError), e:
-			self.httpStatus = self.statusTab[500]
+			httpStatus = self.__stats[httpStatusNumber]
+		except KeyError:
+			httpStatusNumber = 500
+			httpStatus = self.__stats[httpStatusNumber]
+		self.httpStatusNumber = httpStatusNumber
+		self.httpStatus = "%d %s" % (httpStatusNumber, httpStatus)
 		self.message = message
 
 class CMSDatabase(object):
