@@ -37,5 +37,7 @@ the following Debian based example:
 		Order deny,allow
 		Allow from all
 	</Directory>
+	# Redirect all 404 to the CMS 404 handler (optional)
+	ErrorDocument 404 /cms/__nopage/__nogroup.html
 
 Reload Apache httpd after modifying the config.
