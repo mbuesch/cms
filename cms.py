@@ -114,6 +114,7 @@ validateName = validateSafePathComponent
 
 class CMSException(Exception):
 	__stats = {
+		301 : "Moved Permanently",
 		400 : "Bad Request",
 		404 : "Not Found",
 		405 : "Method Not Allowed",
@@ -121,15 +122,49 @@ class CMSException(Exception):
 		500 : "Internal Server Error",
 	}
 
-	def __init__(self, httpStatusNumber=500, message=""):
+	def __init__(self, httpStatusCode=500, message=""):
 		try:
-			httpStatus = self.__stats[httpStatusNumber]
+			httpStatus = self.__stats[httpStatusCode]
 		except KeyError:
-			httpStatusNumber = 500
-			httpStatus = self.__stats[httpStatusNumber]
-		self.httpStatusNumber = httpStatusNumber
-		self.httpStatus = "%d %s" % (httpStatusNumber, httpStatus)
+			httpStatusCode = 500
+			httpStatus = self.__stats[httpStatusCode]
+		self.httpStatusCode = httpStatusCode
+		self.httpStatus = "%d %s" % (httpStatusCode, httpStatus)
 		self.message = message
+
+	def getHttpHeaders(self, resolveCallback):
+		return ()
+
+	def getHtmlHeader(self, db):
+		return ""
+
+	def getHtmlBody(self, db):
+		return db.getString('http-error-page',
+				    '<p style="font-size: large;">%s</p>' %\
+				    self.httpStatus)
+
+class CMSException301(CMSException):
+	# "Moved Permanently" exception
+
+	def __init__(self, newUrl):
+		CMSException.__init__(self, 301, newUrl)
+
+	def url(self):
+		return self.message
+
+	def getHttpHeaders(self, resolveCallback):
+		return ( ('Location', resolveCallback(self.url())), )
+
+	def getHtmlHeader(self, db):
+		return '<meta http-equiv="refresh" content="0; URL=%s" />' %\
+			self.url()
+
+	def getHtmlBody(self, db):
+		return '<p style="font-size: large;">' \
+			'Moved permanently to ' \
+			'<a href="%s">%s</a>' \
+			'</p>' %\
+			(self.url(), self.url())
 
 class CMSDatabase(object):
 	def __init__(self, basePath):
@@ -141,6 +176,9 @@ class CMSDatabase(object):
 		path = mkpath(self.pageBase,
 			      validateName(groupname),
 			      validateName(pagename))
+		redirect = f_read(path, "redirect").strip()
+		if redirect:
+			raise CMSException301(redirect)
 		title = f_read(path, "title").strip()
 		if not title:
 			title = f_read(path, "nav_label").strip()
@@ -197,9 +235,7 @@ class CMSStatementResolver(object):
 
 	def __init__(self, cms):
 		self.cms = cms
-
-	def setNames(self, groupname, pagename):
-		self.groupname, self.pagename = groupname, pagename
+		self.variables = { }
 
 	# Statement:  $(if CONDITION, THEN, ELSE)
 	# Statement:  $(if CONDITION, THEN)
@@ -286,14 +322,8 @@ class CMSStatementResolver(object):
 		# Remove comments
 		data = self.comment_re.sub("", data)
 		# Expand variables
-		exvars = (
-			("$GROUP"	, self.groupname),
-			("$PAGE"	, self.pagename),
-			("$IMAGES_DIR"	, self.cms.imagesDir),
-			("$THUMBS_DIR"	, self.cms.urlBase + "/__thumbs"),
-		)
-		for var, value in exvars:
-			data = data.replace(var, value)
+		for var, value in self.variables.items():
+			data = data.replace("$" + var, value)
 		# Expand recursive statements
 		unused, data = self.__expandRecStmts(data)
 		return data
@@ -318,13 +348,20 @@ class CMSStatementResolver(object):
 		# Expand the macro parameters
 		macrovalue = self.macro_param_re.sub(expandParam, macrovalue)
 		# Resolve statements and recursive macro calls
-		return self.resolve(macrovalue, recurseLevel)
+		return self.__doResolve(macrovalue, recurseLevel)
 
-	def resolve(self, data, recurseLevel=0):
+	def __doResolve(self, data, recurseLevel):
 		data = self.__resolveStatements(data)
 		return self.macro_re.sub(
 			lambda m: self.__resolveOneMacro(m, recurseLevel + 1),
 			data)
+
+	def resolve(self, data, variables={}):
+		self.variables = variables.copy()
+		self.variables["CMS_BASE"] = self.cms.urlBase
+		self.variables["IMAGES_DIR"] = self.cms.imagesDir
+		self.variables["THUMBS_DIR"] = self.cms.urlBase + "/__thumbs"
+		return self.__doResolve(data, 0)
 
 class CMSQuery(object):
 	def __init__(self, queryDict):
@@ -376,7 +413,7 @@ class CMS(object):
 	def shutdown(self):
 		pass
 
-	def __genHtmlHeader(self, title, cssUrlPath):
+	def __genHtmlHeader(self, title, cssUrlPath, additional=""):
 		header = """<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -391,10 +428,11 @@ class CMS(object):
 	-->
 	<title>%s</title>
 	<link rel="stylesheet" href="%s" type="text/css" />
+	%s
 </head>
 <body>
 """		%\
-		(datetime.now().isoformat(), title, cssUrlPath)
+		(datetime.now().isoformat(), title, cssUrlPath, additional)
 		return header
 
 	def __genHtmlFooter(self):
@@ -413,7 +451,9 @@ class CMS(object):
 		return "%s://%s%s" % (protocol, self.domain,
 				      self.__makePageUrl(groupname, pagename))
 
-	def __genHtmlBody(self, groupname, pagename, pageTitle, pageData, stamp):
+	def __genHtmlBody(self, groupname, pagename, pageTitle, pageData,
+			  stamp=None,
+			  genFormatLinks=True, genSslLinks=True, genCheckerLinks=True):
 		body = []
 
 		# Generate logo / title bar
@@ -475,43 +515,48 @@ class CMS(object):
 		body.append(pageData)
 		body.append('<!-- END: page content -->\n')
 
-		# Last-modified date
-		body.append('\t<div class="modifystamp">')
-		body.append(stamp.strftime('\t\tUpdated: %A %d %B %Y %H:%M (UTC)'))
-		body.append('\t</div>')
+		if stamp:
+			# Last-modified date
+			body.append('\t<div class="modifystamp">')
+			body.append(stamp.strftime('\t\tUpdated: %A %d %B %Y %H:%M (UTC)'))
+			body.append('\t</div>')
 
-		# Format links
-		body.append('\t<div class="formatlinks">')
-		url = self.__makePageUrl(groupname, pagename) + "?print=1"
-		body.append('\t\t<a href="%s" target="_blank">%s</a>' %\
-			    (url, self.db.getString("printer-layout")))
-		body.append('\t</div>')
+		if genFormatLinks:
+			# Format links
+			body.append('\t<div class="formatlinks">')
+			url = self.__makePageUrl(groupname, pagename) + "?print=1"
+			body.append('\t\t<a href="%s" target="_blank">%s</a>' %\
+				    (url, self.db.getString("printer-layout")))
+			body.append('\t</div>')
 
-		# SSL
-		body.append('\t<div class="ssl">')
-		body.append('\t\t<a href="%s">%s</a>' %\
-			    (self.__makeFullPageUrl(groupname, pagename,
-						    protocol="https"),
-			     self.db.getString("ssl-encrypted")))
-		body.append('\t</div>')
+		if genSslLinks:
+			# SSL
+			body.append('\t<div class="ssl">')
+			body.append('\t\t<a href="%s">%s</a>' %\
+				    (self.__makeFullPageUrl(groupname, pagename,
+							    protocol="https"),
+				     self.db.getString("ssl-encrypted")))
+			body.append('\t</div>')
 
-		# Checker links
-		pageUrlQuoted = urllib.quote_plus(self.__makeFullPageUrl(groupname, pagename))
-		body.append('\t<div class="checker">')
-		checkerUrl = "http://validator.w3.org/check?"\
-			     "uri=" + pageUrlQuoted + "&amp;"\
-			     "charset=%28detect+automatically%29&amp;"\
-			     "doctype=Inline&amp;group=0&amp;"\
-			     "user-agent=W3C_Validator%2F1.2"
-		body.append('\t\t<a href="%s">%s</a> /' %\
-			    (checkerUrl, self.db.getString("checker-xhtml")))
-		checkerUrl = "http://jigsaw.w3.org/css-validator/validator?"\
-			     "uri=" + pageUrlQuoted + "&amp;profile=css3&amp;"\
-			     "usermedium=all&amp;warning=1&amp;"\
-			     "vextwarning=true&amp;lang=en"
-		body.append('\t\t<a href="%s">%s</a>' %\
-			    (checkerUrl, self.db.getString("checker-css")))
-		body.append('\t</div>\n')
+		if genCheckerLinks:
+			# Checker links
+			pageUrlQuoted = urllib.quote_plus(
+				self.__makeFullPageUrl(groupname, pagename))
+			body.append('\t<div class="checker">')
+			checkerUrl = "http://validator.w3.org/check?"\
+				     "uri=" + pageUrlQuoted + "&amp;"\
+				     "charset=%28detect+automatically%29&amp;"\
+				     "doctype=Inline&amp;group=0&amp;"\
+				     "user-agent=W3C_Validator%2F1.2"
+			body.append('\t\t<a href="%s">%s</a> /' %\
+				    (checkerUrl, self.db.getString("checker-xhtml")))
+			checkerUrl = "http://jigsaw.w3.org/css-validator/validator?"\
+				     "uri=" + pageUrlQuoted + "&amp;profile=css3&amp;"\
+				     "usermedium=all&amp;warning=1&amp;"\
+				     "vextwarning=true&amp;lang=en"
+			body.append('\t\t<a href="%s">%s</a>' %\
+				    (checkerUrl, self.db.getString("checker-css")))
+			body.append('\t</div>\n')
 
 		body.append('</div>\n') # Main body end
 
@@ -555,19 +600,21 @@ class CMS(object):
 			data = output.getvalue()
 		except (IOError), e:
 			raise CMSException(404)
-		return (data, "image/jpeg")
+		return data, "image/jpeg"
 
 	def __getHtmlPage(self, groupname, pagename, cssUrlPath):
 		pageTitle, pageData, stamp = self.db.getPage(groupname, pagename)
 		if not pageData:
 			raise CMSException(404)
-		self.resolver.setNames(groupname, pagename)
-		pageData = self.resolver.resolve(pageData)
+		pageData = self.resolver.resolve(pageData, variables = {
+			"GROUP"	: groupname,
+			"PAGE"	: pagename,
+		})
 		data = [self.__genHtmlHeader(pageTitle, cssUrlPath)]
 		data.append(self.__genHtmlBody(groupname, pagename,
 					       pageTitle, pageData, stamp))
 		data.append(self.__genHtmlFooter())
-		return ("".join(data), "text/html")
+		return "".join(data), "text/html"
 
 	def __generate(self, path, cssUrlPath, query):
 		groupname, pagename = self.__parsePagePath(path)
@@ -586,20 +633,26 @@ class CMS(object):
 		raise CMSException(405)
 
 	def getErrorPage(self, cmsExcept):
-		html = [self.__genHtmlHeader("Error - %s" % cmsExcept.httpStatus,
-					     self.cssUrlPath)]
-		html.append('<h1>An error occurred</h1>')
-		html.append('<p>We\'re sorry for the inconvenience. ')
-		html.append('The page could not be accessed, because:</p>')
-		html.append('<p style="font-size: xx-large;">')
-		html.append(cmsExcept.httpStatus)
-		if cmsExcept.message:
-			html.append('<br />')
-			html.append(cmsExcept.message)
-		html.append('</p>')
-		html.append('<p>You may visit the <a href="%s" style="font-size: xx-large;">main page</a>' %\
-			    self.__makePageUrl(None, None))
-		html.append('and navigate manually to your desired target page.</p>')
-		html.append(self.__genHtmlFooter())
-
-		return ("\n".join(html), "text/html")
+		resolverVariables = {
+			"GROUP"			: "__nogroup",
+			"PAGE"			: "__nopage",
+			"HTTP_STATUS"		: cmsExcept.httpStatus,
+			"HTTP_STATUS_CODE"	: str(cmsExcept.httpStatusCode),
+			"ERROR_MESSAGE"		: cmsExcept.message,
+		}
+		pageHeader = cmsExcept.getHtmlHeader(self.db)
+		pageHeader = self.resolver.resolve(pageHeader, resolverVariables)
+		pageData = cmsExcept.getHtmlBody(self.db)
+		pageData = self.resolver.resolve(pageData, resolverVariables)
+		httpHeaders = cmsExcept.getHttpHeaders(
+			lambda s: self.resolver.resolve(s, resolverVariables))
+		data = [self.__genHtmlHeader(cmsExcept.httpStatus,
+					     self.cssUrlPath,
+					     additional=pageHeader)]
+		data.append(self.__genHtmlBody('__nogroup', '__nopage',
+					       cmsExcept.httpStatus,
+					       pageData,
+					       genFormatLinks=False, genSslLinks=False,
+					       genCheckerLinks=False))
+		data.append(self.__genHtmlFooter())
+		return "".join(data), "text/html", httpHeaders
