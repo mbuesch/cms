@@ -569,7 +569,7 @@ class CMS(object):
 				path = path[:-len(suffix)]
 				break
 		groupname, pagename = '', ''
-		if path not in ('', 'index.htm', 'index.html', 'index.php'):
+		if path not in ('', 'index'):
 			path = path.split('/')
 			if len(path) == 2:
 				groupname, pagename = path[0], path[1]
