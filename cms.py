@@ -230,6 +230,8 @@ class CMSStatementResolver(object):
 	macro_re = re.compile(r'@(\w+)\(([^\)]*)\)', re.DOTALL)
 	# Macro parameter expansion: $1, $2, $3...
 	macro_param_re = re.compile(r'\$(\d+)', re.DOTALL)
+	# Variable: $FOOBAR
+	variable_re = re.compile(r'\$([A-Z_]+)')
 	# Content comment <!--- comment --->
 	comment_re = re.compile(r'<!---(.*)--->', re.DOTALL)
 
@@ -322,8 +324,12 @@ class CMSStatementResolver(object):
 		# Remove comments
 		data = self.comment_re.sub("", data)
 		# Expand variables
-		for var, value in self.variables.items():
-			data = data.replace("$" + var, value)
+		def expandVariable(match):
+			try:
+				return self.variables[match.group(1)]()
+			except KeyError:
+				return ""
+		data = self.variable_re.sub(expandVariable, data)
 		# Expand recursive statements
 		unused, data = self.__expandRecStmts(data)
 		return data
@@ -358,9 +364,9 @@ class CMSStatementResolver(object):
 
 	def resolve(self, data, variables={}):
 		self.variables = variables.copy()
-		self.variables["CMS_BASE"] = self.cms.urlBase
-		self.variables["IMAGES_DIR"] = self.cms.imagesDir
-		self.variables["THUMBS_DIR"] = self.cms.urlBase + "/__thumbs"
+		self.variables["CMS_BASE"] = lambda: self.cms.urlBase
+		self.variables["IMAGES_DIR"] = lambda: self.cms.imagesDir
+		self.variables["THUMBS_DIR"] = lambda: self.cms.urlBase + "/__thumbs"
 		return self.__doResolve(data, 0)
 
 class CMSQuery(object):
@@ -607,8 +613,8 @@ class CMS(object):
 		if not pageData:
 			raise CMSException(404)
 		pageData = self.resolver.resolve(pageData, variables = {
-			"GROUP"	: groupname,
-			"PAGE"	: pagename,
+			"GROUP"	: lambda: groupname,
+			"PAGE"	: lambda: pagename,
 		})
 		data = [self.__genHtmlHeader(pageTitle, cssUrlPath)]
 		data.append(self.__genHtmlBody(groupname, pagename,
@@ -634,11 +640,11 @@ class CMS(object):
 
 	def getErrorPage(self, cmsExcept):
 		resolverVariables = {
-			"GROUP"			: "__nogroup",
-			"PAGE"			: "__nopage",
-			"HTTP_STATUS"		: cmsExcept.httpStatus,
-			"HTTP_STATUS_CODE"	: str(cmsExcept.httpStatusCode),
-			"ERROR_MESSAGE"		: cmsExcept.message,
+			"GROUP"			: lambda: "__nogroup",
+			"PAGE"			: lambda: "__nopage",
+			"HTTP_STATUS"		: lambda: cmsExcept.httpStatus,
+			"HTTP_STATUS_CODE"	: lambda: str(cmsExcept.httpStatusCode),
+			"ERROR_MESSAGE"		: lambda: cmsExcept.message,
 		}
 		pageHeader = cmsExcept.getHtmlHeader(self.db)
 		pageHeader = self.resolver.resolve(pageHeader, resolverVariables)
