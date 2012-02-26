@@ -638,7 +638,7 @@ class CMS(object):
 	def post(self, path, query={}):
 		raise CMSException(405)
 
-	def getErrorPage(self, cmsExcept):
+	def __doGetErrorPage(self, cmsExcept):
 		resolverVariables = {
 			"GROUP"			: lambda: "__nogroup",
 			"PAGE"			: lambda: "__nopage",
@@ -662,3 +662,11 @@ class CMS(object):
 					       genCheckerLinks=False))
 		data.append(self.__genHtmlFooter())
 		return "".join(data), "text/html", httpHeaders
+
+	def getErrorPage(self, cmsExcept):
+		try:
+			return self.__doGetErrorPage(cmsExcept)
+		except (CMSException), e:
+			data = "Error in exception handler: %s %s" % \
+				(e.httpStatus, e.message)
+			return data, "text/plain", ()
