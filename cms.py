@@ -291,31 +291,30 @@ class CMSStatementResolver(object):
 			exists = False
 		return i, (relpath if exists else enoent)
 
-	__stmtHandlers = (
-		("$(if ",		__stmt_if),
-		("$(strip ",		__stmt_strip),
-		("$(sanitize ",		__stmt_sanitize),
-		("$(file_exists ",	__stmt_fileExists),
-	)
+	__handlers = {
+		"$(if"		: __stmt_if,
+		"$(strip"	: __stmt_strip,
+		"$(sanitize"	: __stmt_sanitize,
+		"$(file_exists"	: __stmt_fileExists,
+	}
 
 	def __expandRecStmts(self, d, stopchars=""):
 		# Recursively expand statements
 		ret, i = [], 0
 		while i < len(d):
-			di = d[i]
-			cons, res = 1, di
-			if di in stopchars:
-				i += cons
+			if d[i] in stopchars:
+				i += 1
 				break
-			try:
-				if di == '$':
-					handler = lambda s, x: (cons, res) # nop
-					for (stmt, h) in self.__stmtHandlers:
-						if d[i:i+len(stmt)] == stmt:
-							handler, i = h, i + len(stmt)
-							break
-					cons, res = handler(self, d[i:])
-			except IndexError: pass
+			cons, res = 1, d[i]
+			if d[i] == '$':
+				h = lambda _self, x: (cons, res) # nop
+				end = d.find(' ', i)
+				if end > i:
+					try:
+						h = self.__handlers[d[i:end]]
+						i = end + 1
+					except KeyError: pass
+				cons, res = h(self, d[i:])
 			ret.append(res)
 			i += cons
 		return i, "".join(ret)
