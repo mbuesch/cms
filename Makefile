@@ -16,7 +16,6 @@ install: help
 
 help:
 	@echo "Use  make install-cms  to install the cms.py script"
-	@echo "Use  make install-wsgi  to install the example WSGI glue"
 	@echo "Use  make install-db  to install the example database"
 	@echo
 	@echo "Use  make install-world  to install all of the above"
@@ -33,14 +32,12 @@ $(DESTDIR):
 
 install-cms: $(DESTDIR)
 	$(INSTALL) -o $(OWNER) -g $(GROUP) -m 644 cms.py $(DESTDIR)/
-
-install-wsgi: $(DESTDIR)
-	$(INSTALL) -o $(OWNER) -g $(GROUP) -m 644 example/index.wsgi $(DESTDIR)/
+	$(INSTALL) -o $(OWNER) -g $(GROUP) -m 644 index.wsgi $(DESTDIR)/
 
 install-db: $(DESTDIR)
 	$(CP) -a example/db $(DESTDIR)/
 	$(CHOWN) -R $(OWNER):$(GROUP) $(DESTDIR)/db
 
-install-world: install-cms install-wsgi install-db
+install-world: install-cms install-db
 
-.PHONY: all help install install-cms install-wsgi install-db install-world
+.PHONY: all help install install-cms install-db install-world

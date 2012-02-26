@@ -12,10 +12,6 @@ to install the cms scripts and the example database files.
 See "make help" for more options.
 
 
---- Adjusting index.wsgi ---
-
-Just look at the comments in /var/cms/index.wsgi for help on adjusting the WSGI glue.
-
 
 --- Configuring Apache httpd ---
 
@@ -28,8 +24,14 @@ the following Debian based example:
 	WSGIPythonOptimize 1
 	# /cms is the base URL path to the CMS.
 	# /var/cms is where index.wsgi, cms.py and the db directory live.
+	# /var/www is the path to the static files.
 	# Adjust these paths to your setup.
-	WSGIScriptAlias /cms /var/cms/index.wsgi
+	WSGIScriptAlias		/cms	/var/cms/index.wsgi
+	WSGIPythonPath		/var/cms
+	SetEnv cms.domain	example.com
+	SetEnv cms.cmsBase	/var/cms
+	SetEnv cms.wwwBase	/var/www
+	SetEnv cms.debug	1
 	<Directory /var/cms>
 		WSGIProcessGroup wsgi
 		AllowOverride None
