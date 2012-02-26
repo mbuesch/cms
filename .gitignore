@@ -2,6 +2,5 @@
 *.swp
 *.pyo
 *.pyc
-index.wsgi
 db
 www-data
