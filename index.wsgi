@@ -24,6 +24,7 @@ try:
 except ImportError:
 	from cgi import parse_qs
 try:
+	sys.path.append("/var/cms") # workaround for old WSGI
 	from cms import *
 except ImportError:
 	raise Exception("Failed to import cms.py. Wrong WSGIPythonPath?")
