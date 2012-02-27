@@ -531,7 +531,7 @@ class CMS(object):
 			# Format links
 			body.append('\t<div class="formatlinks">')
 			url = self.__makePageUrl(groupname, pagename) + "?print=1"
-			body.append('\t\t<a href="%s" target="_blank">%s</a>' %\
+			body.append('\t\t<a href="%s">%s</a>' %\
 				    (url, self.db.getString("printer-layout")))
 			body.append('\t</div>')
 
