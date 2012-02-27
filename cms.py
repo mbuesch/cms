@@ -56,7 +56,10 @@ def f_exists_nonempty(*path_elements):
 
 def f_read(*path_elements):
 	try:
-		return open(mkpath(*path_elements), "rb").read()
+		fd = open(mkpath(*path_elements), "rb")
+		data = fd.read()
+		fd.close()
+		return data
 	except IOError:
 		return ""
 
