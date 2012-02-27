@@ -56,7 +56,7 @@ def f_exists_nonempty(*path_elements):
 
 def f_read(*path_elements):
 	try:
-		return file(mkpath(*path_elements), "rb").read()
+		return open(mkpath(*path_elements), "rb").read()
 	except IOError:
 		return ""
 
