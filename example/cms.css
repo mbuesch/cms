@@ -137,14 +137,48 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	margin-top: 20px;
 }
 
-.formatlinks {
-	font-size: x-small;
-}
-
 .ssl {
 	font-size: x-small;
 }
 
 .checker {
 	font-size: xx-small;
+}
+
+@media print {
+	body {
+		background: #FFFFFF;
+	}
+
+	.logo {
+		visibility: hidden;
+	}
+
+	.navbar {
+		visibility: hidden;
+	}
+
+	.checker {
+		visibility: hidden;
+	}
+
+	.ssl {
+		visibility: hidden;
+	}
+
+	.titlebar {
+		position: static;
+		top: 0;
+		left: 0;
+		width: 100%;
+		margin: 0;
+		text-align: left;
+	}
+
+	.main {
+		position: static;
+		top: 0;
+		left: 0;
+		margin: 0;
+	}
 }

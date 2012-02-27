@@ -396,22 +396,19 @@ class CMS(object):
 		     imagesDir="/images",
 		     domain="example.com",
 		     urlBase="/cms",
-		     cssUrlPath="/cms.css",
-		     cssPrintUrlPath="/cms-print.css"):
+		     cssUrlPath="/cms.css"):
 		# dbPath => Unix path to the database directory.
 		# wwwPath => Unix path to the static www data.
 		# imagesDir => Subdirectory path, based on wwwPath, to
 		#	the images directory.
 		# domain => The site domain name.
 		# urlBase => URL base component to the HTTP server CMS mapping.
-		# cssUrlBase => URL subpath to the main CSS.
-		# cssPrintUrlBase => URL subpath to the "print" CSS.
+		# cssUrlBase => URL subpath to the CSS.
 		self.wwwPath = wwwPath
 		self.imagesDir = imagesDir
 		self.domain = domain
 		self.urlBase = urlBase
 		self.cssUrlPath = cssUrlPath
-		self.cssPrintUrlPath = cssPrintUrlPath
 
 		self.db = CMSDatabase(dbPath)
 		self.resolver = CMSStatementResolver(self)
@@ -419,7 +416,7 @@ class CMS(object):
 	def shutdown(self):
 		pass
 
-	def __genHtmlHeader(self, title, cssUrlPath, additional=""):
+	def __genHtmlHeader(self, title, additional=""):
 		header = """<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -438,7 +435,7 @@ class CMS(object):
 </head>
 <body>
 """		%\
-		(datetime.now().isoformat(), title, cssUrlPath, additional)
+		(datetime.now().isoformat(), title, self.cssUrlPath, additional)
 		return header
 
 	def __genHtmlFooter(self):
@@ -459,7 +456,7 @@ class CMS(object):
 
 	def __genHtmlBody(self, groupname, pagename, pageTitle, pageData,
 			  stamp=None,
-			  genFormatLinks=True, genSslLinks=True, genCheckerLinks=True):
+			  genSslLinks=True, genCheckerLinks=True):
 		body = []
 
 		# Generate logo / title bar
@@ -525,14 +522,6 @@ class CMS(object):
 			# Last-modified date
 			body.append('\t<div class="modifystamp">')
 			body.append(stamp.strftime('\t\tUpdated: %A %d %B %Y %H:%M (UTC)'))
-			body.append('\t</div>')
-
-		if genFormatLinks:
-			# Format links
-			body.append('\t<div class="formatlinks">')
-			url = self.__makePageUrl(groupname, pagename) + "?print=1"
-			body.append('\t\t<a href="%s">%s</a>' %\
-				    (url, self.db.getString("printer-layout")))
 			body.append('\t</div>')
 
 		if genSslLinks:
@@ -608,7 +597,7 @@ class CMS(object):
 			raise CMSException(404)
 		return data, "image/jpeg"
 
-	def __getHtmlPage(self, groupname, pagename, cssUrlPath):
+	def __getHtmlPage(self, groupname, pagename):
 		pageTitle, pageData, stamp = self.db.getPage(groupname, pagename)
 		if not pageData:
 			raise CMSException(404)
@@ -616,24 +605,21 @@ class CMS(object):
 			"GROUP"	: lambda: groupname,
 			"PAGE"	: lambda: pagename,
 		})
-		data = [self.__genHtmlHeader(pageTitle, cssUrlPath)]
+		data = [self.__genHtmlHeader(pageTitle)]
 		data.append(self.__genHtmlBody(groupname, pagename,
 					       pageTitle, pageData, stamp))
 		data.append(self.__genHtmlFooter())
 		return "".join(data), "text/html"
 
-	def __generate(self, path, cssUrlPath, query):
+	def __generate(self, path, query):
 		groupname, pagename = self.__parsePagePath(path)
 		if groupname == "__thumbs":
 			return self.__getImageThumbnail(pagename, query)
-		return self.__getHtmlPage(groupname, pagename, cssUrlPath)
+		return self.__getHtmlPage(groupname, pagename)
 
 	def get(self, path, query={}):
 		query = CMSQuery(query)
-		cssUrlPath = self.cssUrlPath
-		if query.getBool("print"):
-			cssUrlPath = self.cssPrintUrlPath
-		return self.__generate(path, cssUrlPath, query)
+		return self.__generate(path, query)
 
 	def post(self, path, query={}):
 		raise CMSException(405)
@@ -653,12 +639,11 @@ class CMS(object):
 		httpHeaders = cmsExcept.getHttpHeaders(
 			lambda s: self.resolver.resolve(s, resolverVariables))
 		data = [self.__genHtmlHeader(cmsExcept.httpStatus,
-					     self.cssUrlPath,
 					     additional=pageHeader)]
 		data.append(self.__genHtmlBody('__nogroup', '__nopage',
 					       cmsExcept.httpStatus,
 					       pageData,
-					       genFormatLinks=False, genSslLinks=False,
+					       genSslLinks=False,
 					       genCheckerLinks=False))
 		data.append(self.__genHtmlFooter())
 		return "".join(data), "text/html", httpHeaders
