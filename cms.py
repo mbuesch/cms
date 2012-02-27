@@ -49,6 +49,11 @@ def f_exists(*path_elements):
 		return False
 	return True
 
+def f_exists_nonempty(*path_elements):
+	if f_exists(*path_elements):
+		return bool(f_read(*path_elements).strip())
+	return False
+
 def f_read(*path_elements):
 	try:
 		return file(mkpath(*path_elements), "rb").read()
@@ -61,14 +66,6 @@ def f_read_int(*path_elements):
 		return int(data.strip(), 10)
 	except ValueError:
 		return None
-
-def f_check_disablefile(*path_elements):
-	if not f_exists(*path_elements):
-		return False
-	data = f_read(*path_elements)
-	if not data:
-		return True # Empty file
-	return stringBool(data)
 
 def f_mtime(*path_elements):
 	try:
@@ -191,7 +188,7 @@ class CMSDatabase(object):
 		res = []
 		for groupname in f_subdirList(self.pageBase):
 			path = mkpath(self.pageBase, groupname)
-			if f_check_disablefile(path, "disabled"):
+			if f_exists(path, "hidden"):
 				continue
 			navlabel = f_read(path, "nav_label").strip()
 			prio = f_read_int(path, "priority")
@@ -204,7 +201,8 @@ class CMSDatabase(object):
 		gpath = mkpath(self.pageBase, validateName(groupname))
 		for pagename in f_subdirList(gpath):
 			path = mkpath(gpath, pagename)
-			if f_check_disablefile(path, "disabled"):
+			if f_exists(path, "hidden") or \
+			   f_exists_nonempty(path, "redirect"):
 				continue
 			navlabel = f_read(path, "nav_label").strip()
 			prio = f_read_int(path, "priority")
