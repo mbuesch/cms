@@ -242,6 +242,8 @@ class CMSStatementResolver(object):
 
 	# Statement:  $(if CONDITION, THEN, ELSE)
 	# Statement:  $(if CONDITION, THEN)
+	# Returns THEN if CONDITION is nonempty after stripping whitespace.
+	# Returns ELSE otherwise.
 	def __stmt_if(self, d):
 		# CONDITION
 		i, condition = self.__expandRecStmts(d, ',')
@@ -255,6 +257,30 @@ class CMSStatementResolver(object):
 			i += cons
 		result = b_then if condition.strip() else b_else
 		return i, result
+
+	def __do_compare(self, d, invert):
+		# Get string 'A'
+		i, a = self.__expandRecStmts(d, ',')
+		# Get string 'B'
+		cons, b = self.__expandRecStmts(d[i:], ')')
+		i += cons
+		result = (a.strip() == b.strip())
+		if invert:
+			result = not result
+		result = b if result else ""
+		return i, result
+
+	# Statement:  $(eq A,B)
+	# Returns B, if A and B are equal after stripping whitespace.
+	# Returns an empty string otherwise.
+	def __stmt_eq(self, d):
+		return self.__do_compare(d, False)
+
+	# Statement:  $(ne A,B)
+	# Returns B, if A and B are _not_ equal after stripping whitespace.
+	# Returns an empty string otherwise.
+	def __stmt_ne(self, d):
+		return self.__do_compare(d, True)
 
 	# Statement:  $(strip STRING)
 	# Strip whitespace at the start and at the end of the string.
@@ -294,6 +320,8 @@ class CMSStatementResolver(object):
 
 	__handlers = {
 		"$(if"		: __stmt_if,
+		"$(eq"		: __stmt_eq,
+		"$(ne"		: __stmt_ne,
 		"$(strip"	: __stmt_strip,
 		"$(sanitize"	: __stmt_sanitize,
 		"$(file_exists"	: __stmt_fileExists,
