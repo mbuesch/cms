@@ -326,8 +326,14 @@ class CMSStatementResolver(object):
 		# Expand variables
 		def expandVariable(match):
 			try:
-				return self.variables[match.group(1)]()
-			except KeyError:
+				m1 = match.group(1)
+				value = self.variables[m1]
+				try:
+					value = value(self, m1)
+				except (TypeError), e:
+					pass
+				return str(value)
+			except (KeyError, TypeError), e:
 				return ""
 		data = self.variable_re.sub(expandVariable, data)
 		# Expand recursive statements
@@ -362,11 +368,16 @@ class CMSStatementResolver(object):
 			lambda m: self.__resolveOneMacro(m, recurseLevel + 1),
 			data)
 
+	__genericVars = {
+		"DOMAIN"	: lambda self, m: self.cms.domain,
+		"CMS_BASE"	: lambda self, m: self.cms.urlBase,
+		"IMAGES_DIR"	: lambda self, m: self.cms.imagesDir,
+		"THUMBS_DIR"	: lambda self, m: self.cms.urlBase + "/__thumbs",
+	}
+
 	def resolve(self, data, variables={}):
 		self.variables = variables.copy()
-		self.variables["CMS_BASE"] = lambda: self.cms.urlBase
-		self.variables["IMAGES_DIR"] = lambda: self.cms.imagesDir
-		self.variables["THUMBS_DIR"] = lambda: self.cms.urlBase + "/__thumbs"
+		self.variables.update(self.__genericVars)
 		return self.__doResolve(data, 0)
 
 class CMSQuery(object):
@@ -375,7 +386,7 @@ class CMSQuery(object):
 
 	def get(self, name, default=""):
 		try:
-			return self.queryDict[name][0]
+			return self.queryDict[name][-1]
 		except (KeyError, IndexError), e:
 			return default
 
@@ -597,14 +608,18 @@ class CMS(object):
 			raise CMSException(404)
 		return data, "image/jpeg"
 
-	def __getHtmlPage(self, groupname, pagename):
+	def __getHtmlPage(self, groupname, pagename, query):
 		pageTitle, pageData, stamp = self.db.getPage(groupname, pagename)
 		if not pageData:
 			raise CMSException(404)
-		pageData = self.resolver.resolve(pageData, variables = {
-			"GROUP"	: lambda: groupname,
-			"PAGE"	: lambda: pagename,
-		})
+		resolverVariables = {
+			"GROUP"	: lambda r, m: groupname,
+			"PAGE"	: lambda r, m: pagename,
+		}
+		for k, v in query.queryDict.iteritems():
+			resolverVariables["Q_" + k.upper()] = v[-1]
+		pageTitle = self.resolver.resolve(pageTitle, resolverVariables)
+		pageData = self.resolver.resolve(pageData, resolverVariables)
 		data = [self.__genHtmlHeader(pageTitle)]
 		data.append(self.__genHtmlBody(groupname, pagename,
 					       pageTitle, pageData, stamp))
@@ -615,7 +630,7 @@ class CMS(object):
 		groupname, pagename = self.__parsePagePath(path)
 		if groupname == "__thumbs":
 			return self.__getImageThumbnail(pagename, query)
-		return self.__getHtmlPage(groupname, pagename)
+		return self.__getHtmlPage(groupname, pagename, query)
 
 	def get(self, path, query={}):
 		query = CMSQuery(query)
@@ -626,11 +641,11 @@ class CMS(object):
 
 	def __doGetErrorPage(self, cmsExcept):
 		resolverVariables = {
-			"GROUP"			: lambda: "__nogroup",
-			"PAGE"			: lambda: "__nopage",
-			"HTTP_STATUS"		: lambda: cmsExcept.httpStatus,
-			"HTTP_STATUS_CODE"	: lambda: str(cmsExcept.httpStatusCode),
-			"ERROR_MESSAGE"		: lambda: cmsExcept.message,
+			"GROUP"			: lambda r, m: "__nogroup",
+			"PAGE"			: lambda r, m: "__nopage",
+			"HTTP_STATUS"		: lambda r, m: cmsExcept.httpStatus,
+			"HTTP_STATUS_CODE"	: lambda r, m: str(cmsExcept.httpStatusCode),
+			"ERROR_MESSAGE"		: lambda r, m: cmsExcept.message,
 		}
 		pageHeader = cmsExcept.getHtmlHeader(self.db)
 		pageHeader = self.resolver.resolve(pageHeader, resolverVariables)
