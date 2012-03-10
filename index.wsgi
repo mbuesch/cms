@@ -69,7 +69,7 @@ def application(environ, start_response):
 			response_body, response_mime = cms.post(path, query)
 		else:
 			response_body, response_mime =\
-				"INVALID REQUEST_METHOD", "text/html"
+				"INVALID REQUEST_METHOD", "text/plain"
 	except (CMSException), e:
 		status = e.httpStatus
 		response_body, response_mime, additional_headers = cms.getErrorPage(e)
