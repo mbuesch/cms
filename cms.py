@@ -227,8 +227,6 @@ class CMSDatabase(object):
 		return name if default is None else default
 
 class CMSStatementResolver(object):
-	# Macro call: @name(param1, param2, ...)
-	macro_re = re.compile(r'@(\w+)\(([^\)]*)\)', re.DOTALL)
 	# Macro parameter expansion: $1, $2, $3...
 	macro_param_re = re.compile(r'\$(\d+)', re.DOTALL)
 	# Variable: $FOOBAR
@@ -236,9 +234,35 @@ class CMSStatementResolver(object):
 	# Content comment <!--- comment --->
 	comment_re = re.compile(r'<!---(.*)--->', re.DOTALL)
 
+	__genericVars = {
+		"DOMAIN"	: lambda self, m: self.cms.domain,
+		"CMS_BASE"	: lambda self, m: self.cms.urlBase,
+		"IMAGES_DIR"	: lambda self, m: self.cms.imagesDir,
+		"THUMBS_DIR"	: lambda self, m: self.cms.urlBase + "/__thumbs",
+	}
+
 	def __init__(self, cms):
 		self.cms = cms
-		self.variables = { }
+		self.__reset()
+
+	def __reset(self, variables={}):
+		self.variables = variables.copy()
+		self.variables.update(self.__genericVars)
+		self.macroStack = 0
+
+	__escapedChars = ('\\', ',', '@', '$', '(', ')')
+
+	@classmethod
+	def escape(cls, data):
+		for c in cls.__escapedChars:
+			data = data.replace(c, '\\' + c)
+		return data
+
+	@classmethod
+	def unescape(cls, data):
+		for c in cls.__escapedChars:
+			data = data.replace('\\' + c, c)
+		return data
 
 	# Statement:  $(if CONDITION, THEN, ELSE)
 	# Statement:  $(if CONDITION, THEN)
@@ -327,15 +351,63 @@ class CMSStatementResolver(object):
 		"$(file_exists"	: __stmt_fileExists,
 	}
 
+	def __doMacro(self, macroname, d):
+		if self.macroStack > 16:
+			raise CMSException(500, "Exceed macro call stack depth")
+		# Parse the parameters
+		parameters, i = [], 0
+		while True:
+			cons, p = self.__expandRecStmts(d[i:], ',)')
+			i += cons
+			parameters.append(p.strip())
+			if i <= 0 or d[i - 1] == ')':
+				break
+		# Fetch the macro data from the database
+		macrodata = None
+		try:
+			macrodata = self.cms.db.getMacro(macroname[1:])
+		except (CMSException), e:
+			if e.httpStatusCode == 404:
+				raise CMSException(500,
+					"Macro name '%s' contains "
+					"invalid characters" % macroname)
+		if not macrodata:
+			return i, ""  # Macro does not exist.
+		# Expand the macro parameters ($1, $2, $3, ...)
+		def expandParam(match):
+			pnumber = int(match.group(1), 10)
+			if pnumber >= 1 and pnumber <= len(parameters):
+				return parameters[pnumber - 1]
+			return macroname if pnumber == 0 else ""
+		macrodata = self.macro_param_re.sub(expandParam, macrodata)
+		# Resolve statements and recursive macro calls
+		self.macroStack += 1
+		macrodata = self.__resolve(macrodata)
+		self.macroStack -= 1
+		return i, macrodata
+
 	def __expandRecStmts(self, d, stopchars=""):
-		# Recursively expand statements
+		# Recursively expand statements and macro calls
 		ret, i = [], 0
 		while i < len(d):
-			if d[i] in stopchars:
+			cons, res = 1, d[i]
+			if d[i] == '\\': # Escaped characters
+				# Keep escapes. They are removed later.
+				if i + 1 < len(d) and\
+				   d[i + 1] in self.__escapedChars:
+					res = d[i:i+2]
+					i += 1
+			elif d[i] in stopchars: # Stop character
 				i += 1
 				break
-			cons, res = 1, d[i]
-			if d[i] == '$':
+			elif d[i] == '@': # Macro call
+				end = d.find('(', i)
+				if end > i:
+					cons, res = self.__doMacro(
+						d[i:end],
+						d[end+1:])
+					i = end + 1
+			elif d[i] == '$': # Statement
 				h = lambda _self, x: (cons, res) # nop
 				end = d.find(' ', i)
 				if end > i:
@@ -348,7 +420,7 @@ class CMSStatementResolver(object):
 			i += cons
 		return i, "".join(ret)
 
-	def __resolveStatements(self, data):
+	def __resolve(self, data):
 		# Remove comments
 		data = self.comment_re.sub("", data)
 		# Expand variables
@@ -366,47 +438,13 @@ class CMSStatementResolver(object):
 		data = self.variable_re.sub(expandVariable, data)
 		# Expand recursive statements
 		unused, data = self.__expandRecStmts(data)
+		# Remove escapes
+		data = self.unescape(data)
 		return data
 
-	def __resolveOneMacro(self, match, recurseLevel):
-		if recurseLevel > 16:
-			raise CMSException(500, "Exceed macro recurse depth")
-		def expandParam(match):
-			pnumber = int(match.group(1), 10)
-			if pnumber >= 1 and pnumber <= len(parameters):
-				return parameters[pnumber - 1]
-			if pnumber == 0:
-				return macroname
-			return "" # Param not given or invalid
-		macroname = match.group(1)
-		parameters = [ p.strip() for p in match.group(2).split(",") ]
-		# Get the raw macro value
-		macrovalue = self.cms.db.getMacro(macroname)
-		if not macrovalue:
-			return "\n<!-- WARNING: INVALID MACRO USED: %s -->\n" %\
-				match.group(0)
-		# Expand the macro parameters
-		macrovalue = self.macro_param_re.sub(expandParam, macrovalue)
-		# Resolve statements and recursive macro calls
-		return self.__doResolve(macrovalue, recurseLevel)
-
-	def __doResolve(self, data, recurseLevel):
-		data = self.__resolveStatements(data)
-		return self.macro_re.sub(
-			lambda m: self.__resolveOneMacro(m, recurseLevel + 1),
-			data)
-
-	__genericVars = {
-		"DOMAIN"	: lambda self, m: self.cms.domain,
-		"CMS_BASE"	: lambda self, m: self.cms.urlBase,
-		"IMAGES_DIR"	: lambda self, m: self.cms.imagesDir,
-		"THUMBS_DIR"	: lambda self, m: self.cms.urlBase + "/__thumbs",
-	}
-
 	def resolve(self, data, variables={}):
-		self.variables = variables.copy()
-		self.variables.update(self.__genericVars)
-		return self.__doResolve(data, 0)
+		self.__reset(variables)
+		return self.__resolve(data)
 
 class CMSQuery(object):
 	def __init__(self, queryDict):
@@ -673,7 +711,7 @@ class CMS(object):
 			"PAGE"			: lambda r, m: "__nopage",
 			"HTTP_STATUS"		: lambda r, m: cmsExcept.httpStatus,
 			"HTTP_STATUS_CODE"	: lambda r, m: str(cmsExcept.httpStatusCode),
-			"ERROR_MESSAGE"		: lambda r, m: cmsExcept.message,
+			"ERROR_MESSAGE"		: lambda r, m: CMSStatementResolver.escape(cmsExcept.message),
 		}
 		pageHeader = cmsExcept.getHtmlHeader(self.db)
 		pageHeader = self.resolver.resolve(pageHeader, resolverVariables)
