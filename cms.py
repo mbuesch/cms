@@ -227,8 +227,8 @@ class CMSDatabase(object):
 		return name if default is None else default
 
 class CMSStatementResolver(object):
-	# Macro parameter expansion: $1, $2, $3...
-	macro_param_re = re.compile(r'\$(\d+)', re.DOTALL)
+	# Macro argument expansion: $1, $2, $3...
+	macro_arg_re = re.compile(r'\$(\d+)', re.DOTALL)
 	# Variable: $FOOBAR
 	variable_re = re.compile(r'\$([A-Z_]+)')
 	# Content comment <!--- comment --->
@@ -264,59 +264,77 @@ class CMSStatementResolver(object):
 			data = data.replace('\\' + c, c)
 		return data
 
+	# Parse statement arguments.
+	# Returns (consumed-characters-count, arguments) tuple.
+	def __parseArguments(self, d, strip=False):
+		arguments, cons = [], 0
+		while True:
+			c, arg = self.__expandRecStmts(d[cons:], ',)')
+			cons += c
+			arguments.append(arg.strip() if strip else arg)
+			if cons <= 0 or d[cons - 1] == ')':
+				break
+		return cons, arguments
+
 	# Statement:  $(if CONDITION, THEN, ELSE)
 	# Statement:  $(if CONDITION, THEN)
 	# Returns THEN if CONDITION is nonempty after stripping whitespace.
 	# Returns ELSE otherwise.
 	def __stmt_if(self, d):
-		# CONDITION
-		i, condition = self.__expandRecStmts(d, ',')
-		# THEN branch
-		cons, b_then = self.__expandRecStmts(d[i:], ',)')
-		i += cons
-		if i <= 0 or d[i - 1] == ')':  # No ELSE branch
-			b_else = ""
-		else:  # Have ELSE branch. Expand it.
-			cons, b_else = self.__expandRecStmts(d[i:], ')')
-			i += cons
+		cons, args = self.__parseArguments(d)
+		if len(args) != 2 and len(args) != 3:
+			raise CMSException(500, "IF statement invalid args")
+		condition, b_then = args[0], args[1]
+		b_else = args[2] if len(args) == 3 else ""
 		result = b_then if condition.strip() else b_else
-		return i, result
+		return cons, result
 
 	def __do_compare(self, d, invert):
-		# Get string 'A'
-		i, a = self.__expandRecStmts(d, ',')
-		# Get string 'B'
-		cons, b = self.__expandRecStmts(d[i:], ')')
-		i += cons
-		result = (a.strip() == b.strip())
-		if invert:
-			result = not result
-		result = b if result else ""
-		return i, result
+		cons, args = self.__parseArguments(d, strip=True)
+		result = reduce(lambda a, b: a and b == args[0],
+				args[1:], True)
+		result = not result if invert else result
+		return cons, (args[-1] if result else "")
 
-	# Statement:  $(eq A,B)
-	# Returns B, if A and B are equal after stripping whitespace.
+	# Statement:  $(eq A, B, ...)
+	# Returns the last argument, if all stripped arguments are equal.
 	# Returns an empty string otherwise.
 	def __stmt_eq(self, d):
 		return self.__do_compare(d, False)
 
-	# Statement:  $(ne A,B)
-	# Returns B, if A and B are _not_ equal after stripping whitespace.
+	# Statement:  $(ne A, B, ...)
+	# Returns the last argument, if not all stripped arguments are equal.
 	# Returns an empty string otherwise.
 	def __stmt_ne(self, d):
 		return self.__do_compare(d, True)
 
+	# Statement:  $(and A,B,...)
+	# Returns A, if all stripped arguments are non-empty strings.
+	# Returns an empty string otherwise.
+	def __stmt_and(self, d):
+		cons, args = self.__parseArguments(d, strip=True)
+		return cons, (args[0] if all(args) else "")
+
+	# Statement:  $(or A,B,...)
+	# Returns the first stripped non-empty argument.
+	# Returns an empty string, if there is no non-empty argument.
+	def __stmt_or(self, d):
+		cons, args = self.__parseArguments(d, strip=True)
+		nonempty = [ a for a in args if a ]
+		return cons, (nonempty[0] if nonempty else "")
+
 	# Statement:  $(strip STRING)
 	# Strip whitespace at the start and at the end of the string.
 	def __stmt_strip(self, d):
-		i, string = self.__expandRecStmts(d, ')')
-		return i, string.strip()
+		cons, args = self.__parseArguments(d, strip=True)
+		return cons, "".join(args)
 
 	# Statement:  $(sanitize STRING)
 	# Sanitize a string.
 	# Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
 	def __stmt_sanitize(self, d):
-		cons, string = self.__expandRecStmts(d, ')')
+		cons, args = self.__parseArguments(d)
+		string = "_".join(args)
 		validChars = "abcdefghijklmnopqrstuvwxyz1234567890"
 		string = string.lower()
 		string = "".join( c if c in validChars else '_' for c in string )
@@ -329,23 +347,23 @@ class CMSStatementResolver(object):
 	# Returns the path, if the file exists or an empty string if it doesn't.
 	# If DOES_NOT_EXIST is specified, it returns this if the file doesn't exist.
 	def __stmt_fileExists(self, d):
-		i, relpath = self.__expandRecStmts(d, ',)')
-		if i <= 0 or d[i - 1] == ')':
-			enoent = "" # Empty string for nonexisting case.
-		else:  # Predefined string for nonexisting case.
-			cons, enoent = self.__expandRecStmts(d[i:], ')')
-			i += cons
+		cons, args = self.__parseArguments(d)
+		if len(args) != 1 and len(args) != 2:
+			raise CMSException(500, "FILE_EXISTS invalid args")
+		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
 		try:
 			exists = f_exists(self.cms.wwwPath,
 					  validateSafePath(relpath))
 		except (CMSException), e:
 			exists = False
-		return i, (relpath if exists else enoent)
+		return cons, (relpath if exists else enoent)
 
 	__handlers = {
 		"$(if"		: __stmt_if,
 		"$(eq"		: __stmt_eq,
 		"$(ne"		: __stmt_ne,
+		"$(and"		: __stmt_and,
+		"$(or"		: __stmt_or,
 		"$(strip"	: __stmt_strip,
 		"$(sanitize"	: __stmt_sanitize,
 		"$(file_exists"	: __stmt_fileExists,
@@ -354,14 +372,7 @@ class CMSStatementResolver(object):
 	def __doMacro(self, macroname, d):
 		if self.macroStack > 16:
 			raise CMSException(500, "Exceed macro call stack depth")
-		# Parse the parameters
-		parameters, i = [], 0
-		while True:
-			cons, p = self.__expandRecStmts(d[i:], ',)')
-			i += cons
-			parameters.append(p.strip())
-			if i <= 0 or d[i - 1] == ')':
-				break
+		cons, arguments = self.__parseArguments(d, strip=True)
 		# Fetch the macro data from the database
 		macrodata = None
 		try:
@@ -372,19 +383,19 @@ class CMSStatementResolver(object):
 					"Macro name '%s' contains "
 					"invalid characters" % macroname)
 		if not macrodata:
-			return i, ""  # Macro does not exist.
-		# Expand the macro parameters ($1, $2, $3, ...)
-		def expandParam(match):
-			pnumber = int(match.group(1), 10)
-			if pnumber >= 1 and pnumber <= len(parameters):
-				return parameters[pnumber - 1]
-			return macroname if pnumber == 0 else ""
-		macrodata = self.macro_param_re.sub(expandParam, macrodata)
+			return cons, ""  # Macro does not exist.
+		# Expand the macro arguments ($1, $2, $3, ...)
+		def expandArg(match):
+			nr = int(match.group(1), 10)
+			if nr >= 1 and nr <= len(arguments):
+				return arguments[nr - 1]
+			return macroname if nr == 0 else ""
+		macrodata = self.macro_arg_re.sub(expandArg, macrodata)
 		# Resolve statements and recursive macro calls
 		self.macroStack += 1
 		macrodata = self.__resolve(macrodata)
 		self.macroStack -= 1
-		return i, macrodata
+		return cons, macrodata
 
 	def __expandRecStmts(self, d, stopchars=""):
 		# Recursively expand statements and macro calls
