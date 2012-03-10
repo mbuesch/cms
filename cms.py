@@ -232,7 +232,7 @@ class CMSStatementResolver(object):
 	# Variable: $FOOBAR
 	variable_re = re.compile(r'\$([A-Z_]+)')
 	# Content comment <!--- comment --->
-	comment_re = re.compile(r'<!---([^(?:\-\-\->)]*)--->', re.DOTALL)
+	comment_re = re.compile(r'<!---(.*)--->', re.DOTALL)
 
 	__genericVars = {
 		"DOMAIN"	: lambda self, m: self.cms.domain,
