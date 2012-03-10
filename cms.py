@@ -24,7 +24,11 @@ import re
 import Image
 from StringIO import StringIO
 import urllib
+import cgi
 
+
+def htmlEscape(string):
+	return cgi.escape(string, True)
 
 def stringBool(string, default=False):
 	s = string.lower()
@@ -694,7 +698,9 @@ class CMS(object):
 			"PAGE"	: lambda r, m: pagename,
 		}
 		for k, v in query.queryDict.iteritems():
-			resolverVariables["Q_" + k.upper()] = v[-1]
+			k, v = k.upper(), v[-1]
+			resolverVariables["Q_" + k] = htmlEscape(v)
+			resolverVariables["QRAW_" + k] = v
 		pageTitle = self.resolver.resolve(pageTitle, resolverVariables)
 		pageData = self.resolver.resolve(pageData, resolverVariables)
 		data = [self.__genHtmlHeader(pageTitle)]
