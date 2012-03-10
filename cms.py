@@ -728,7 +728,7 @@ class CMS(object):
 			"PAGE"			: lambda r, m: "__nopage",
 			"HTTP_STATUS"		: lambda r, m: cmsExcept.httpStatus,
 			"HTTP_STATUS_CODE"	: lambda r, m: str(cmsExcept.httpStatusCode),
-			"ERROR_MESSAGE"		: lambda r, m: CMSStatementResolver.escape(cmsExcept.message),
+			"ERROR_MESSAGE"		: lambda r, m: CMSStatementResolver.escape(htmlEscape(cmsExcept.message)),
 		}
 		pageHeader = cmsExcept.getHtmlHeader(self.db)
 		pageHeader = self.resolver.resolve(pageHeader, resolverVariables)
