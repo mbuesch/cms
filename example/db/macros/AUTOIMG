@@ -1,5 +1,6 @@
-# Add a picture with automatic preview
-# @AUTOIMG(imagefile, (width), (height), (quality))
+<!--- An IMG with automatic preview.
+      @AUTOIMG(imagefile, (width), (height), (quality))
+--->
 
 <a href="$IMAGES_DIR/$1">
 	<img src="$THUMBS_DIR/$1?w=$(if $2,$2,300)&amp;h=$(if $3,$3,300)&amp;q=$(if $4,$4,1)" alt="Image preview of $1" />

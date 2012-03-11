@@ -228,11 +228,7 @@ class CMSDatabase(object):
 		return res
 
 	def getMacro(self, name):
-		def macroLineFilter(line):
-			line = line.strip()
-			return line and not line.startswith("#")
-		lines = f_read(self.macroBase, validateName(name)).splitlines()
-		return "\n".join(filter(macroLineFilter, lines))
+		return f_read(self.macroBase, validateName(name))
 
 	def getString(self, name, default=None):
 		name = validateName(name)
@@ -256,6 +252,11 @@ class CMSStatementResolver(object):
 		"__DUMPVARS__"	: lambda self, m: self.__dumpVars(),
 	}
 
+	class StackElem(object): # Call stack element
+		def __init__(self, name):
+			self.name = name
+			self.lineno = 1
+
 	def __init__(self, cms):
 		self.cms = cms
 		self.__reset()
@@ -263,13 +264,14 @@ class CMSStatementResolver(object):
 	def __reset(self, variables={}):
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
-		self.macroStack = 0
-		self.lineno = 1
+		self.callStack = [ self.StackElem("content.html") ]
 
 	def __stmtError(self, msg):
 		pfx = ""
 		if self.cms.debug:
-			pfx = "line %d: " % self.lineno
+			pfx = "%s:%d: " %\
+				(self.callStack[-1].name,
+				 self.callStack[-1].lineno)
 		raise CMSException(500, pfx + msg)
 
 	def __expandVariable(self, name):
@@ -438,7 +440,7 @@ class CMSStatementResolver(object):
 	}
 
 	def __doMacro(self, macroname, d):
-		if self.macroStack > 16:
+		if len(self.callStack) > 16:
 			raise CMSException(500, "Exceed macro call stack depth")
 		cons, arguments = self.__parseArguments(d, strip=True)
 		# Fetch the macro data from the database
@@ -460,9 +462,9 @@ class CMSStatementResolver(object):
 			return macroname if nr == 0 else ""
 		macrodata = self.macro_arg_re.sub(expandArg, macrodata)
 		# Resolve statements and recursive macro calls
-		self.macroStack += 1
+		self.callStack.append(self.StackElem(macroname))
 		macrodata = self.__resolve(macrodata)
-		self.macroStack -= 1
+		self.callStack.pop()
 		return cons, macrodata
 
 	def __expandRecStmts(self, d, stopchars=""):
@@ -477,7 +479,11 @@ class CMSStatementResolver(object):
 					res = d[i:i+2]
 					i += 1
 			elif d[i] == '\n':
-				self.lineno += 1
+				self.callStack[-1].lineno += 1
+			elif d.startswith('<!---', i): # Comment
+				end = d.find('--->', i)
+				if end > i:
+					cons, res = end - i + 4, ""
 			elif d[i] in stopchars: # Stop character
 				i += 1
 				break
@@ -502,10 +508,6 @@ class CMSStatementResolver(object):
 				if end > i + 1:
 					res = self.__expandVariable(d[i+1:end])
 					cons = end - i
-			elif d.startswith('<!---', i): # Comment
-				end = d.find('--->', i)
-				if end > i:
-					cons, res = end - i + 4, ""
 			ret.append(res)
 			i += cons
 		return i, "".join(ret)
