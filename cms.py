@@ -245,12 +245,12 @@ class CMSStatementResolver(object):
 	VARNAME_CHARS = UPPERCASE + '_'
 
 	__genericVars = {
-		"DOMAIN"	: lambda self, m: self.cms.domain,
-		"CMS_BASE"	: lambda self, m: self.cms.urlBase,
-		"IMAGES_DIR"	: lambda self, m: self.cms.imagesDir,
-		"THUMBS_DIR"	: lambda self, m: self.cms.urlBase + "/__thumbs",
-		"DEBUG"		: lambda self, m: "1" if self.cms.debug else "",
-		"__DUMPVARS__"	: lambda self, m: self.__dumpVars(),
+		"DOMAIN"	: lambda self, n: self.cms.domain,
+		"CMS_BASE"	: lambda self, n: self.cms.urlBase,
+		"IMAGES_DIR"	: lambda self, n: self.cms.imagesDir,
+		"THUMBS_DIR"	: lambda self, n: self.cms.urlBase + "/__thumbs",
+		"DEBUG"		: lambda self, n: "1" if self.cms.debug else "",
+		"__DUMPVARS__"	: lambda self, n: self.__dumpVars(),
 	}
 
 	class StackElem(object): # Call stack element
@@ -760,8 +760,8 @@ class CMS(object):
 		if not pageData:
 			raise CMSException(404)
 		resolverVariables = {
-			"GROUP"	: lambda r, m: groupname,
-			"PAGE"	: lambda r, m: pagename,
+			"GROUP"	: lambda r, n: groupname,
+			"PAGE"	: lambda r, n: pagename,
 		}
 		for k, v in query.queryDict.iteritems():
 			k, v = k.upper(), v[-1]
@@ -790,11 +790,11 @@ class CMS(object):
 
 	def __doGetErrorPage(self, cmsExcept):
 		resolverVariables = {
-			"GROUP"			: lambda r, m: "__nogroup",
-			"PAGE"			: lambda r, m: "__nopage",
-			"HTTP_STATUS"		: lambda r, m: cmsExcept.httpStatus,
-			"HTTP_STATUS_CODE"	: lambda r, m: str(cmsExcept.httpStatusCode),
-			"ERROR_MESSAGE"		: lambda r, m: CMSStatementResolver.escape(htmlEscape(cmsExcept.message)),
+			"GROUP"			: lambda r, n: "__nogroup",
+			"PAGE"			: lambda r, n: "__nopage",
+			"HTTP_STATUS"		: lambda r, n: cmsExcept.httpStatus,
+			"HTTP_STATUS_CODE"	: lambda r, n: str(cmsExcept.httpStatusCode),
+			"ERROR_MESSAGE"		: lambda r, n: CMSStatementResolver.escape(htmlEscape(cmsExcept.message)),
 		}
 		pageHeader = cmsExcept.getHtmlHeader(self.db)
 		pageHeader = self.resolver.resolve(pageHeader, resolverVariables)
