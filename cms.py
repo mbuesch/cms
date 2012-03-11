@@ -244,8 +244,6 @@ class CMSDatabase(object):
 class CMSStatementResolver(object):
 	# Macro argument expansion: $1, $2, $3...
 	macro_arg_re = re.compile(r'\$(\d+)', re.DOTALL)
-	# Content comment <!--- comment --->
-	comment_re = re.compile(r'<!---(.*)--->', re.DOTALL)
 
 	# Valid characters for variable names (without the leading $)
 	VARNAME_CHARS = UPPERCASE + '_'
@@ -490,8 +488,7 @@ class CMSStatementResolver(object):
 						d[i:end],
 						d[end+1:])
 					i = end + 1
-			elif d[i] == '$' and i + 1 < len(d) and\
-			     d[i + 1] == '(': # Statement
+			elif d.startswith('$(', i): # Statement
 				h = lambda _self, x: (cons, res) # nop
 				end = d.find(' ', i)
 				if end > i:
@@ -505,13 +502,15 @@ class CMSStatementResolver(object):
 				if end > i + 1:
 					res = self.__expandVariable(d[i+1:end])
 					cons = end - i
+			elif d.startswith('<!---', i): # Comment
+				end = d.find('--->', i)
+				if end > i:
+					cons, res = end - i + 4, ""
 			ret.append(res)
 			i += cons
 		return i, "".join(ret)
 
 	def __resolve(self, data):
-		# Remove comments FIXME
-		data = self.comment_re.sub("", data)
 		# Expand recursive statements
 		unused, data = self.__expandRecStmts(data)
 		# Remove escapes
