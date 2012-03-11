@@ -254,6 +254,13 @@ class CMSStatementResolver(object):
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
 		self.macroStack = 0
+		self.lineno = 1
+
+	def __stmtError(self, msg):
+		pfx = ""
+		if self.cms.debug:
+			pfx = "line %d: " % self.lineno
+		raise CMSException(500, pfx + msg)
 
 	def __expandVariable(self, name):
 		try:
@@ -313,7 +320,7 @@ class CMSStatementResolver(object):
 	def __stmt_if(self, d):
 		cons, args = self.__parseArguments(d)
 		if len(args) != 2 and len(args) != 3:
-			raise CMSException(500, "IF statement invalid args")
+			self.__stmtError("IF: invalid args")
 		condition, b_then = args[0], args[1]
 		b_else = args[2] if len(args) == 3 else ""
 		result = b_then if condition.strip() else b_else
@@ -338,20 +345,39 @@ class CMSStatementResolver(object):
 	def __stmt_ne(self, d):
 		return self.__do_compare(d, True)
 
-	# Statement:  $(and A,B,...)
+	# Statement:  $(and A, B, ...)
 	# Returns A, if all stripped arguments are non-empty strings.
 	# Returns an empty string otherwise.
 	def __stmt_and(self, d):
 		cons, args = self.__parseArguments(d, strip=True)
 		return cons, (args[0] if all(args) else "")
 
-	# Statement:  $(or A,B,...)
+	# Statement:  $(or A, B, ...)
 	# Returns the first stripped non-empty argument.
 	# Returns an empty string, if there is no non-empty argument.
 	def __stmt_or(self, d):
 		cons, args = self.__parseArguments(d, strip=True)
 		nonempty = [ a for a in args if a ]
 		return cons, (nonempty[0] if nonempty else "")
+
+	# Statement:  $(not A)
+	# Returns 1, if A is an empty string after stripping.
+	# Returns an empty string, if A is a non-empty stripped string.
+	def __stmt_not(self, d):
+		cons, args = self.__parseArguments(d, strip=True)
+		if len(args) != 1:
+			self.__stmtError("NOT: invalid args")
+		return cons, ("" if args[0] else "1")
+
+	# Statement:  $(assert A, ...)
+	# Raises a 500-assertion-failed exception, if any argument
+	# is empty after stripping.
+	# Returns an empty string, otherwise.
+	def __stmt_assert(self, d):
+		cons, args = self.__parseArguments(d, strip=True)
+		if not all(args):
+			self.__stmtError("ASSERT: failed")
+		return cons, ""
 
 	# Statement:  $(strip STRING)
 	# Strip whitespace at the start and at the end of the string.
@@ -379,7 +405,7 @@ class CMSStatementResolver(object):
 	def __stmt_fileExists(self, d):
 		cons, args = self.__parseArguments(d)
 		if len(args) != 1 and len(args) != 2:
-			raise CMSException(500, "FILE_EXISTS invalid args")
+			self.__stmtError("FILE_EXISTS: invalid args")
 		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
 		try:
 			exists = f_exists(self.cms.wwwPath,
@@ -394,6 +420,8 @@ class CMSStatementResolver(object):
 		"$(ne"		: __stmt_ne,
 		"$(and"		: __stmt_and,
 		"$(or"		: __stmt_or,
+		"$(not"		: __stmt_not,
+		"$(assert"	: __stmt_assert,
 		"$(strip"	: __stmt_strip,
 		"$(sanitize"	: __stmt_sanitize,
 		"$(file_exists"	: __stmt_fileExists,
@@ -438,6 +466,8 @@ class CMSStatementResolver(object):
 				   d[i + 1] in self.__escapedChars:
 					res = d[i:i+2]
 					i += 1
+			elif d[i] == '\n':
+				self.lineno += 1
 			elif d[i] in stopchars: # Stop character
 				i += 1
 				break
