@@ -719,8 +719,8 @@ class CMS(object):
 		}
 		for k, v in query.queryDict.iteritems():
 			k, v = k.upper(), v[-1]
-			resolverVariables["Q_" + k] = htmlEscape(v)
-			resolverVariables["QRAW_" + k] = v
+			resolverVariables["Q_" + k] = CMSStatementResolver.escape(htmlEscape(v))
+			resolverVariables["QRAW_" + k] = CMSStatementResolver.escape(v)
 		pageTitle = self.resolver.resolve(pageTitle, resolverVariables)
 		pageData = self.resolver.resolve(pageData, resolverVariables)
 		data = [self.__genHtmlHeader(pageTitle)]
