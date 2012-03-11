@@ -27,6 +27,17 @@ import urllib
 import cgi
 
 
+UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'
+NUMBERS   = '0123456789'
+
+def findNot(string, template, idx=0):
+	while idx < len(string):
+		if string[idx] not in template:
+			return idx
+		idx += 1
+	return -1
+
 def htmlEscape(string):
 	return cgi.escape(string, True)
 
@@ -102,7 +113,7 @@ def validateSafePathComponent(pcomp):
 	if pcomp.startswith('.'):
 		# No ".", ".." and hidden files.
 		raise CMSException(404)
-	validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_."
+	validChars = LOWERCASE + UPPERCASE + NUMBERS + "-_."
 	if [ c for c in pcomp if c not in validChars ]:
 		raise CMSException(404)
 	return pcomp
@@ -233,10 +244,11 @@ class CMSDatabase(object):
 class CMSStatementResolver(object):
 	# Macro argument expansion: $1, $2, $3...
 	macro_arg_re = re.compile(r'\$(\d+)', re.DOTALL)
-	# Variable: $FOOBAR
-	variable_re = re.compile(r'\$([A-Z_]+)')
 	# Content comment <!--- comment --->
 	comment_re = re.compile(r'<!---(.*)--->', re.DOTALL)
+
+	# Valid characters for variable names (without the leading $)
+	VARNAME_CHARS = UPPERCASE + '_'
 
 	__genericVars = {
 		"DOMAIN"	: lambda self, m: self.cms.domain,
@@ -391,7 +403,7 @@ class CMSStatementResolver(object):
 	def __stmt_sanitize(self, d):
 		cons, args = self.__parseArguments(d)
 		string = "_".join(args)
-		validChars = "abcdefghijklmnopqrstuvwxyz1234567890"
+		validChars = LOWERCASE + NUMBERS
 		string = string.lower()
 		string = "".join( c if c in validChars else '_' for c in string )
 		string = re.sub(r'_+', '_', string).strip('_')
@@ -478,7 +490,8 @@ class CMSStatementResolver(object):
 						d[i:end],
 						d[end+1:])
 					i = end + 1
-			elif d[i] == '$': # Statement
+			elif d[i] == '$' and i + 1 < len(d) and\
+			     d[i + 1] == '(': # Statement
 				h = lambda _self, x: (cons, res) # nop
 				end = d.find(' ', i)
 				if end > i:
@@ -487,17 +500,18 @@ class CMSStatementResolver(object):
 						i = end + 1
 					except KeyError: pass
 				cons, res = h(self, d[i:])
+			elif d[i] == '$': # Variable
+				end = findNot(d, self.VARNAME_CHARS, i + 1)
+				if end > i + 1:
+					res = self.__expandVariable(d[i+1:end])
+					cons = end - i
 			ret.append(res)
 			i += cons
 		return i, "".join(ret)
 
 	def __resolve(self, data):
-		# Remove comments
+		# Remove comments FIXME
 		data = self.comment_re.sub("", data)
-		# Expand variables
-		data = self.variable_re.sub(
-			lambda m: self.__expandVariable(m.group(1)),
-			data)
 		# Expand recursive statements
 		unused, data = self.__expandRecStmts(data)
 		# Remove escapes
