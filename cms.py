@@ -318,7 +318,7 @@ class CMSStatementResolver(object):
 	# Returns (consumed-characters-count, arguments) tuple.
 	def __parseArguments(self, d, strip=False):
 		arguments, cons = [], 0
-		while True:
+		while cons < len(d):
 			c, arg = self.__expandRecStmts(d[cons:], ',)')
 			cons += c
 			arguments.append(arg.strip() if strip else arg)
@@ -511,6 +511,8 @@ class CMSStatementResolver(object):
 					cons = end - i
 			ret.append(res)
 			i += cons
+		if stopchars and i >= len(d) and d[-1] not in stopchars:
+			self.__stmtError("Unterminated statement")
 		return i, "".join(ret)
 
 	def __resolve(self, data):
