@@ -249,6 +249,7 @@ class CMSStatementResolver(object):
 		"CMS_BASE"	: lambda self, m: self.cms.urlBase,
 		"IMAGES_DIR"	: lambda self, m: self.cms.imagesDir,
 		"THUMBS_DIR"	: lambda self, m: self.cms.urlBase + "/__thumbs",
+		"DEBUG"		: lambda self, m: "1" if self.cms.debug else "",
 		"__DUMPVARS__"	: lambda self, m: self.__dumpVars(),
 	}
 
