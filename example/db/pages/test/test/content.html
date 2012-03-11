@@ -1,0 +1,37 @@
+@SUB(CMS test page)
+
+IF		$(if x,TRUE,FALSE)			<br />
+EQ		$(eq abc,abc,abc)			<br />
+NE		$(ne abc,abc,aBc)			<br />
+AND		$(and a,b,c)				<br />
+OR		$(or ,,c,d,)				<br />
+NOT		$(not a)				<br />
+NOT		$(not )					<br />
+STRIP		$(strip   aaa   ,  bbb  )		<br />
+SANITIZE	$(sanitize x1%2y, z3\)3)		<br />
+FILE_EXISTS	$(file_exists /cms.css)			<br />
+FILE_EXISTS	$(file_exists /none)			<br />
+FILE_EXISTS	$(file_exists /none, no file)		<br />
+
+<br />
+Variables:						<br />
+<pre>$__DUMPVARS__</pre>				<br />
+
+<br />
+Unit tests:						<br />
+$(assert a)
+$(assert $(not ), $(not $(not x)))
+$(assert $(if a,b), $(if a,b,))
+$(assert $(if ,,c))
+$(assert $(not $(if a,,c)))
+$(assert $(not $(if ,b)), $(not $(if ,b,)))
+$(assert $(eq xyz, xyz), $(eq $(eq abc,abc),abc))
+$(assert $(ne abc,aBc), $(eq $(ne abc, aBc), aBc))
+$(assert $(and a,b,c), $(eq $(and a,b,c),a), $(not $(and a,,c)))
+$(assert $(or ,b,,,,), $(eq $(or ,b,,,,),b), $(not $(or )))
+$(assert $(eq $(strip  foo bar  ),foo bar))
+$(assert $(eq $(sanitize ___ab*+ef+),ab_ef))
+$(assert $(file_exists /), $(eq $(file_exists /),/))
+passed.
+
+@ENDSUB()
