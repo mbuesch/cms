@@ -30,11 +30,9 @@ except ImportError:
 	raise Exception("Failed to import cms.py. Wrong WSGIPythonPath?")
 
 cms = None
-cmsDebug = False
 
 def __initCMS(environ):
 	global cms
-	global cmsDebug
 	if cms:
 		return # Already initialized
 	try:
@@ -43,19 +41,21 @@ def __initCMS(environ):
 		wwwBase = environ["cms.wwwBase"]
 	except (KeyError), e:
 		raise Exception("WSGI environment %s not set" % str(e))
+	debug = False
 	try:
-		cmsDebug = stringBool(environ["cms.debug"])
+		debug = stringBool(environ["cms.debug"])
 	except (KeyError), e:
 		pass
 	# Initialize the CMS module
 	cms = CMS(dbPath = cmsBase + "/db",
 		  wwwPath = wwwBase,
-		  domain = domain)
+		  domain = domain,
+		  debug = debug)
 	atexit.register(cms.shutdown)
 
 def application(environ, start_response):
 	__initCMS(environ)
-	if cmsDebug:
+	if cms.debug:
 		startStamp = datetime.now()
 	status = "200 OK"
 	additional_headers = []
@@ -73,7 +73,7 @@ def application(environ, start_response):
 	except (CMSException), e:
 		status = e.httpStatus
 		response_body, response_mime, additional_headers = cms.getErrorPage(e)
-	if cmsDebug and response_mime.lower() == "text/html":
+	if cms.debug and response_mime.lower() == "text/html":
 		delta = datetime.now() - startStamp
 		sec = float(delta.seconds) + float(delta.microseconds) / 1000000
 		response_body += "\n<!-- generated in %.3f seconds -->" % sec

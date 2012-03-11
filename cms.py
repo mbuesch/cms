@@ -243,6 +243,7 @@ class CMSStatementResolver(object):
 		"CMS_BASE"	: lambda self, m: self.cms.urlBase,
 		"IMAGES_DIR"	: lambda self, m: self.cms.imagesDir,
 		"THUMBS_DIR"	: lambda self, m: self.cms.urlBase + "/__thumbs",
+		"__DUMPVARS__"	: lambda self, m: self.__dumpVars(),
 	}
 
 	def __init__(self, cms):
@@ -253,6 +254,31 @@ class CMSStatementResolver(object):
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
 		self.macroStack = 0
+
+	def __expandVariable(self, name):
+		try:
+			value = self.variables[name]
+			try:
+				value = value(self, name)
+			except (TypeError), e:
+				pass
+			return str(value)
+		except (KeyError, TypeError), e:
+			return ""
+
+	def __dumpVars(self, force=False):
+		if not force and not self.cms.debug:
+			return ""
+		ret, names = [], self.variables.keys()
+		names.sort()
+		for name in names:
+			if name == "__DUMPVARS__":
+				value = "-- variable dump --"
+			else:
+				value = self.__expandVariable(name)
+			sep = "\t" * (3 - len(name) // 8)
+			ret.append("%s%s=> %s" % (name, sep, value))
+		return "\n".join(ret)
 
 	__escapedChars = ('\\', ',', '@', '$', '(', ')')
 
@@ -439,18 +465,9 @@ class CMSStatementResolver(object):
 		# Remove comments
 		data = self.comment_re.sub("", data)
 		# Expand variables
-		def expandVariable(match):
-			try:
-				m1 = match.group(1)
-				value = self.variables[m1]
-				try:
-					value = value(self, m1)
-				except (TypeError), e:
-					pass
-				return str(value)
-			except (KeyError, TypeError), e:
-				return ""
-		data = self.variable_re.sub(expandVariable, data)
+		data = self.variable_re.sub(
+			lambda m: self.__expandVariable(m.group(1)),
+			data)
 		# Expand recursive statements
 		unused, data = self.__expandRecStmts(data)
 		# Remove escapes
@@ -488,7 +505,8 @@ class CMS(object):
 		     imagesDir="/images",
 		     domain="example.com",
 		     urlBase="/cms",
-		     cssUrlPath="/cms.css"):
+		     cssUrlPath="/cms.css",
+		     debug=False):
 		# dbPath => Unix path to the database directory.
 		# wwwPath => Unix path to the static www data.
 		# imagesDir => Subdirectory path, based on wwwPath, to
@@ -496,11 +514,13 @@ class CMS(object):
 		# domain => The site domain name.
 		# urlBase => URL base component to the HTTP server CMS mapping.
 		# cssUrlBase => URL subpath to the CSS.
+		# debug => Enable/disable debugging
 		self.wwwPath = wwwPath
 		self.imagesDir = imagesDir
 		self.domain = domain
 		self.urlBase = urlBase
 		self.cssUrlPath = cssUrlPath
+		self.debug = debug
 
 		self.db = CMSDatabase(dbPath)
 		self.resolver = CMSStatementResolver(self)
