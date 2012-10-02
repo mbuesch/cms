@@ -228,7 +228,7 @@ class CMSDatabase(object):
 		return res
 
 	def getMacro(self, name):
-		return f_read(self.macroBase, validateName(name))
+		return f_read(self.macroBase, validateName(name)).rstrip("\r\n")
 
 	def getString(self, name, default=None):
 		name = validateName(name)
