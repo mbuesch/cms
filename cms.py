@@ -485,7 +485,13 @@ class CMSStatementResolver(object):
 			elif d.startswith('<!---', i): # Comment
 				end = d.find('--->', i)
 				if end > i:
-					cons, res = end - i + 4, ""
+					strip_nl = 0
+					# If comment is on a line of its own,
+					# remove the line.
+					if (i == 0 or d[i - 1] == '\n') and\
+					   (end + 4 < len(d) and d[end + 4] == '\n'):
+						strip_nl = 1
+					cons, res = end - i + 4 + strip_nl, ""
 			elif d[i] in stopchars: # Stop character
 				i += 1
 				break
