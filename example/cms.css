@@ -1,5 +1,9 @@
+html {
+	background-color: #E0E0E0;
+}
+
 body {
-	background: #FAFAFA;
+	background-color: #FAFAFA;
 	font-family: serif;
 	font-size: 11pt;
 
@@ -54,7 +58,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 }
 
 .navbar {
-	background: #FFFFAA;
+	background-color: #FFFFAA;
 	font-family: sans-serif;
 	font-size: 10pt;
 	position: relative;
@@ -169,8 +173,12 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 }
 
 @media print {
+	html {
+		background-color: #FFFFFF;
+	}
+
 	body {
-		background: #FFFFFF;
+		background-color: #FFFFFF;
 	}
 
 	.logo {
