@@ -7,6 +7,12 @@ body {
 	font-family: serif;
 	font-size: 11pt;
 
+	-moz-border-radius: 15px;
+	-webkit-border-radius: 15px;
+	-ms-border-radius: 15px;
+	-o-border-radius: 15px;
+	border-radius: 15px;
+
 	/* Centered */
 	width: 900px;
 	margin-left: auto;
