@@ -627,14 +627,18 @@ class CMS(object):
 		body = []
 
 		# Generate logo / title bar
-		body.append('<a href="%s">' % self.urlBase)
-		body.append('\t<img class="logo" alt="logo" src="/logo.png" />')
-		body.append('</a>\n')
-		body.append('<h1 class="titlebar">%s</h1>\n' % pageTitle)
+		body.append('<div class="titlebar">')
+		body.append('\t<div class="logo">')
+		body.append('\t\t<a href="%s">' % self.urlBase)
+		body.append('\t\t\t<img alt="logo" src="/logo.png" />')
+		body.append('\t\t</a>')
+		body.append('\t</div>')
+		body.append('\t<div class="title">%s</div>' % pageTitle)
+		body.append('</div>\n')
 
 		# Generate navigation bar
-		body.append('<div class="navbar">\n')
-		body.append('\t<div class="navgroup">')
+		body.append('<div class="navbar">')
+		body.append('\t<div class="navgroups">')
 		body.append('\t\t<div class="navhome">')
 		if not groupname:
 			body.append('\t\t<div class="navactive">')
@@ -644,7 +648,6 @@ class CMS(object):
 		if not groupname:
 			body.append('\t\t</div> <!-- class="navactive" -->')
 		body.append('\t\t</div>')
-		body.append('\t</div>\n')
 		navGroups = self.db.getGroupNames()
 		def getNavPrio(element):
 			name, label, prio = element
@@ -654,28 +657,31 @@ class CMS(object):
 		navGroups.sort(key=getNavPrio)
 		for navGroupElement in navGroups:
 			navgroupname, navgrouplabel, navgroupprio = navGroupElement
-			body.append('\t<div class="navgroup"> '
+			body.append('\t\t<div class="navgroup"> '
 				    '<!-- %s -->' % getNavPrio(navGroupElement))
 			if navgrouplabel:
-				body.append('\t\t<div class="navhead">%s</div>' % navgrouplabel)
+				body.append('\t\t\t<div class="navhead">%s</div>' % navgrouplabel)
+			body.append('\t\t\t<div class="navelems">')
 			navPages = self.db.getPageNames(navgroupname)
 			navPages.sort(key=getNavPrio)
 			for navPageElement in navPages:
 				(navpagename, navpagelabel, navpageprio) = navPageElement
-				body.append('\t\t<div class="navelem"> '
+				body.append('\t\t\t\t<div class="navelem"> '
 					    '<!-- %s -->' %\
 					    getNavPrio(navPageElement))
 				if navgroupname == groupname and\
 				   navpagename == pagename:
-					body.append('\t\t<div class="navactive">')
+					body.append('\t\t\t\t<div class="navactive">')
 				url = self.__makePageUrl(navgroupname, navpagename)
-				body.append('\t\t\t<a href="%s">%s</a>' %\
+				body.append('\t\t\t\t\t<a href="%s">%s</a>' %\
 					    (url, navpagelabel))
 				if navgroupname == groupname and\
 				   navpagename == pagename:
-					body.append('\t\t</div> <!-- class="navactive" -->')
-				body.append('\t\t</div>')
-			body.append('\t</div>\n')
+					body.append('\t\t\t\t</div> <!-- class="navactive" -->')
+				body.append('\t\t\t\t</div>')
+			body.append('\t\t\t</div>')
+			body.append('\t\t</div>')
+		body.append('\t</div>')
 		body.append('</div>\n')
 
 		body.append('<div class="main">\n') # Main body start
