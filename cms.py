@@ -89,6 +89,12 @@ def f_mtime(*path_elements):
 	try:
 		return datetime.utcfromtimestamp(os.stat(mkpath(*path_elements)).st_mtime)
 	except OSError:
+		raise CMSException(404)
+
+def f_mtime_nofail(*path_elements):
+	try:
+		return f_mtime(*path_elements)
+	except CMSException:
 		return datetime.utcnow()
 
 def f_subdirList(*path_elements):
@@ -198,7 +204,7 @@ class CMSDatabase(object):
 		if not title:
 			title = f_read(path, "nav_label").strip()
 		data = f_read(path, "content.html")
-		stamp = f_mtime(path, "content.html")
+		stamp = f_mtime_nofail(path, "content.html")
 		return (title, data, stamp)
 
 	def getGroupNames(self):
@@ -428,6 +434,23 @@ class CMSStatementResolver(object):
 			exists = False
 		return cons, (relpath if exists else enoent)
 
+	# Statement:  $(file_mdatet RELATIVE_PATH)
+	# Statement:  $(file_mdatet RELATIVE_PATH, DOES_NOT_EXIST)
+	# Returns the file modification time.
+	# If the file does not exist, it returns DOES_NOT_EXIST or and empty string.
+	# RELATIVE_PATH is relative to wwwPath.
+	def __stmt_fileModDateTime(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 1 and len(args) != 2:
+			self.__stmtError("FILE_MDATET: invalid args")
+		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
+		try:
+			stamp = f_mtime(self.cms.wwwPath,
+					validateSafePath(relpath))
+		except (CMSException), e:
+			return cons, enoent
+		return cons, stamp.strftime("%d %B %Y %H:%M (UTC)")
+
 	__handlers = {
 		"$(if"		: __stmt_if,
 		"$(eq"		: __stmt_eq,
@@ -439,6 +462,7 @@ class CMSStatementResolver(object):
 		"$(strip"	: __stmt_strip,
 		"$(sanitize"	: __stmt_sanitize,
 		"$(file_exists"	: __stmt_fileExists,
+		"$(file_mdatet"	: __stmt_fileModDateTime,
 	}
 
 	def __doMacro(self, macroname, d):
