@@ -244,6 +244,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	float: left;
 	margin-left: 0;
 	margin-right: 30px;
+	margin-bottom: 15px;
 }
 
 .clear-img-float {
@@ -290,6 +291,17 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 pre {
 	font-family: Courier, mono;
+}
+
+.console-text {
+	font-family: Courier, mono;
+	color: white;
+	background: black;
+	border: 2px solid darkgrey;
+	border-radius: 5px;
+	padding: 5px 15px;
+	margin: 0;
+	display: inline-block;
 }
 
 @media print {
