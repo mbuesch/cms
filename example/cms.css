@@ -1,11 +1,47 @@
+@font-face {
+	font-family: __CMSFont;
+	font-weight: normal;
+	font-style: normal;
+	src: url("font/cms-regular.eot"),
+	     url("font/cms-regular.woff") format("woff"),
+	     url("font/cms-regular.ttf") format("truetype");
+}
+
+@font-face {
+	font-family: __CMSFont;
+	font-weight: bold;
+	font-style: normal;
+	src: url("font/cms-bold.eot"),
+	     url("font/cms-bold.woff") format("woff"),
+	     url("font/cms-bold.ttf") format("truetype");
+}
+
+@font-face {
+	font-family: __CMSFont;
+	font-weight: normal;
+	font-style: italic;
+	src: url("font/cms-italic.eot"),
+	     url("font/cms-italic.woff") format("woff"),
+	     url("font/cms-italic.ttf") format("truetype");
+}
+
+@font-face {
+	font-family: __CMSFont;
+	font-weight: bold;
+	font-style: italic;
+	src: url("font/cms-bold-italic.eot"),
+	     url("font/cms-bold-italic.woff") format("woff"),
+	     url("font/cms-bold-italic.ttf") format("truetype");
+}
+
 html {
 	background: #E0E0E0;
 }
 
 body {
 	background: #FAFAFA;
-	font-family: serif;
-	font-size: 11pt;
+	font-family: __CMSFont, serif;
+	font-size: 14pt;
 
 	-moz-border-radius: 15px;
 	-webkit-border-radius: 15px;
@@ -56,14 +92,12 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .titlebar .title {
 	display: inline;
-	font-family: Helvetica, sans-serif;
 	font-size: 24pt;
 	font-weight: bold;
 }
 
 .navbar {
 	display: block;
-	font-family: Helvetica, sans-serif;
 	font-size: 14pt;
 	color: #505050;
 	text-align: center;
@@ -252,6 +286,10 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .checker {
 	font-size: xx-small;
+}
+
+pre {
+	font-family: Courier, mono;
 }
 
 @media print {
