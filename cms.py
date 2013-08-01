@@ -193,13 +193,16 @@ class CMSDatabase(object):
 		self.macroBase = mkpath(basePath, "macros")
 		self.stringBase = mkpath(basePath, "strings")
 
+	def __redirect(self, redirectString):
+		raise CMSException301(redirect)
+
 	def getPage(self, groupname, pagename):
 		path = mkpath(self.pageBase,
 			      validateName(groupname),
 			      validateName(pagename))
 		redirect = f_read(path, "redirect").strip()
 		if redirect:
-			raise CMSException301(redirect)
+			return self.__redirect(redirect)
 		title = f_read(path, "title").strip()
 		if not title:
 			title = f_read(path, "nav_label").strip()
