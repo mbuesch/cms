@@ -1,23 +1,37 @@
 @SUB(CMS test page)
 
+<!-- begin: index -->
+$(index)
+<!-- end: index -->
+
+$(anchor function_tests, function tests, 0)
+$(anchor function_if, function if, 1)
 IF		$(if x,TRUE,FALSE)			<br />
+$(anchor function_eq, function eq, 1, NO_INDEX)
 EQ		$(eq abc,abc,abc)			<br />
+$(anchor function_ne, function ne, 1)
 NE		$(ne abc,abc,aBc)			<br />
 AND		$(and a,b,c)				<br />
 OR		$(or ,,c,d,)				<br />
 NOT		$(not a)				<br />
-NOT		$(not )					<br />
+NOT		$(not)					<br />
 STRIP		$(strip   aaa   ,  bbb  )		<br />
 SANITIZE	$(sanitize x1%2y, z3\)3)		<br />
+$(anchor function_file_exists, function file_exists, 1)
+$(anchor file_exists_a, file_exists a, 2)
 FILE_EXISTS	$(file_exists /cms.css)			<br />
+$(anchor file_exists_b, file_exists b, 2)
 FILE_EXISTS	$(file_exists /none)			<br />
+$(anchor file_exists_c, file_exists c, 2)
 FILE_EXISTS	$(file_exists /none, no file)		<br />
 
 <br />
+$(anchor variables, Variables, 0)
 Variables:						<br />
 <pre>$__DUMPVARS__</pre>				<br />
 
 <br />
+$(anchor unit_tests, Unit tests, 0)
 Unit tests:						<br />
 $(assert a)
 $(assert $(not ), $(not $(not x)))
@@ -33,5 +47,9 @@ $(assert $(eq $(strip  foo bar  ),foo bar))
 $(assert $(eq $(sanitize ___ab*+ef+),ab_ef))
 $(assert $(file_exists /), $(eq $(file_exists /),/))
 passed.
+
+<!-- begin: index -->
+$(index)
+<!-- end: index -->
 
 @ENDSUB()

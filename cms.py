@@ -31,9 +31,22 @@ UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'
 NUMBERS   = '0123456789'
 
+# Find the index in 'string' that is _not_ in 'template'.
+# Start search at 'idx'.
+# Returns -1 on failure to find.
 def findNot(string, template, idx=0):
 	while idx < len(string):
 		if string[idx] not in template:
+			return idx
+		idx += 1
+	return -1
+
+# Find the index in 'string' that matches _any_ character in 'template'.
+# Start search at 'idx'.
+# Returns -1 on failure to find.
+def findAny(string, template, idx=0):
+	while idx < len(string):
+		if string[idx] in template:
 			return idx
 		idx += 1
 	return -1
@@ -268,6 +281,25 @@ class CMSStatementResolver(object):
 			self.name = name
 			self.lineno = 1
 
+	class IndexRef(object): # Index references
+		def __init__(self, charOffset):
+			self.charOffset = charOffset
+
+	class Anchor(object): # Anchor
+		def __init__(self, name, text,
+			     indent=-1, noIndex=False):
+			self.name = name
+			self.text = text
+			self.indent = indent
+			self.noIndex = noIndex
+
+		def makeUrl(self, resolver):
+			return "%s#%s" %\
+				(resolver.cms.makePageUrl(
+					resolver.expandVariable("GROUP"),
+					resolver.expandVariable("PAGE")),
+				 self.name)
+
 	def __init__(self, cms):
 		self.cms = cms
 		self.__reset()
@@ -276,6 +308,9 @@ class CMSStatementResolver(object):
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
 		self.callStack = [ self.StackElem("content.html") ]
+		self.charCount = 0
+		self.indexRefs = []
+		self.anchors = []
 
 	def __stmtError(self, msg):
 		pfx = ""
@@ -285,7 +320,7 @@ class CMSStatementResolver(object):
 				 self.callStack[-1].lineno)
 		raise CMSException(500, pfx + msg)
 
-	def __expandVariable(self, name):
+	def expandVariable(self, name):
 		try:
 			value = self.variables[name]
 			try:
@@ -305,7 +340,7 @@ class CMSStatementResolver(object):
 			if name == "__DUMPVARS__":
 				value = "-- variable dump --"
 			else:
-				value = self.__expandVariable(name)
+				value = self.expandVariable(name)
 			sep = "\t" * (3 - len(name) // 8)
 			ret.append("%s%s=> %s" % (name, sep, value))
 		return "\n".join(ret)
@@ -454,6 +489,44 @@ class CMSStatementResolver(object):
 			return cons, enoent
 		return cons, stamp.strftime("%d %B %Y %H:%M (UTC)")
 
+	# Statement: $(index)
+	# Returns the site index.
+	def __stmt_index(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 1 or args[0]:
+			self.__stmtError("INDEX: invalid args")
+		self.indexRefs.append(self.IndexRef(self.charCount))
+		return cons, ""
+
+	# Statement: $(anchor NAME, TEXT)
+	# Statement: $(anchor NAME, TEXT, INDENT_LEVEL)
+	# Statement: $(anchor NAME, TEXT, INDENT_LEVEL, NO_INDEX)
+	# Sets an index-anchor
+	def __stmt_anchor(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) < 2 or len(args) > 4:
+			self.__stmtError("ANCHOR: invalid args")
+		name, text = args[0:2]
+		indent, noIndex = -1, False
+		if len(args) >= 3:
+			indent = args[2].strip()
+			try:
+				indent = int(indent) if indent else -1
+			except ValueError:
+				self.__stmtError("ANCHOR: indent level "
+					"is not an integer")
+		if len(args) >= 4:
+			noIndex = bool(args[3].strip())
+		name, text = name.strip(), text.strip()
+		anchor = self.Anchor(name, text, indent, noIndex)
+		# Cache anchor for index creation
+		self.anchors.append(anchor)
+		# Create the anchor HTML
+		return cons, '<div name="page-anchor">' \
+			     '<a name="%s" href="%s">%s</a>' \
+			     '</div>' %\
+			     (name, anchor.makeUrl(self), text)
+
 	__handlers = {
 		"$(if"		: __stmt_if,
 		"$(eq"		: __stmt_eq,
@@ -466,6 +539,8 @@ class CMSStatementResolver(object):
 		"$(sanitize"	: __stmt_sanitize,
 		"$(file_exists"	: __stmt_fileExists,
 		"$(file_mdatet"	: __stmt_fileModDateTime,
+		"$(index"	: __stmt_index,
+		"$(anchor"	: __stmt_anchor,
 	}
 
 	def __doMacro(self, macroname, d):
@@ -531,34 +606,107 @@ class CMSStatementResolver(object):
 					i = end + 1
 			elif d.startswith('$(', i): # Statement
 				h = lambda _self, x: (cons, res) # nop
-				end = d.find(' ', i)
+				end = findAny(d, ' )', i)
 				if end > i:
 					try:
 						h = self.__handlers[d[i:end]]
-						i = end + 1
+						i = end + 1 if d[end] == ' ' else end
 					except KeyError: pass
 				cons, res = h(self, d[i:])
 			elif d[i] == '$': # Variable
 				end = findNot(d, self.VARNAME_CHARS, i + 1)
 				if end > i + 1:
-					res = self.__expandVariable(d[i+1:end])
+					res = self.expandVariable(d[i+1:end])
 					cons = end - i
 			ret.append(res)
 			i += cons
+			self.charCount += len(res)
 		if stopchars and i >= len(d) and d[-1] not in stopchars:
 			self.__stmtError("Unterminated statement")
-		return i, "".join(ret)
+		retData = "".join(ret)
+		self.charCount -= len(retData)
+		return i, retData
+
+	# Create an index
+	def __createIndex(self, anchors):
+		indexData = [ '<div class="page-index">\n' ]
+		indexData.append('\t<ul>\n')
+		indent = 0
+
+		def createIndent(indentCount):
+			indexData.append('\t' * (indentCount + 1))
+
+		def incIndent(count):
+			curIndent = indent
+			while count:
+				curIndent += 1
+				createIndent(curIndent)
+				indexData.append('<ul>\n')
+				count -= 1
+			return curIndent
+
+		def decIndent(count):
+			curIndent = indent
+			while count:
+				createIndent(curIndent)
+				indexData.append('</ul>\n')
+				curIndent -= 1
+				count -= 1
+			return curIndent
+
+		for anchor in anchors:
+			if anchor.noIndex or not anchor.text:
+				# No index item for this anchor
+				continue
+
+			if anchor.indent >= 0 and anchor.indent > indent:
+				# Increase indent
+				if anchor.indent > 1024:
+					raise CMSException(500,
+						"Anchor indent too big")
+				indent = incIndent(anchor.indent - indent)
+			elif anchor.indent >= 0 and anchor.indent < indent:
+				# Decrease indent
+				indent = decIndent(indent - anchor.indent)
+			# Append the actual anchor data
+			createIndent(indent)
+			indexData.append('<li>')
+			indexData.append('<a href="%s">%s</a>' %\
+				(anchor.makeUrl(self),
+				 anchor.text))
+			indexData.append('</li>\n')
+
+		# Close all indents
+		decIndent(indent + 1)
+		indexData.append('</div>')
+
+		return "".join(indexData)
+
+	# Insert the referenced indices
+	def __processIndices(self, data):
+		offset = 0
+		for indexRef in self.indexRefs:
+			indexData = self.__createIndex(self.anchors)
+			curOffset = offset + indexRef.charOffset
+			data = data[0 : curOffset] +\
+			       indexData +\
+			       data[curOffset :]
+			offset += len(indexData)
+		return data
 
 	def __resolve(self, data):
 		# Expand recursive statements
 		unused, data = self.__expandRecStmts(data)
-		# Remove escapes
-		data = self.unescape(data)
 		return data
 
 	def resolve(self, data, variables={}):
 		self.__reset(variables)
-		return self.__resolve(data)
+		data = self.__resolve(data)
+		# Insert the indices
+		data = self.__processIndices(data)
+		# Remove escapes
+		data = self.unescape(data)
+		return data
 
 class CMSQuery(object):
 	def __init__(self, queryDict):
@@ -639,14 +787,14 @@ class CMS(object):
 """
 		return footer
 
-	def __makePageUrl(self, groupname, pagename):
+	def makePageUrl(self, groupname, pagename):
 		if groupname:
 			return "/".join( (self.urlBase, groupname, pagename + ".html") )
 		return self.urlBase
 
 	def __makeFullPageUrl(self, groupname, pagename, protocol="http"):
 		return "%s://%s%s" % (protocol, self.domain,
-				      self.__makePageUrl(groupname, pagename))
+				      self.makePageUrl(groupname, pagename))
 
 	def __genHtmlBody(self, groupname, pagename, pageTitle, pageData,
 			  stamp=None,
@@ -670,7 +818,7 @@ class CMS(object):
 		if not groupname:
 			body.append('\t\t<div class="navactive">')
 		body.append('\t\t\t<a href="%s">%s</a>' %\
-			    (self.__makePageUrl(None, None),
+			    (self.makePageUrl(None, None),
 			     self.db.getString("home")))
 		if not groupname:
 			body.append('\t\t</div> <!-- class="navactive" -->')
@@ -699,7 +847,7 @@ class CMS(object):
 				if navgroupname == groupname and\
 				   navpagename == pagename:
 					body.append('\t\t\t\t<div class="navactive">')
-				url = self.__makePageUrl(navgroupname, navpagename)
+				url = self.makePageUrl(navgroupname, navpagename)
 				body.append('\t\t\t\t\t<a href="%s">%s</a>' %\
 					    (url, navpagelabel))
 				if navgroupname == groupname and\
