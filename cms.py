@@ -522,7 +522,7 @@ class CMSStatementResolver(object):
 		# Cache anchor for index creation
 		self.anchors.append(anchor)
 		# Create the anchor HTML
-		return cons, '<div name="page-anchor">' \
+		return cons, '<div class="page-anchor">' \
 			     '<a name="%s" href="%s">%s</a>' \
 			     '</div>' %\
 			     (name, anchor.makeUrl(self), text)
