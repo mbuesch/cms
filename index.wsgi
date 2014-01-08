@@ -68,8 +68,11 @@ def application(environ, start_response):
 		elif method == "POST":
 			response_body, response_mime = cms.post(path, query)
 		else:
-			response_body, response_mime =\
-				"INVALID REQUEST_METHOD", "text/plain"
+			response_body, response_mime, status = (
+				"INVALID REQUEST_METHOD\n",
+				"text/plain",
+				"405 Method Not Allowed"
+			)
 	except (CMSException), e:
 		status = e.httpStatus
 		response_body, response_mime, additional_headers = cms.getErrorPage(e)
