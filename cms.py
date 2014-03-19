@@ -207,23 +207,34 @@ class CMSDatabase(object):
 		self.stringBase = mkpath(basePath, "strings")
 
 	def __redirect(self, redirectString):
-		raise CMSException301(redirect)
+		raise CMSException301(redirectString)
 
-	def getPage(self, groupname, pagename):
+	def __makePagePath(self, groupname, pagename):
 		if not groupname and pagename:
 			raise CMSException(404)
-		path = mkpath(self.pageBase,
+		return mkpath(self.pageBase,
 			      validateName(groupname),
 			      validateName(pagename))
+
+	def __getPageTitle(self, pagePath):
+		title = f_read(pagePath, "title").strip()
+		if not title:
+			title = f_read(pagePath, "nav_label").strip()
+		return title
+
+	def getPage(self, groupname, pagename):
+		path = self.__makePagePath(groupname, pagename)
 		redirect = f_read(path, "redirect").strip()
 		if redirect:
 			return self.__redirect(redirect)
-		title = f_read(path, "title").strip()
-		if not title:
-			title = f_read(path, "nav_label").strip()
+		title = self.__getPageTitle(path)
 		data = f_read(path, "content.html")
 		stamp = f_mtime_nofail(path, "content.html")
 		return (title, data, stamp)
+
+	def getPageTitle(self, groupname, pagename):
+		path = self.__makePagePath(groupname, pagename)
+		return self.__getPageTitle(path)
 
 	def getGroupNames(self):
 		# Returns list of (groupname, navlabel, prio)
@@ -234,8 +245,14 @@ class CMSDatabase(object):
 				continue
 			navlabel = f_read(path, "nav_label").strip()
 			prio = f_read_int(path, "priority")
+			if prio is None:
+				prio = 500
 			res.append( (groupname, navlabel, prio) )
 		return res
+
+	def getSortedGroupNames(self):
+		return sorted(self.getGroupNames(),
+			      key = lambda element: element[2])
 
 	def getPageNames(self, groupname):
 		# Returns list of (pagename, navlabel, prio)
@@ -248,8 +265,14 @@ class CMSDatabase(object):
 				continue
 			navlabel = f_read(path, "nav_label").strip()
 			prio = f_read_int(path, "priority")
+			if prio is None:
+				prio = 500
 			res.append( (pagename, navlabel, prio) )
 		return res
+
+	def getSortedPageNames(self, groupname):
+		return sorted(self.getPageNames(groupname),
+			      key = lambda element: element[2])
 
 	def getMacro(self, name):
 		data = f_read(self.macroBase, validateName(name))
@@ -528,6 +551,25 @@ class CMSStatementResolver(object):
 		return cons, '<a name="%s" href="%s">%s</a>' %\
 			     (name, anchor.makeUrl(self), text)
 
+	# Statement: $(pagelist GROUPNAME)
+	# Returns an <ul>-list of all page names in the group.
+	def __stmt_pagelist(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 1:
+			self.__stmtError("PAGELIST: invalid args")
+		try:
+			groupname = validateName(args[0])
+		except CMSException as e:
+			self.__stmtError("PAGELIST: invalid group name")
+		html = [ '<ul>\n' ]
+		for pagename, navlabel, prio in self.cms.db.getSortedPageNames(groupname):
+			pagetitle = self.cms.db.getPageTitle(groupname, pagename)
+			html.append('\t<li><a href="%s">%s</a></li>\n' %\
+				    (self.cms.makePageUrl(groupname, pagename),
+				     pagetitle))
+		html.append('</ul>')
+		return cons, ''.join(html)
+
 	__handlers = {
 		"$(if"		: __stmt_if,
 		"$(eq"		: __stmt_eq,
@@ -542,6 +584,7 @@ class CMSStatementResolver(object):
 		"$(file_mdatet"	: __stmt_fileModDateTime,
 		"$(index"	: __stmt_index,
 		"$(anchor"	: __stmt_anchor,
+		"$(pagelist"	: __stmt_pagelist,
 	}
 
 	def __doMacro(self, macroname, d):
@@ -825,23 +868,17 @@ class CMS(object):
 		if not groupname:
 			body.append('\t\t</div> <!-- class="navactive" -->')
 		body.append('\t\t</div>')
-		navGroups = self.db.getGroupNames()
 		def getNavPrio(element):
 			name, label, prio = element
-			if prio is None:
-				prio = 500
 			return "%03d_%s" % (prio, label)
-		navGroups.sort(key=getNavPrio)
-		for navGroupElement in navGroups:
+		for navGroupElement in self.db.getSortedGroupNames():
 			navgroupname, navgrouplabel, navgroupprio = navGroupElement
 			body.append('\t\t<div class="navgroup"> '
 				    '<!-- %s -->' % getNavPrio(navGroupElement))
 			if navgrouplabel:
 				body.append('\t\t\t<div class="navhead">%s</div>' % navgrouplabel)
 			body.append('\t\t\t<div class="navelems">')
-			navPages = self.db.getPageNames(navgroupname)
-			navPages.sort(key=getNavPrio)
-			for navPageElement in navPages:
+			for navPageElement in self.db.getSortedPageNames(navgroupname):
 				(navpagename, navpagelabel, navpageprio) = navPageElement
 				body.append('\t\t\t\t<div class="navelem"> '
 					    '<!-- %s -->' %\
