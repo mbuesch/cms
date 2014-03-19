@@ -1,0 +1,7 @@
+<!--- @PAGELIST((group)) --->
+
+<!-- Begin: Automatic page listing -->
+<div name="page-listing">
+	$(pagelist $(if $1,$1,$GROUP))
+</div>
+<!-- End: Automatic page listing -->

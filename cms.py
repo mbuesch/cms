@@ -832,9 +832,9 @@ class CMS(object):
 	def makePageUrl(self, groupname, pagename):
 		url = self.urlBase
 		if groupname:
-			url += "/" + groupname
+			url += "/" + groupname + "/"
 			if pagename:
-				url += "/" + pagename + ".html"
+				url += pagename + ".html"
 		return url
 
 	def __makeFullPageUrl(self, groupname, pagename, protocol="http"):
@@ -868,27 +868,31 @@ class CMS(object):
 		if not groupname:
 			body.append('\t\t</div> <!-- class="navactive" -->')
 		body.append('\t\t</div>')
-		def getNavPrio(element):
-			name, label, prio = element
-			return "%03d_%s" % (prio, label)
 		for navGroupElement in self.db.getSortedGroupNames():
 			navgroupname, navgrouplabel, navgroupprio = navGroupElement
 			body.append('\t\t<div class="navgroup"> '
-				    '<!-- %s -->' % getNavPrio(navGroupElement))
+				    '<!-- %d -->' % navgroupprio)
 			if navgrouplabel:
-				body.append('\t\t\t<div class="navhead">%s</div>' % navgrouplabel)
+				body.append('\t\t\t<div class="navhead">')
+				if navgroupname == groupname:
+					body.append('\t\t\t<div class="navactive">')
+				body.append('\t\t\t\t<a href="%s">%s</a>' %\
+					    (self.makePageUrl(navgroupname, None),
+					     navgrouplabel))
+				if navgroupname == groupname:
+					body.append('\t\t\t</div>')
+				body.append('\t\t\t</div>')
 			body.append('\t\t\t<div class="navelems">')
 			for navPageElement in self.db.getSortedPageNames(navgroupname):
 				(navpagename, navpagelabel, navpageprio) = navPageElement
 				body.append('\t\t\t\t<div class="navelem"> '
-					    '<!-- %s -->' %\
-					    getNavPrio(navPageElement))
+					    '<!-- %d -->' % navpageprio)
 				if navgroupname == groupname and\
 				   navpagename == pagename:
 					body.append('\t\t\t\t<div class="navactive">')
-				url = self.makePageUrl(navgroupname, navpagename)
 				body.append('\t\t\t\t\t<a href="%s">%s</a>' %\
-					    (url, navpagelabel))
+					    (self.makePageUrl(navgroupname, navpagename),
+					     navpagelabel))
 				if navgroupname == groupname and\
 				   navpagename == pagename:
 					body.append('\t\t\t\t</div> <!-- class="navactive" -->')
