@@ -210,6 +210,8 @@ class CMSDatabase(object):
 		raise CMSException301(redirect)
 
 	def getPage(self, groupname, pagename):
+		if not groupname and pagename:
+			raise CMSException(404)
 		path = mkpath(self.pageBase,
 			      validateName(groupname),
 			      validateName(pagename))
@@ -785,9 +787,12 @@ class CMS(object):
 		return footer
 
 	def makePageUrl(self, groupname, pagename):
+		url = self.urlBase
 		if groupname:
-			return "/".join( (self.urlBase, groupname, pagename + ".html") )
-		return self.urlBase
+			url += "/" + groupname
+			if pagename:
+				url += "/" + pagename + ".html"
+		return url
 
 	def __makeFullPageUrl(self, groupname, pagename, protocol="http"):
 		return "%s://%s%s" % (protocol, self.domain,
@@ -911,13 +916,17 @@ class CMS(object):
 		groupname, pagename = '', ''
 		if path not in ('', 'index'):
 			path = path.split('/')
-			if len(path) == 2:
+			if len(path) == 1:
+				groupname = path[0]
+			elif len(path) == 2:
 				groupname, pagename = path[0], path[1]
-			if not groupname or not pagename:
+			if not groupname:
 				raise CMSException(404)
 		return groupname, pagename
 
 	def __getImageThumbnail(self, imagename, query, protocol):
+		if not imagename:
+			raise CMSException(404)
 		width = query.getInt("w", 300)
 		height = query.getInt("h", 300)
 		qual = query.getInt("q", 1)
