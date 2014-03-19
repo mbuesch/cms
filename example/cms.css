@@ -71,11 +71,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	position: absolute;
 
 	background: #EFEFEF;
-	background: -moz-linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
-	background: -webkit-linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
-	background: -ms-linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
-	background: -o-linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
-	background: linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
+	background: linear-gradient(180deg, #EFEFEF 0%, #CFCFCF 100%);
 
 	box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.15);
 
@@ -98,11 +94,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .navbar .navgroups .navgroup {
 	background: #EFEFEF;
-	background: -moz-linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
-	background: -webkit-linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
-	background: -ms-linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
-	background: -o-linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
-	background: linear-gradient(top, #EFEFEF 0%, #CFCFCF 100%);
+	background: linear-gradient(180deg, #EFEFEF 0%, #CFCFCF 100%);
 
 	-moz-border-radius: 0px;
 	-webkit-border-radius: 0px;
@@ -115,11 +107,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .navbar .navgroups .navgroup:hover {
 	background: #909090;
-	background: -moz-linear-gradient(top, #909090 0%, #707070 100%);
-	background: -webkit-linear-gradient(top, #909090 0%, #707070 100%);
-	background: -ms-linear-gradient(top, #909090 0%, #707070 100%);
-	background: -o-linear-gradient(top, #909090 0%, #707070 100%);
-	background: linear-gradient(top, #909090 0%, #707070 100%);
+	background: linear-gradient(180deg, #909090 0%, #707070 100%);
 
 	-moz-border-radius: 5px;
 	-webkit-border-radius: 5px;
