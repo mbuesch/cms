@@ -2,7 +2,7 @@
 
 <div class="submain">
 $(if $1,
-<h2>
-	$(anchor $(if $2,$2,$(sanitize $1)), $1, $3, $4)
-</h2>
+	<div class="page-anchor">
+		<h2>$(anchor $(if $2,$2,$(sanitize $1)), $1, $3, $4)</h2>
+	</div>
 )
