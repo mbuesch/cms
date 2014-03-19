@@ -628,8 +628,7 @@ class CMSStatementResolver(object):
 
 	# Create an index
 	def __createIndex(self, anchors):
-		indexData = [ '<div class="page-index">\n' ]
-		indexData.append('\t<ul>\n')
+		indexData = [ '\t<ul>\n' ]
 		indent = 0
 
 		def createIndent(indentCount):
@@ -677,7 +676,6 @@ class CMSStatementResolver(object):
 
 		# Close all indents
 		decIndent(indent + 1)
-		indexData.append('</div>')
 
 		return "".join(indexData)
 

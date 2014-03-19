@@ -1,5 +1,7 @@
 <!--- @INDEX((topic_text)) --->
 
 @SUB($(if $1,$(if $(ne $1, none),$1),Project topics), , , NO_INDEX)
+<div class="page-index">
 $(index)
+</div>
 @ENDSUB()
