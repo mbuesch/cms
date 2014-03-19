@@ -378,7 +378,8 @@ class CMSStatementResolver(object):
 	def __stmt_if(self, d):
 		cons, args = self.__parseArguments(d)
 		if len(args) != 2 and len(args) != 3:
-			self.__stmtError("IF: invalid args")
+			self.__stmtError("IF: invalid number of arguments (%d)" %\
+					 len(args))
 		condition, b_then = args[0], args[1]
 		b_else = args[2] if len(args) == 3 else ""
 		result = b_then if condition.strip() else b_else
@@ -797,8 +798,8 @@ class CMS(object):
 				      self.makePageUrl(groupname, pagename))
 
 	def __genHtmlBody(self, groupname, pagename, pageTitle, pageData,
-			  stamp=None,
-			  genSslLinks=True, genCheckerLinks=True):
+			  protocol,
+			  stamp=None, genCheckerLinks=True):
 		body = []
 
 		# Generate logo / title bar
@@ -872,7 +873,7 @@ class CMS(object):
 			body.append(stamp.strftime('\t\tUpdated: %A %d %B %Y %H:%M (UTC)'))
 			body.append('\t</div>')
 
-		if genSslLinks:
+		if protocol != "https":
 			# SSL
 			body.append('\t<div class="ssl">')
 			body.append('\t\t<a href="%s">%s</a>' %\
@@ -884,7 +885,7 @@ class CMS(object):
 		if genCheckerLinks:
 			# Checker links
 			pageUrlQuoted = urllib.quote_plus(
-				self.__makeFullPageUrl(groupname, pagename))
+				self.__makeFullPageUrl(groupname, pagename, protocol))
 			body.append('\t<div class="checker">')
 			checkerUrl = "http://validator.w3.org/check?"\
 				     "uri=" + pageUrlQuoted + "&amp;"\
@@ -920,7 +921,7 @@ class CMS(object):
 				raise CMSException(404)
 		return groupname, pagename
 
-	def __getImageThumbnail(self, imagename, query):
+	def __getImageThumbnail(self, imagename, query, protocol):
 		width = query.getInt("w", 300)
 		height = query.getInt("h", 300)
 		qual = query.getInt("q", 1)
@@ -945,13 +946,14 @@ class CMS(object):
 			raise CMSException(404)
 		return data, "image/jpeg"
 
-	def __getHtmlPage(self, groupname, pagename, query):
+	def __getHtmlPage(self, groupname, pagename, query, protocol):
 		pageTitle, pageData, stamp = self.db.getPage(groupname, pagename)
 		if not pageData:
 			raise CMSException(404)
 		resolverVariables = {
-			"GROUP"	: lambda r, n: groupname,
-			"PAGE"	: lambda r, n: pagename,
+			"PROTOCOL"	: lambda r, n: protocol,
+			"GROUP"		: lambda r, n: groupname,
+			"PAGE"		: lambda r, n: pagename,
 		}
 		for k, v in query.queryDict.iteritems():
 			k, v = k.upper(), v[-1]
@@ -961,25 +963,27 @@ class CMS(object):
 		pageData = self.resolver.resolve(pageData, resolverVariables)
 		data = [self.__genHtmlHeader(pageTitle)]
 		data.append(self.__genHtmlBody(groupname, pagename,
-					       pageTitle, pageData, stamp))
+					       pageTitle, pageData,
+					       protocol, stamp))
 		data.append(self.__genHtmlFooter())
 		return "".join(data), "text/html"
 
-	def __generate(self, path, query):
+	def __generate(self, path, query, protocol):
 		groupname, pagename = self.__parsePagePath(path)
 		if groupname == "__thumbs":
-			return self.__getImageThumbnail(pagename, query)
-		return self.__getHtmlPage(groupname, pagename, query)
+			return self.__getImageThumbnail(pagename, query, protocol)
+		return self.__getHtmlPage(groupname, pagename, query, protocol)
 
-	def get(self, path, query={}):
+	def get(self, path, query={}, protocol="http"):
 		query = CMSQuery(query)
-		return self.__generate(path, query)
+		return self.__generate(path, query, protocol)
 
-	def post(self, path, query={}):
+	def post(self, path, query={}, protocol="http"):
 		raise CMSException(405)
 
-	def __doGetErrorPage(self, cmsExcept):
+	def __doGetErrorPage(self, cmsExcept, protocol):
 		resolverVariables = {
+			"PROTOCOL"		: lambda r, n: protocol,
 			"GROUP"			: lambda r, n: "__nogroup",
 			"PAGE"			: lambda r, n: "__nopage",
 			"HTTP_STATUS"		: lambda r, n: cmsExcept.httpStatus,
@@ -997,14 +1001,14 @@ class CMS(object):
 		data.append(self.__genHtmlBody('__nogroup', '__nopage',
 					       cmsExcept.httpStatus,
 					       pageData,
-					       genSslLinks=False,
+					       protocol,
 					       genCheckerLinks=False))
 		data.append(self.__genHtmlFooter())
 		return "".join(data), "text/html", httpHeaders
 
-	def getErrorPage(self, cmsExcept):
+	def getErrorPage(self, cmsExcept, protocol="http"):
 		try:
-			return self.__doGetErrorPage(cmsExcept)
+			return self.__doGetErrorPage(cmsExcept, protocol)
 		except (CMSException), e:
 			data = "Error in exception handler: %s %s" % \
 				(e.httpStatus, e.message)

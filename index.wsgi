@@ -57,16 +57,19 @@ def application(environ, start_response):
 	__initCMS(environ)
 	if cms.debug:
 		startStamp = datetime.now()
+
 	status = "200 OK"
 	additional_headers = []
+
+	method = environ["REQUEST_METHOD"].upper()
+	path = environ["PATH_INFO"]
+	query = parse_qs(environ["QUERY_STRING"])
+	protocol = environ["wsgi.url_scheme"].lower()
 	try:
-		method = environ["REQUEST_METHOD"].upper()
-		path = environ["PATH_INFO"]
-		query = parse_qs(environ["QUERY_STRING"])
 		if method == "GET":
-			response_body, response_mime = cms.get(path, query)
+			response_body, response_mime = cms.get(path, query, protocol)
 		elif method == "POST":
-			response_body, response_mime = cms.post(path, query)
+			response_body, response_mime = cms.post(path, query, protocol)
 		else:
 			response_body, response_mime, status = (
 				"INVALID REQUEST_METHOD\n",
@@ -75,7 +78,7 @@ def application(environ, start_response):
 			)
 	except (CMSException), e:
 		status = e.httpStatus
-		response_body, response_mime, additional_headers = cms.getErrorPage(e)
+		response_body, response_mime, additional_headers = cms.getErrorPage(e, protocol)
 	if cms.debug and response_mime.lower() == "text/html":
 		delta = datetime.now() - startStamp
 		sec = float(delta.seconds) + float(delta.microseconds) / 1000000
