@@ -1006,6 +1006,7 @@ class CMS(object):
 			resolverVariables["Q_" + k] = CMSStatementResolver.escape(htmlEscape(v))
 			resolverVariables["QRAW_" + k] = CMSStatementResolver.escape(v)
 		pageTitle = self.resolver.resolve(pageTitle, resolverVariables)
+		resolverVariables["TITLE"] = lambda r, n: pageTitle
 		pageData = self.resolver.resolve(pageData, resolverVariables)
 		data = [self.__genHtmlHeader(pageTitle)]
 		data.append(self.__genHtmlBody(groupname, pagename,
