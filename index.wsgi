@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 #
 #   CMS WSGI wrapper
 #
@@ -20,7 +21,7 @@
 import sys
 import atexit
 try:
-	from urlparse import parse_qs
+	from urllib.parse import parse_qs
 except ImportError:
 	from cgi import parse_qs
 try:
@@ -39,12 +40,12 @@ def __initCMS(environ):
 		domain = environ["cms.domain"]
 		cmsBase = environ["cms.cmsBase"]
 		wwwBase = environ["cms.wwwBase"]
-	except (KeyError), e:
+	except (KeyError) as e:
 		raise Exception("WSGI environment %s not set" % str(e))
 	debug = False
 	try:
 		debug = stringBool(environ["cms.debug"])
-	except (KeyError), e:
+	except (KeyError) as e:
 		pass
 	# Initialize the CMS module
 	cms = CMS(dbPath = cmsBase + "/db",
@@ -76,13 +77,13 @@ def application(environ, start_response):
 				"text/plain",
 				"405 Method Not Allowed"
 			)
-	except (CMSException), e:
+	except (CMSException) as e:
 		status = e.httpStatus
 		response_body, response_mime, additional_headers = cms.getErrorPage(e, protocol)
-	if cms.debug and response_mime.lower() == "text/html":
+	if cms.debug and response_mime.startswith("text/html"):
 		delta = datetime.now() - startStamp
 		sec = float(delta.seconds) + float(delta.microseconds) / 1000000
-		response_body += "\n<!-- generated in %.3f seconds -->" % sec
+		response_body += ("\n<!-- generated in %.3f seconds -->" % sec).encode("UTF-8")
 	response_headers = [ ('Content-Type', response_mime),
 			     ('Content-Length', str(len(response_body))) ]
 	response_headers.extend(additional_headers)

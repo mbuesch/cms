@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 #   simple WSGI/Python based CMS script
 #   commandline interface
@@ -47,7 +47,7 @@ def main():
 		(opts, args) = getopt.getopt(sys.argv[1:],
 			"hd:w:i:D:",
 			[ "help", "db=", "www=", "images=", "domain=", ])
-	except (getopt.GetoptError), e:
+	except (getopt.GetoptError) as e:
 		usage()
 		return 1
 	for (o, v) in opts:
@@ -80,17 +80,17 @@ def main():
 		else:
 			assert(0)
 		cms.shutdown()
-	except (CMSException), e:
+	except (CMSException) as e:
 		if cms:
-			data, mime = cms.getErrorPage(e)
+			data, mime, headers = cms.getErrorPage(e)
 		else:
 			data, mime = "CMSException", "text/html"
-	if mime == "text/html":
-		result = data + "\n"
+	if mime.startswith("text/html"):
+		result = data + b"\n"
 	else:
 		result = data
-	sys.stdout.write(result)
-	sys.stdout.flush()
+	sys.stdout.buffer.write(result)
+	sys.stdout.buffer.flush()
 	return 0
 
 if __name__ == "__main__":

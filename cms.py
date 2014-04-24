@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 #   cms.py - simple WSGI/Python based CMS script
 #
@@ -21,10 +22,11 @@ import os
 from stat import S_ISDIR
 from datetime import datetime
 import re
-import Image
-from StringIO import StringIO
-import urllib
+import PIL.Image as Image
+from io import BytesIO
+import urllib.request, urllib.parse, urllib.error
 import cgi
+from functools import reduce
 
 
 UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -85,11 +87,13 @@ def f_exists_nonempty(*path_elements):
 def f_read(*path_elements):
 	try:
 		fd = open(mkpath(*path_elements), "rb")
-		data = fd.read()
+		data = fd.read().decode("UTF-8")
 		fd.close()
 		return data
 	except IOError:
 		return ""
+	except UnicodeError:
+		raise CMSException(500, "Unicode decode error")
 
 def f_read_int(*path_elements):
 	data = f_read(*path_elements)
@@ -122,7 +126,8 @@ def f_subdirList(*path_elements):
 		return True
 	path = mkpath(*path_elements)
 	try:
-		return filter(dirfilter, os.listdir(path))
+		return [ dentry for dentry in os.listdir(path) \
+			 if dirfilter(dentry) ]
 	except OSError:
 		return []
 
@@ -350,18 +355,17 @@ class CMSStatementResolver(object):
 			value = self.variables[name]
 			try:
 				value = value(self, name)
-			except (TypeError), e:
+			except (TypeError) as e:
 				pass
 			return str(value)
-		except (KeyError, TypeError), e:
+		except (KeyError, TypeError) as e:
 			return ""
 
 	def __dumpVars(self, force=False):
 		if not force and not self.cms.debug:
 			return ""
-		ret, names = [], self.variables.keys()
-		names.sort()
-		for name in names:
+		ret = []
+		for name in sorted(self.variables.keys()):
 			if name == "__DUMPVARS__":
 				value = "-- variable dump --"
 			else:
@@ -494,7 +498,7 @@ class CMSStatementResolver(object):
 		try:
 			exists = f_exists(self.cms.wwwPath,
 					  validateSafePath(relpath))
-		except (CMSException), e:
+		except (CMSException) as e:
 			exists = False
 		return cons, (relpath if exists else enoent)
 
@@ -511,7 +515,7 @@ class CMSStatementResolver(object):
 		try:
 			stamp = f_mtime(self.cms.wwwPath,
 					validateSafePath(relpath))
-		except (CMSException), e:
+		except (CMSException) as e:
 			return cons, enoent
 		return cons, stamp.strftime("%d %B %Y %H:%M (UTC)")
 
@@ -595,7 +599,7 @@ class CMSStatementResolver(object):
 		macrodata = None
 		try:
 			macrodata = self.cms.db.getMacro(macroname[1:])
-		except (CMSException), e:
+		except (CMSException) as e:
 			if e.httpStatusCode == 404:
 				raise CMSException(500,
 					"Macro name '%s' contains "
@@ -757,13 +761,13 @@ class CMSQuery(object):
 	def get(self, name, default=""):
 		try:
 			return self.queryDict[name][-1]
-		except (KeyError, IndexError), e:
+		except (KeyError, IndexError) as e:
 			return default
 
 	def getInt(self, name, default=0):
 		try:
 			return int(self.get(name, str(int(default))), 10)
-		except (ValueError), e:
+		except (ValueError) as e:
 			return default
 
 	def getBool(self, name, default=False):
@@ -926,7 +930,7 @@ class CMS(object):
 
 		if genCheckerLinks:
 			# Checker links
-			pageUrlQuoted = urllib.quote_plus(
+			pageUrlQuoted = urllib.parse.quote_plus(
 				self.__makeFullPageUrl(groupname, pagename, protocol))
 			body.append('\t<div class="checker">')
 			checkerUrl = "http://validator.w3.org/check?"\
@@ -979,16 +983,16 @@ class CMS(object):
 		}
 		try:
 			qual = qualities[qual]
-		except (KeyError), e:
+		except (KeyError) as e:
 			qual = qualities[1]
 		try:
 			img = Image.open(mkpath(self.wwwPath, self.imagesDir,
 					validateSafePathComponent(imagename)))
 			img.thumbnail((width, height), qual)
-			output = StringIO()
+			output = BytesIO()
 			img.save(output, "JPEG")
 			data = output.getvalue()
-		except (IOError), e:
+		except (IOError) as e:
 			raise CMSException(404)
 		return data, "image/jpeg"
 
@@ -1001,7 +1005,7 @@ class CMS(object):
 			"GROUP"		: lambda r, n: groupname,
 			"PAGE"		: lambda r, n: pagename,
 		}
-		for k, v in query.queryDict.iteritems():
+		for k, v in query.queryDict.items():
 			k, v = k.upper(), v[-1]
 			resolverVariables["Q_" + k] = CMSStatementResolver.escape(htmlEscape(v))
 			resolverVariables["QRAW_" + k] = CMSStatementResolver.escape(v)
@@ -1013,7 +1017,11 @@ class CMS(object):
 					       pageTitle, pageData,
 					       protocol, stamp))
 		data.append(self.__genHtmlFooter())
-		return "".join(data), "text/html"
+		try:
+			return "".join(data).encode("UTF-8"), \
+			       "text/html; charset=UTF-8"
+		except UnicodeError as e:
+			raise CMSException(500, "Unicode encode error")
 
 	def __generate(self, path, query, protocol):
 		groupname, pagename = self.__parsePagePath(path)
@@ -1051,12 +1059,17 @@ class CMS(object):
 					       protocol,
 					       genCheckerLinks=False))
 		data.append(self.__genHtmlFooter())
-		return "".join(data), "text/html", httpHeaders
+		return "".join(data), "text/html; charset=UTF-8", httpHeaders
 
 	def getErrorPage(self, cmsExcept, protocol="http"):
 		try:
-			return self.__doGetErrorPage(cmsExcept, protocol)
-		except (CMSException), e:
+			data, mime, headers = self.__doGetErrorPage(cmsExcept, protocol)
+		except (CMSException) as e:
 			data = "Error in exception handler: %s %s" % \
 				(e.httpStatus, e.message)
-			return data, "text/plain", ()
+			mime, headers = "text/plain; charset=UTF-8", ()
+		try:
+			return data.encode("UTF-8"), mime, headers
+		except UnicodeError as e:
+			# Whoops. All is lost.
+			raise CMSException(500, "Unicode encode error")
