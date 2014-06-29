@@ -259,11 +259,11 @@ pre {
 
 .console-text {
 	font-family: Courier, mono;
-	color: white;
-	background: black;
-	border: 2px solid darkgrey;
+	color: black;
+	background: #E0E0E0;
+	box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.15);
 	border-radius: 5px;
-	padding: 5px 15px;
+	padding: 2px 15px;
 	margin: 0;
 	display: inline-block;
 }
