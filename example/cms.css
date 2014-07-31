@@ -19,6 +19,14 @@ body {
 	margin-right: auto;
 }
 
+ul {
+	list-style-type: circle;
+}
+
+ol {
+	list-style-type: decimal;
+}
+
 a {
 	text-decoration: none;
 	color: blue;

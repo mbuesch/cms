@@ -1,7 +1,7 @@
 <!--- An IMG with automatic preview.
-      @AUTOIMG(imagefile, (width), (height), (quality))
+      @AUTOIMG(imagefile, (width), (height), (quality), (float-bool))
 --->
 
 <a href="$IMAGES_DIR/$1">
-	<img src="$THUMBS_DIR/$1?w=$(if $2,$2,300)&amp;h=$(if $3,$3,300)&amp;q=$(if $4,$4,1)" alt="Image preview of $1" />
+	<img $(if $5,class="float" )src="$THUMBS_DIR/$1?w=$(if $2,$2,300)&amp;h=$(if $3,$3,300)&amp;q=$(if $4,$4,1)" alt="Image preview of $1" />
 </a>
