@@ -1,0 +1,2 @@
+- Add support for some kind of perma-anchor that doesn't change with the section title.
+- Add support for adding <head> information per page.
