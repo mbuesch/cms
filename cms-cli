@@ -34,6 +34,7 @@ def usage():
 	print("")
 	print("Actions:")
 	print("  GET <path>             Do a GET request on 'path'")
+	print("  POST <path>            Do a POST request on 'path'")
 
 def main():
 	action = None
@@ -77,8 +78,11 @@ def main():
 			  domain=opt_domain)
 		if action.upper() == "GET":
 			data, mime = cms.get(path)
+		elif action.upper() == "POST":
+			data, mime = cms.post(path)
 		else:
-			assert(0)
+			print("Invalid action")
+			return 1
 		cms.shutdown()
 	except (CMSException) as e:
 		if cms:
