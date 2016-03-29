@@ -26,11 +26,12 @@ the following Debian based example:
 	# /var/cms is where index.wsgi, cms.py and the db directory live.
 	# /var/www is the path to the static files.
 	# Adjust these paths to your setup.
-	WSGIScriptAlias		/cms	/var/cms/index.wsgi
-	SetEnv cms.domain	example.com
-	SetEnv cms.cmsBase	/var/cms
-	SetEnv cms.wwwBase	/var/www
-	SetEnv cms.debug	1
+	WSGIScriptAlias				/cms	/var/cms/index.wsgi
+	SetEnv cms.domain			example.com
+	SetEnv cms.cmsBase			/var/cms
+	SetEnv cms.wwwBase			/var/www
+	SetEnv cms.maxPostContentLength		1048576
+	SetEnv cms.debug			1
 	<Directory /var/cms>
 		WSGIProcessGroup wsgi
 		AllowOverride None

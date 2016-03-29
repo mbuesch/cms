@@ -31,21 +31,27 @@ except ImportError as e:
 	raise Exception("Failed to import cms.py. Wrong python-path in WSGIDaemonProcess?:\n" + str(e))
 
 cms = None
+maxPostContentLength = 0
 
 def __initCMS(environ):
 	global cms
+	global maxPostContentLength
 	if cms:
 		return # Already initialized
 	try:
 		domain = environ["cms.domain"]
 		cmsBase = environ["cms.cmsBase"]
 		wwwBase = environ["cms.wwwBase"]
-	except (KeyError) as e:
+	except KeyError as e:
 		raise Exception("WSGI environment %s not set" % str(e))
 	debug = False
 	try:
 		debug = stringBool(environ["cms.debug"])
-	except (KeyError) as e:
+	except KeyError as e:
+		pass
+	try:
+		maxPostContentLength = int(environ["cms.maxPostContentLength"], 10)
+	except (KeyError, ValueError) as e:
 		pass
 	# Initialize the CMS module
 	cms = CMS(dbPath = cmsBase + "/db",
@@ -53,6 +59,23 @@ def __initCMS(environ):
 		  domain = domain,
 		  debug = debug)
 	atexit.register(cms.shutdown)
+
+def __recvBody(environ):
+	try:
+		body_len = int(environ["CONTENT_LENGTH"], 10)
+	except (ValueError, KeyError) as e:
+		body_len = 0
+	try:
+		body_type = environ["CONTENT_TYPE"]
+	except KeyError as e:
+		body_type = "text/plain"
+	if body_len < 0 or \
+	   (maxPostContentLength >= 0 and\
+	    body_len > maxPostContentLength):
+		body = body_type = None
+	else:
+		body = environ["wsgi.input"].read(body_len)
+	return body, body_type
 
 def application(environ, start_response):
 	__initCMS(environ)
@@ -70,21 +93,20 @@ def application(environ, start_response):
 		if method == "GET":
 			response_body, response_mime = cms.get(path, query, protocol)
 		elif method == "POST":
-			try:
-				body_len = int(environ["CONTENT_LENGTH"], 10)
-			except (ValueError, KeyError) as e:
-				body_len = 0
-			try:
-				body_type = environ["CONTENT_TYPE"]
-			except KeyError as e:
-				body_type = "text/plain"
-			body = environ["wsgi.input"].read(body_len)
-			response_body, response_mime = cms.post(path, query,
-								body, body_type,
-								protocol)
+			body, body_type = __recvBody(environ)
+			if body is None:
+				response_body, response_mime, status = (
+					b"POSTed data is too long\n",
+					"text/plain",
+					"405 Method Not Allowed"
+				)
+			else:
+				response_body, response_mime = cms.post(path, query,
+									body, body_type,
+									protocol)
 		else:
 			response_body, response_mime, status = (
-				"INVALID REQUEST_METHOD\n",
+				b"INVALID REQUEST_METHOD\n",
 				"text/plain",
 				"405 Method Not Allowed"
 			)
