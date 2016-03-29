@@ -1033,7 +1033,7 @@ class CMS(object):
 		query = CMSQuery(query)
 		return self.__generate(path, query, protocol)
 
-	def post(self, path, query={}, protocol="http"):
+	def post(self, path, query={}, body=b"", bodyType="text/plain", protocol="http"):
 		raise CMSException(405)
 
 	def __doGetErrorPage(self, cmsExcept, protocol):

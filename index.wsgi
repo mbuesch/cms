@@ -70,7 +70,18 @@ def application(environ, start_response):
 		if method == "GET":
 			response_body, response_mime = cms.get(path, query, protocol)
 		elif method == "POST":
-			response_body, response_mime = cms.post(path, query, protocol)
+			try:
+				body_len = int(environ["CONTENT_LENGTH"], 10)
+			except (ValueError, KeyError) as e:
+				body_len = 0
+			try:
+				body_type = environ["CONTENT_TYPE"]
+			except KeyError as e:
+				body_type = "text/plain"
+			body = environ["wsgi.input"].read(body_len)
+			response_body, response_mime = cms.post(path, query,
+								body, body_type,
+								protocol)
 		else:
 			response_body, response_mime, status = (
 				"INVALID REQUEST_METHOD\n",
