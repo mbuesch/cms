@@ -20,14 +20,13 @@ Create a new config file /etc/apache2/conf.d/wsgi with content similar to
 the following Debian based example:
 
 	# Adjust "user" and "group" to your system.
-	WSGIDaemonProcess wsgi processes=10 threads=1 display-name=apache-wsgi user=www-data group=www-data
+	WSGIDaemonProcess wsgi processes=10 threads=1 display-name=apache-wsgi user=www-data group=www-data python-path=/var/cms
 	WSGIPythonOptimize 1
 	# /cms is the base URL path to the CMS.
 	# /var/cms is where index.wsgi, cms.py and the db directory live.
 	# /var/www is the path to the static files.
 	# Adjust these paths to your setup.
 	WSGIScriptAlias		/cms	/var/cms/index.wsgi
-	WSGIPythonPath		/var/cms
 	SetEnv cms.domain	example.com
 	SetEnv cms.cmsBase	/var/cms
 	SetEnv cms.wwwBase	/var/www
@@ -36,8 +35,7 @@ the following Debian based example:
 		WSGIProcessGroup wsgi
 		AllowOverride None
 		Options -ExecCGI -MultiViews +SymLinksIfOwnerMatch -Indexes
-		Order deny,allow
-		Allow from all
+		Require all granted
 	</Directory>
 	# Redirect all 404 to the CMS 404 handler (optional)
 	ErrorDocument 404 /cms/__nopage/__nogroup.html
