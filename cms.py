@@ -2,7 +2,7 @@
 #
 #   cms.py - simple WSGI/Python based CMS script
 #
-#   Copyright (C) 2011-2012 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2016 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
+if sys.version_info[0] < 3 or sys.version_info[1] < 3:
+	raise Exception("Need Python 3.3 or later")
+
 import os
 from stat import S_ISDIR
 from datetime import datetime
