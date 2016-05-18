@@ -30,6 +30,7 @@ from io import BytesIO
 import urllib.request, urllib.parse, urllib.error
 import cgi
 from functools import reduce
+import random
 
 
 UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -577,6 +578,35 @@ class CMSStatementResolver(object):
 		html.append('</ul>')
 		return cons, ''.join(html)
 
+	# Statement: $(random)
+	# Statement: $(random BEGIN)
+	# Statement: $(random BEGIN, END)
+	# Returns a random integer in the range from BEGIN to END
+	# (including both end points)
+	# BEGIN defaults to 0. END defaults to 65535.
+	def __stmt_random(self, d):
+		cons, args = self.__parseArguments(d, strip=True)
+		if len(args) not in {0, 1, 2}:
+			self.__stmtError("RANDOM: invalid args")
+		begin, end = 0, 65535
+		try:
+			if len(args) >= 2 and args[1]:
+				end = int(args[1])
+			if len(args) >= 1 and args[0]:
+				begin = int(args[0])
+			rnd = random.randint(begin, end)
+		except ValueError as e:
+			self.__stmtError("RANDOM: invalid range")
+		return cons, '%d' % rnd
+
+	# Statement: $(randitem ITEM0, ITEM1, ...)
+	# Returns one random item of its arguments.
+	def __stmt_randitem(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) < 1:
+			self.__stmtError("RANDITEM: too few args")
+		return cons, random.choice(args)
+
 	__handlers = {
 		"$(if"		: __stmt_if,
 		"$(eq"		: __stmt_eq,
@@ -592,6 +622,8 @@ class CMSStatementResolver(object):
 		"$(index"	: __stmt_index,
 		"$(anchor"	: __stmt_anchor,
 		"$(pagelist"	: __stmt_pagelist,
+		"$(random"	: __stmt_random,
+		"$(randitem"	: __stmt_randitem,
 	}
 
 	def __doMacro(self, macroname, d):
