@@ -31,6 +31,7 @@ import urllib.request, urllib.parse, urllib.error
 import cgi
 from functools import reduce
 import random
+import importlib.machinery
 
 
 UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -90,10 +91,8 @@ def f_exists_nonempty(*path_elements):
 
 def f_read(*path_elements):
 	try:
-		fd = open(mkpath(*path_elements), "rb")
-		data = fd.read().decode("UTF-8")
-		fd.close()
-		return data
+		with open(mkpath(*path_elements), "rb") as fd:
+			return fd.read().decode("UTF-8")
 	except IOError:
 		return ""
 	except UnicodeError:
@@ -283,8 +282,17 @@ class CMSDatabase(object):
 		return sorted(self.getPageNames(groupname),
 			      key = lambda element: element[2])
 
-	def getMacro(self, name):
-		data = f_read(self.macroBase, validateName(name))
+	def getMacro(self, macroname, groupname=None, pagename=None):
+		data = None
+		macroname = validateName(macroname)
+		if groupname and pagename:
+			data = f_read(self.pageBase,
+				      validateName(groupname),
+				      validateName(pagename),
+				      "macros",
+				      macroname)
+		if not data:
+			data = f_read(self.macroBase, macroname)
 		return '\n'.join( l for l in data.splitlines() if l )
 
 	def getString(self, name, default=None):
@@ -293,6 +301,22 @@ class CMSDatabase(object):
 		if string:
 			return string
 		return name if default is None else default
+
+	def getPostHandler(self, groupname, pagename):
+		path = self.__makePagePath(groupname, pagename)
+		handlerModFile = mkpath(path, "post.py")
+		if not f_exists(handlerModFile):
+			return None
+		try:
+			loader = importlib.machinery.SourceFileLoader(
+				re.sub(r"[^A-Za-z]", "_", handlerModFile),
+				handlerModFile)
+			mod = loader.load_module()
+		except OSError:
+			return None
+		if not hasattr(mod, "post"):
+			return None
+		return mod
 
 class CMSStatementResolver(object):
 	# Macro argument expansion: $1, $2, $3...
@@ -338,9 +362,11 @@ class CMSStatementResolver(object):
 		self.cms = cms
 		self.__reset()
 
-	def __reset(self, variables={}):
+	def __reset(self, variables={}, groupname=None, pagename=None):
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
+		self.groupname = groupname
+		self.pagename = pagename
 		self.callStack = [ self.StackElem("content.html") ]
 		self.charCount = 0
 		self.indexRefs = []
@@ -633,7 +659,9 @@ class CMSStatementResolver(object):
 		# Fetch the macro data from the database
 		macrodata = None
 		try:
-			macrodata = self.cms.db.getMacro(macroname[1:])
+			macrodata = self.cms.db.getMacro(macroname[1:],
+							 self.groupname,
+							 self.pagename)
 		except (CMSException) as e:
 			if e.httpStatusCode == 404:
 				raise CMSException(500,
@@ -780,8 +808,8 @@ class CMSStatementResolver(object):
 		unused, data = self.__expandRecStmts(data)
 		return data
 
-	def resolve(self, data, variables={}):
-		self.__reset(variables)
+	def resolve(self, data, variables={}, groupname=None, pagename=None):
+		self.__reset(variables, groupname, pagename)
 		data = self.__resolve(data)
 		# Insert the indices
 		data = self.__processIndices(data)
@@ -1044,9 +1072,11 @@ class CMS(object):
 			k, v = k.upper(), v[-1]
 			resolverVariables["Q_" + k] = CMSStatementResolver.escape(htmlEscape(v))
 			resolverVariables["QRAW_" + k] = CMSStatementResolver.escape(v)
-		pageTitle = self.resolver.resolve(pageTitle, resolverVariables)
+		pageTitle = self.resolver.resolve(pageTitle, resolverVariables,
+						  groupname, pagename)
 		resolverVariables["TITLE"] = lambda r, n: pageTitle
-		pageData = self.resolver.resolve(pageData, resolverVariables)
+		pageData = self.resolver.resolve(pageData, resolverVariables,
+						 groupname, pagename)
 		data = [self.__genHtmlHeader(pageTitle)]
 		data.append(self.__genHtmlBody(groupname, pagename,
 					       pageTitle, pageData,
@@ -1068,8 +1098,34 @@ class CMS(object):
 		query = CMSQuery(query)
 		return self.__generate(path, query, protocol)
 
-	def post(self, path, query={}, body=b"", bodyType="text/plain", protocol="http"):
-		raise CMSException(405)
+	def __post(self, path, query, body, bodyType, protocol):
+		groupname, pagename = self.__parsePagePath(path)
+		postHandler = self.db.getPostHandler(groupname, pagename)
+		if not postHandler:
+			raise CMSException(405)
+		try:
+			ret = postHandler.post(query, body, bodyType, protocol)
+		except Exception as e:
+			msg = ""
+			if self.debug:
+				msg = " " + str(e)
+			msg = msg.encode("UTF-8", "ignore")
+			return (b"Failed to run POST handler." + msg,
+				"text/plain")
+		if ret is None:
+			return self.__generate(path, query, protocol)
+		assert(isinstance(ret, tuple) and len(ret) == 2)
+		assert((isinstance(ret[0], bytes) or isinstance(ret[0], bytearray)) and\
+		       isinstance(ret[1], str))
+		return ret
+
+	def post(self, path, query={},
+		 body=b"", bodyType="text/plain",
+		 protocol="http"):
+		raise CMSException(405) #TODO disabled
+
+		query = CMSQuery(query)
+		return self.__post(path, query, body, bodyType, protocol)
 
 	def __doGetErrorPage(self, cmsExcept, protocol):
 		resolverVariables = {

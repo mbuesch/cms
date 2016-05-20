@@ -77,6 +77,14 @@ def __recvBody(environ):
 		body = environ["wsgi.input"].read(body_len)
 	return body, body_type
 
+#post_env = env.copy()
+#post_env['QUERY_STRING'] = ''
+#post = cgi.FieldStorage(
+#    fp=env['wsgi.input'],
+#        environ=post_env,
+#	    keep_blank_values=True
+#	    )
+
 def application(environ, start_response):
 	__initCMS(environ)
 	if cms.debug:
