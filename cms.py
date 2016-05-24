@@ -121,6 +121,8 @@ def f_subdirList(*path_elements):
 	def dirfilter(dentry):
 		if dentry.startswith("."):
 			return False # Omit ".", ".." and hidden entries
+		if dentry.startswith("__"):
+			return False # Omit system folders/files.
 		try:
 			if not S_ISDIR(os.stat(mkpath(path, dentry)).st_mode):
 				return False
@@ -153,6 +155,16 @@ def validateSafePath(path):
 	return path
 
 validateName = validateSafePathComponent
+
+def validatePageName(name):
+	# Validate a page name or a group name.
+	# Raises CMSException on failure.
+	if name.startswith("__"):
+		# Page and group names with __ are system folders.
+		raise CMSException(404)
+	return validateName(name)
+
+validateGroupName = validatePageName
 
 class CMSException(Exception):
 	__stats = {
@@ -221,8 +233,8 @@ class CMSDatabase(object):
 		if not groupname and pagename:
 			raise CMSException(404)
 		return mkpath(self.pageBase,
-			      validateName(groupname),
-			      validateName(pagename))
+			      validateGroupName(groupname),
+			      validatePageName(pagename))
 
 	def __getPageTitle(self, pagePath):
 		title = f_read(pagePath, "title").strip()
@@ -265,7 +277,7 @@ class CMSDatabase(object):
 	def getPageNames(self, groupname):
 		# Returns list of (pagename, navlabel, prio)
 		res = []
-		gpath = mkpath(self.pageBase, validateName(groupname))
+		gpath = mkpath(self.pageBase, validateGroupName(groupname))
 		for pagename in f_subdirList(gpath):
 			path = mkpath(gpath, pagename)
 			if f_exists(path, "hidden") or \
@@ -285,11 +297,23 @@ class CMSDatabase(object):
 	def getMacro(self, macroname, groupname=None, pagename=None):
 		data = None
 		macroname = validateName(macroname)
-		if groupname and pagename:
+		if groupname:
+			groupname = validateGroupName(groupname)
+			if pagename:
+				pagename = validatePageName(pagename)
+				data = f_read(self.pageBase,
+					      groupname,
+					      pagename,
+					      "__macros",
+					      macroname)
+			if not data:
+				data = f_read(self.pageBase,
+					      groupname,
+					      "__macros",
+					      macroname)
+		if not data:
 			data = f_read(self.pageBase,
-				      validateName(groupname),
-				      validateName(pagename),
-				      "macros",
+				      "__macros",
 				      macroname)
 		if not data:
 			data = f_read(self.macroBase, macroname)
@@ -610,7 +634,7 @@ class CMSStatementResolver(object):
 		if len(args) != 1:
 			self.__stmtError("PAGELIST: invalid args")
 		try:
-			groupname = validateName(args[0])
+			groupname = validateGroupName(args[0])
 		except CMSException as e:
 			self.__stmtError("PAGELIST: invalid group name")
 		html = [ '<ul>\n' ]
@@ -1149,8 +1173,8 @@ class CMS(object):
 	def __doGetErrorPage(self, cmsExcept, protocol):
 		resolverVariables = {
 			"PROTOCOL"		: lambda r, n: protocol,
-			"GROUP"			: lambda r, n: "__nogroup",
-			"PAGE"			: lambda r, n: "__nopage",
+			"GROUP"			: lambda r, n: "_nogroup_",
+			"PAGE"			: lambda r, n: "_nopage_",
 			"HTTP_STATUS"		: lambda r, n: cmsExcept.httpStatus,
 			"HTTP_STATUS_CODE"	: lambda r, n: str(cmsExcept.httpStatusCode),
 			"ERROR_MESSAGE"		: lambda r, n: CMSStatementResolver.escape(htmlEscape(cmsExcept.message)),
@@ -1163,7 +1187,7 @@ class CMS(object):
 			lambda s: self.resolver.resolve(s, resolverVariables))
 		data = [self.__genHtmlHeader(cmsExcept.httpStatus,
 					     additional=pageHeader)]
-		data.append(self.__genHtmlBody('__nogroup', '__nopage',
+		data.append(self.__genHtmlBody('_nogroup_', '_nopage_',
 					       cmsExcept.httpStatus,
 					       pageData,
 					       protocol,
