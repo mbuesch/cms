@@ -503,6 +503,24 @@ class CMSStatementResolver(object):
 		cons, args = self.__parseArguments(d, strip=True)
 		return cons, "".join(args)
 
+	# Statement:  $(item STRING, N)
+	# Statement:  $(item STRING, N, SEPARATOR)
+	# Split a string into tokens and return the N'th token.
+	# SEPARATOR defaults to whitespace.
+	def __stmt_item(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) not in {2, 3}:
+			self.__stmtError("ITEM: invalid args")
+		string, n, sep = args[0], args[1], args[2].strip() if len(args) == 3 else ""
+		tokens = string.split(sep) if sep else string.split()
+		try:
+			token = tokens[int(n)]
+		except ValueError:
+			self.__stmtError("ITEM: N is not an integer")
+		except IndexError:
+			token = ""
+		return cons, token
+
 	# Statement:  $(sanitize STRING)
 	# Sanitize a string.
 	# Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
@@ -642,6 +660,7 @@ class CMSStatementResolver(object):
 		"$(not"		: __stmt_not,
 		"$(assert"	: __stmt_assert,
 		"$(strip"	: __stmt_strip,
+		"$(item"	: __stmt_item,
 		"$(sanitize"	: __stmt_sanitize,
 		"$(file_exists"	: __stmt_fileExists,
 		"$(file_mdatet"	: __stmt_fileModDateTime,
