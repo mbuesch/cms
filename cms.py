@@ -593,7 +593,7 @@ class CMSStatementResolver(object):
 					validateSafePath(relpath))
 		except (CMSException) as e:
 			return cons, enoent
-		return cons, stamp.strftime(fmtstr)
+		return cons, stamp.strftime(fmtstr.strip())
 
 	# Statement: $(index)
 	# Returns the site index.
