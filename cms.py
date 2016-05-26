@@ -575,21 +575,25 @@ class CMSStatementResolver(object):
 		return cons, (relpath if exists else enoent)
 
 	# Statement:  $(file_mdatet RELATIVE_PATH)
-	# Statement:  $(file_mdatet RELATIVE_PATH, DOES_NOT_EXIST)
+	# Statement:  $(file_mdatet RELATIVE_PATH, DOES_NOT_EXIST, FORMAT_STRING)
 	# Returns the file modification time.
 	# If the file does not exist, it returns DOES_NOT_EXIST or and empty string.
 	# RELATIVE_PATH is relative to wwwPath.
+	# FORMAT_STRING is an optional strftime format string.
 	def __stmt_fileModDateTime(self, d):
 		cons, args = self.__parseArguments(d)
-		if len(args) != 1 and len(args) != 2:
+		if len(args) not in {1, 2, 3}:
 			self.__stmtError("FILE_MDATET: invalid args")
-		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
+		relpath, enoent, fmtstr =\
+			args[0],\
+			args[1] if len(args) >= 2 else "",\
+			args[2] if len(args) >= 3 else "%d %B %Y %H:%M (UTC)"
 		try:
 			stamp = f_mtime(self.cms.wwwPath,
 					validateSafePath(relpath))
 		except (CMSException) as e:
 			return cons, enoent
-		return cons, stamp.strftime("%d %B %Y %H:%M (UTC)")
+		return cons, stamp.strftime(fmtstr)
 
 	# Statement: $(index)
 	# Returns the site index.
