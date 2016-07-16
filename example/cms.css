@@ -167,13 +167,14 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	color: #000000;
 	overflow: visible;
 	white-space: nowrap;
+	margin: 2px 0px 2px 0px;
 
 	border-radius: 10px;
 }
 
 .navbar .navgroups .navgroup .navelems .navelem a:hover {
 	color: #FFFFFF;
-	background: #1616ff;
+	background: #5050ff;
 }
 
 .navhome {
@@ -182,11 +183,12 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .navbar .navgroups .navgroup .navelems .navelem .navactive a {
 	font-weight: bold;
+	color: #FFFF00;
 	background: #0000FF;
 }
 
 .navbar .navgroups .navgroup .navelems .navelem .navactive a:hover {
-	color: #FFFFFF;
+	color: #FFFF00;
 	background: #0000FF;
 }
 
