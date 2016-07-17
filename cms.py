@@ -309,9 +309,6 @@ class CMSDatabase(object):
 	def __redirect(self, redirectString):
 		raise CMSException301(redirectString)
 
-	def __makePagePath(self, pageIdent):
-		return mkpath(self.pageBase, pageIdent.getFilesystemPath())
-
 	def __getPageTitle(self, pagePath):
 		title = f_read(pagePath, "title").strip()
 		if not title:
@@ -319,11 +316,11 @@ class CMSDatabase(object):
 		return title
 
 	def getHeader(self, pageIdent):
-		path = self.__makePagePath(pageIdent)
+		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		return f_read(path, "header.html")
 
 	def getPage(self, pageIdent):
-		path = self.__makePagePath(pageIdent)
+		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		redirect = f_read(path, "redirect").strip()
 		if redirect:
 			return self.__redirect(redirect)
@@ -333,7 +330,7 @@ class CMSDatabase(object):
 		return (title, data, stamp)
 
 	def getPageTitle(self, pageIdent):
-		path = self.__makePagePath(pageIdent)
+		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		return self.__getPageTitle(path)
 
 	# Get a list of sub-pages.
@@ -385,7 +382,7 @@ class CMSDatabase(object):
 		return name if default is None else default
 
 	def getPostHandler(self, pageIdent):
-		path = self.__makePagePath(pageIdent)
+		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		handlerModFile = mkpath(path, "post.py")
 		if not f_exists(handlerModFile):
 			return None
