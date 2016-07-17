@@ -72,10 +72,11 @@ def stringBool(string, default=False):
 	except ValueError:
 		return default
 
-PATHSEP = "/"
-
+# Create a path string from path element strings.
 def mkpath(*path_elements):
-	return PATHSEP.join(path_elements)
+	# Do not use os.path.join, because it discards elements, if
+	# one element begins with a separator (= is absolute).
+	return os.path.sep.join(path_elements)
 
 def f_exists(*path_elements):
 	try:
@@ -136,35 +137,112 @@ def f_subdirList(*path_elements):
 	except OSError:
 		return []
 
-def validateSafePathComponent(pcomp):
+class CMSPageIdent(list):
+	# Page identifier.
+
+	# Parse a page identifier from a string.
+	@classmethod
+	def parse(cls, path):
+		pageIdent = cls()
+
+		path = path.strip().lstrip('/')
+		for suffix in ('.html', '.htm', '.php'):
+			if path.endswith(suffix):
+				path = path[:-len(suffix)]
+				break
+
+		if path not in ('', 'index'):
+			path = path.split('/')
+			if len(path) not in {1, 2}:
+				raise CMSException(404)
+			pageIdent.extend(path)
+
+		return pageIdent
+
+	__pathSep = os.path.sep
+	__validPathChars = LOWERCASE + UPPERCASE + NUMBERS + "-_."
+
 	# Validate a path component. Avoid any directory change.
 	# Raises CMSException on failure.
-	if pcomp.startswith('.'):
-		# No ".", ".." and hidden files.
-		raise CMSException(404)
-	validChars = LOWERCASE + UPPERCASE + NUMBERS + "-_."
-	if [ c for c in pcomp if c not in validChars ]:
-		raise CMSException(404)
-	return pcomp
+	@classmethod
+	def validateSafePathComponent(cls, pcomp):
+		if pcomp.startswith('.'):
+			# No ".", ".." and hidden files.
+			raise CMSException(404)
+		if [ c for c in pcomp if c not in cls.__validPathChars ]:
+			raise CMSException(404)
+		return pcomp
 
-def validateSafePath(path):
 	# Validate a path. Avoid going back in the hierarchy (. and ..)
 	# Raises CMSException on failure.
-	for pcomp in path.split(PATHSEP):
-		validateSafePathComponent(pcomp)
-	return path
+	@classmethod
+	def validateSafePath(cls, path):
+		for pcomp in path.split(cls.__pathSep):
+			cls.validateSafePathComponent(pcomp)
+		return path
 
-validateName = validateSafePathComponent
-
-def validatePageName(name):
-	# Validate a page name or a group name.
+	# Validate a page name.
 	# Raises CMSException on failure.
-	if name.startswith("__"):
-		# Page and group names with __ are system folders.
-		raise CMSException(404)
-	return validateName(name)
+	# If allowSysNames is True, system names starting with "__" are allowed.
+	@classmethod
+	def validateName(cls, name, allowSysNames = False):
+		if name.startswith("__") and not allowSysNames:
+			# Page names with __ are system folders.
+			raise CMSException(404)
+		return cls.validateSafePathComponent(name)
 
-validateGroupName = validatePageName
+	def __init__(self, *args):
+		list.__init__(self, *args)
+		self.__allValidated = False
+
+	# Validate all page identifier name components.
+	# (Do not allow system name components)
+	def __validateAll(self):
+		if not self.__allValidated:
+			for pcomp in self:
+				self.validateName(pcomp)
+			# Remember that we validated.
+			# Note that this assumes no components are added later!
+			self.__allValidated = True
+
+	# Get one page identifier component by index.
+	def get(self, index, default = None, allowSysNames = False):
+		try:
+			return self.validateName(self[index],
+						 allowSysNames)
+		except IndexError:
+			return default
+
+	# Get the page identifier as URL.
+	def getUrl(self, protocol = None, domain = None,
+		   urlBase = None, pageSuffix = ".html"):
+		self.__validateAll()
+		url = []
+		if protocol:
+			url.append(protocol + ":/")
+		if domain:
+			url.append(domain)
+		if urlBase:
+			url.append(urlBase.strip("/"))
+		url.extend(self)
+		if not protocol and not domain:
+			url.insert(0, "")
+		url = "/".join(url)
+		if self and pageSuffix:
+			url += pageSuffix
+		return url
+
+	# Get the page identifier as filesystem path.
+	def getFilesystemPath(self, rstrip = 0):
+		self.__validateAll()
+		if self:
+			if rstrip:
+				pcomps = self[ : 0 - rstrip]
+				if pcomps:
+					return mkpath(*pcomps)
+				return ""
+			return mkpath(*self)
+		return ""
 
 class CMSException(Exception):
 	__stats = {
@@ -221,6 +299,8 @@ class CMSException301(CMSException):
 			(self.url(), self.url())
 
 class CMSDatabase(object):
+	validate = CMSPageIdent.validateName
+
 	def __init__(self, basePath):
 		self.pageBase = mkpath(basePath, "pages")
 		self.macroBase = mkpath(basePath, "macros")
@@ -229,12 +309,8 @@ class CMSDatabase(object):
 	def __redirect(self, redirectString):
 		raise CMSException301(redirectString)
 
-	def __makePagePath(self, groupname, pagename):
-		if not groupname and pagename:
-			raise CMSException(404)
-		return mkpath(self.pageBase,
-			      validateGroupName(groupname),
-			      validatePageName(pagename))
+	def __makePagePath(self, pageIdent):
+		return mkpath(self.pageBase, pageIdent.getFilesystemPath())
 
 	def __getPageTitle(self, pagePath):
 		title = f_read(pagePath, "title").strip()
@@ -242,12 +318,12 @@ class CMSDatabase(object):
 			title = f_read(pagePath, "nav_label").strip()
 		return title
 
-	def getHeader(self, groupname, pagename):
-		path = self.__makePagePath(groupname, pagename)
+	def getHeader(self, pageIdent):
+		path = self.__makePagePath(pageIdent)
 		return f_read(path, "header.html")
 
-	def getPage(self, groupname, pagename):
-		path = self.__makePagePath(groupname, pagename)
+	def getPage(self, pageIdent):
+		path = self.__makePagePath(pageIdent)
 		redirect = f_read(path, "redirect").strip()
 		if redirect:
 			return self.__redirect(redirect)
@@ -256,32 +332,15 @@ class CMSDatabase(object):
 		stamp = f_mtime_nofail(path, "content.html")
 		return (title, data, stamp)
 
-	def getPageTitle(self, groupname, pagename):
-		path = self.__makePagePath(groupname, pagename)
+	def getPageTitle(self, pageIdent):
+		path = self.__makePagePath(pageIdent)
 		return self.__getPageTitle(path)
 
-	def getGroupNames(self):
-		# Returns list of (groupname, navlabel, prio)
+	# Get a list of sub-pages.
+	# Returns list of (pagename, navlabel, prio)
+	def getSubPages(self, pageIdent, sortByPrio = True):
 		res = []
-		for groupname in f_subdirList(self.pageBase):
-			path = mkpath(self.pageBase, groupname)
-			if f_exists(path, "hidden"):
-				continue
-			navlabel = f_read(path, "nav_label").strip()
-			prio = f_read_int(path, "priority")
-			if prio is None:
-				prio = 500
-			res.append( (groupname, navlabel, prio) )
-		return res
-
-	def getSortedGroupNames(self):
-		return sorted(self.getGroupNames(),
-			      key = lambda element: element[2])
-
-	def getPageNames(self, groupname):
-		# Returns list of (pagename, navlabel, prio)
-		res = []
-		gpath = mkpath(self.pageBase, validateGroupName(groupname))
+		gpath = mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		for pagename in f_subdirList(gpath):
 			path = mkpath(gpath, pagename)
 			if f_exists(path, "hidden") or \
@@ -292,29 +351,24 @@ class CMSDatabase(object):
 			if prio is None:
 				prio = 500
 			res.append( (pagename, navlabel, prio) )
+		if sortByPrio:
+			res.sort(key = lambda element: element[2])
 		return res
 
-	def getSortedPageNames(self, groupname):
-		return sorted(self.getPageNames(groupname),
-			      key = lambda element: element[2])
-
-	def getMacro(self, macroname, groupname=None, pagename=None):
+	def getMacro(self, macroname, pageIdent = None):
 		data = None
-		macroname = validateName(macroname)
-		if groupname:
-			groupname = validateGroupName(groupname)
-			if pagename:
-				pagename = validatePageName(pagename)
+		macroname = self.validate(macroname)
+		if pageIdent:
+			rstrip = 0
+			while not data:
+				path = pageIdent.getFilesystemPath(rstrip)
+				if not path:
+					break
 				data = f_read(self.pageBase,
-					      groupname,
-					      pagename,
+					      path,
 					      "__macros",
 					      macroname)
-			if not data:
-				data = f_read(self.pageBase,
-					      groupname,
-					      "__macros",
-					      macroname)
+				rstrip += 1
 		if not data:
 			data = f_read(self.pageBase,
 				      "__macros",
@@ -324,14 +378,14 @@ class CMSDatabase(object):
 		return '\n'.join( l for l in data.splitlines() if l )
 
 	def getString(self, name, default=None):
-		name = validateName(name)
+		name = self.validate(name)
 		string = f_read(self.stringBase, name).strip()
 		if string:
 			return string
 		return name if default is None else default
 
-	def getPostHandler(self, groupname, pagename):
-		path = self.__makePagePath(groupname, pagename)
+	def getPostHandler(self, pageIdent):
+		path = self.__makePagePath(pageIdent)
 		handlerModFile = mkpath(path, "post.py")
 		if not f_exists(handlerModFile):
 			return None
@@ -380,21 +434,21 @@ class CMSStatementResolver(object):
 			self.noIndex = noIndex
 
 		def makeUrl(self, resolver):
-			return "%s#%s" %\
-				(resolver.cms.makePageUrl(
+			return "%s#%s" % (
+				CMSPageIdent((
 					resolver.expandVariable("GROUP"),
-					resolver.expandVariable("PAGE")),
-				 self.name)
+					resolver.expandVariable("PAGE"))).getUrl(
+					urlBase = resolver.cms.urlBase),
+				self.name)
 
 	def __init__(self, cms):
 		self.cms = cms
 		self.__reset()
 
-	def __reset(self, variables={}, groupname=None, pagename=None):
+	def __reset(self, variables = {}, pageIdent = None):
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
-		self.groupname = groupname
-		self.pagename = pagename
+		self.pageIdent = pageIdent
 		self.callStack = [ self.StackElem("content.html") ]
 		self.charCount = 0
 		self.indexRefs = []
@@ -573,7 +627,7 @@ class CMSStatementResolver(object):
 		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
 		try:
 			exists = f_exists(self.cms.wwwPath,
-					  validateSafePath(relpath))
+					  CMSPageIdent.validateSafePath(relpath))
 		except (CMSException) as e:
 			exists = False
 		return cons, (relpath if exists else enoent)
@@ -594,7 +648,7 @@ class CMSStatementResolver(object):
 			args[2] if len(args) >= 3 else "%d %B %Y %H:%M (UTC)"
 		try:
 			stamp = f_mtime(self.cms.wwwPath,
-					validateSafePath(relpath))
+					CMSPageIdent.validateSafePath(relpath))
 		except (CMSException) as e:
 			return cons, enoent
 		return cons, stamp.strftime(fmtstr.strip())
@@ -635,21 +689,21 @@ class CMSStatementResolver(object):
 		return cons, '<a name="%s" href="%s">%s</a>' %\
 			     (name, anchor.makeUrl(self), text)
 
-	# Statement: $(pagelist GROUPNAME)
-	# Returns an <ul>-list of all page names in the group.
+	# Statement: $(pagelist BASEPAGE, ...)
+	# Returns an <ul>-list of all sub-page names in the page.
 	def __stmt_pagelist(self, d):
 		cons, args = self.__parseArguments(d)
-		if len(args) != 1:
-			self.__stmtError("PAGELIST: invalid args")
 		try:
-			groupname = validateGroupName(args[0])
+			basePageIdent = CMSPageIdent(args)
+			subPages = self.cms.db.getSubPages(basePageIdent)
 		except CMSException as e:
-			self.__stmtError("PAGELIST: invalid group name")
+			self.__stmtError("PAGELIST: invalid base page name")
 		html = [ '<ul>\n' ]
-		for pagename, navlabel, prio in self.cms.db.getSortedPageNames(groupname):
-			pagetitle = self.cms.db.getPageTitle(groupname, pagename)
+		for pagename, navlabel, prio in subPages:
+			pageIdent = CMSPageIdent(basePageIdent + [pagename])
+			pagetitle = self.cms.db.getPageTitle(pageIdent)
 			html.append('\t<li><a href="%s">%s</a></li>\n' %\
-				    (self.cms.makePageUrl(groupname, pagename),
+				    (pageIdent.getUrl(urlBase = self.cms.urlBase),
 				     pagetitle))
 		html.append('</ul>')
 		return cons, ''.join(html)
@@ -711,8 +765,7 @@ class CMSStatementResolver(object):
 		macrodata = None
 		try:
 			macrodata = self.cms.db.getMacro(macroname[1:],
-							 self.groupname,
-							 self.pagename)
+							 self.pageIdent)
 		except (CMSException) as e:
 			if e.httpStatusCode == 404:
 				raise CMSException(500,
@@ -859,10 +912,10 @@ class CMSStatementResolver(object):
 		unused, data = self.__expandRecStmts(data)
 		return data
 
-	def resolve(self, data, variables={}, groupname=None, pagename=None):
+	def resolve(self, data, variables = {}, pageIdent = None):
 		if not data:
 			return data
-		self.__reset(variables, groupname, pagename)
+		self.__reset(variables, pageIdent)
 		data = self.__resolve(data)
 		# Insert the indices
 		data = self.__processIndices(data)
@@ -953,19 +1006,7 @@ class CMS(object):
 """
 		return footer
 
-	def makePageUrl(self, groupname, pagename):
-		url = self.urlBase
-		if groupname:
-			url += "/" + groupname + "/"
-			if pagename:
-				url += pagename + ".html"
-		return url
-
-	def __makeFullPageUrl(self, groupname, pagename, protocol="http"):
-		return "%s://%s%s" % (protocol, self.domain,
-				      self.makePageUrl(groupname, pagename))
-
-	def __genHtmlBody(self, groupname, pagename, pageTitle, pageData,
+	def __genHtmlBody(self, pageIdent, pageTitle, pageData,
 			  protocol,
 			  stamp=None, genCheckerLinks=True):
 		body = []
@@ -984,41 +1025,44 @@ class CMS(object):
 		body.append('<div class="navbar">')
 		body.append('\t<div class="navgroups">')
 		body.append('\t\t<div class="navhome">')
-		if not groupname:
+		if not pageIdent:
 			body.append('\t\t<div class="navactive">')
 		body.append('\t\t\t<a href="%s">%s</a>' %\
-			    (self.makePageUrl(None, None),
+			    (CMSPageIdent().getUrl(urlBase = self.urlBase),
 			     self.db.getString("home")))
-		if not groupname:
+		if not pageIdent:
 			body.append('\t\t</div> <!-- class="navactive" -->')
 		body.append('\t\t</div>')
-		for navGroupElement in self.db.getSortedGroupNames():
+		for navGroupElement in self.db.getSubPages(CMSPageIdent()):
 			navgroupname, navgrouplabel, navgroupprio = navGroupElement
 			body.append('\t\t<div class="navgroup"> '
 				    '<!-- %d -->' % navgroupprio)
 			if navgrouplabel:
 				body.append('\t\t\t<div class="navhead">')
-				if navgroupname == groupname:
+				if navgroupname == pageIdent.get(0):
 					body.append('\t\t\t<div class="navactive">')
 				body.append('\t\t\t\t<a href="%s">%s</a>' %\
-					    (self.makePageUrl(navgroupname, None),
+					    (CMSPageIdent((navgroupname,)).getUrl(
+						urlBase = self.urlBase,
+						pageSuffix = None),
 					     navgrouplabel))
-				if navgroupname == groupname:
+				if navgroupname == pageIdent.get(0):
 					body.append('\t\t\t</div>')
 				body.append('\t\t\t</div>')
 			body.append('\t\t\t<div class="navelems">')
-			for navPageElement in self.db.getSortedPageNames(navgroupname):
+			for navPageElement in self.db.getSubPages(CMSPageIdent((navgroupname,))):
 				(navpagename, navpagelabel, navpageprio) = navPageElement
 				body.append('\t\t\t\t<div class="navelem"> '
 					    '<!-- %d -->' % navpageprio)
-				if navgroupname == groupname and\
-				   navpagename == pagename:
+				if navgroupname == pageIdent.get(0) and\
+				   navpagename == pageIdent.get(1):
 					body.append('\t\t\t\t<div class="navactive">')
 				body.append('\t\t\t\t\t<a href="%s">%s</a>' %\
-					    (self.makePageUrl(navgroupname, navpagename),
+					    (CMSPageIdent((navgroupname, navpagename)).getUrl(
+						urlBase = self.urlBase),
 					     navpagelabel))
-				if navgroupname == groupname and\
-				   navpagename == pagename:
+				if navgroupname == pageIdent.get(0) and\
+				   navpagename == pageIdent.get(1):
 					body.append('\t\t\t\t</div> <!-- class="navactive" -->')
 				body.append('\t\t\t\t</div>')
 			body.append('\t\t\t</div>')
@@ -1042,16 +1086,17 @@ class CMS(object):
 		if protocol != "https":
 			# SSL
 			body.append('\t<div class="ssl">')
-			body.append('\t\t<a href="%s">%s</a>' %\
-				    (self.__makeFullPageUrl(groupname, pagename,
-							    protocol="https"),
-				     self.db.getString("ssl-encrypted")))
+			body.append('\t\t<a href="%s">%s</a>' % (
+				    pageIdent.getUrl("https", self.domain,
+						     self.urlBase),
+				    self.db.getString("ssl-encrypted")))
 			body.append('\t</div>')
 
 		if genCheckerLinks:
 			# Checker links
 			pageUrlQuoted = urllib.parse.quote_plus(
-				self.__makeFullPageUrl(groupname, pagename, protocol))
+				pageIdent.getUrl("http", self.domain,
+						 self.urlBase))
 			body.append('\t<div class="checker">')
 			checkerUrl = "http://validator.w3.org/check?"\
 				     "uri=" + pageUrlQuoted + "&amp;"\
@@ -1072,23 +1117,6 @@ class CMS(object):
 
 		return "\n".join(body)
 
-	def __parsePagePath(self, path):
-		path = path.strip().lstrip('/')
-		for suffix in ('.html', '.htm', '.php'):
-			if path.endswith(suffix):
-				path = path[:-len(suffix)]
-				break
-		groupname, pagename = '', ''
-		if path not in ('', 'index'):
-			path = path.split('/')
-			if len(path) == 1:
-				groupname = path[0]
-			elif len(path) == 2:
-				groupname, pagename = path[0], path[1]
-			if not groupname:
-				raise CMSException(404)
-		return groupname, pagename
-
 	def __getImageThumbnail(self, imagename, query, protocol):
 		if not imagename:
 			raise CMSException(404)
@@ -1107,7 +1135,7 @@ class CMS(object):
 			qual = qualities[1]
 		try:
 			img = Image.open(mkpath(self.wwwPath, self.imagesDir,
-					validateSafePathComponent(imagename)))
+				CMSPageIdent.validateSafePathComponent(imagename)))
 			img.thumbnail((width, height), qual)
 			output = BytesIO()
 			img.save(output, "JPEG")
@@ -1116,32 +1144,29 @@ class CMS(object):
 			raise CMSException(404)
 		return data, "image/jpeg"
 
-	def __getHtmlPage(self, groupname, pagename, query, protocol):
-		pageTitle, pageData, stamp = self.db.getPage(groupname, pagename)
+	def __getHtmlPage(self, pageIdent, query, protocol):
+		pageTitle, pageData, stamp = self.db.getPage(pageIdent)
 		if not pageData:
 			raise CMSException(404)
 
 		resolverVariables = {
 			"PROTOCOL"	: lambda r, n: protocol,
-			"GROUP"		: lambda r, n: groupname,
-			"PAGE"		: lambda r, n: pagename,
+			"GROUP"		: lambda r, n: pageIdent.get(0),
+			"PAGE"		: lambda r, n: pageIdent.get(1),
 		}
 		resolve = self.resolver.resolve
 		for k, v in query.queryDict.items():
 			k, v = k.upper(), v[-1]
 			resolverVariables["Q_" + k] = CMSStatementResolver.escape(htmlEscape(v))
 			resolverVariables["QRAW_" + k] = CMSStatementResolver.escape(v)
-		pageTitle = resolve(pageTitle, resolverVariables,
-				    groupname, pagename)
+		pageTitle = resolve(pageTitle, resolverVariables, pageIdent)
 		resolverVariables["TITLE"] = lambda r, n: pageTitle
-		pageData = resolve(pageData, resolverVariables,
-				   groupname, pagename)
-		extraHeader = resolve(self.db.getHeader(groupname, pagename),
-				      resolverVariables,
-				      groupname, pagename)
+		pageData = resolve(pageData, resolverVariables, pageIdent)
+		extraHeader = resolve(self.db.getHeader(pageIdent),
+				      resolverVariables, pageIdent)
 
 		data = [self.__genHtmlHeader(pageTitle, extraHeader)]
-		data.append(self.__genHtmlBody(groupname, pagename,
+		data.append(self.__genHtmlBody(pageIdent,
 					       pageTitle, pageData,
 					       protocol, stamp))
 		data.append(self.__genHtmlFooter())
@@ -1152,18 +1177,18 @@ class CMS(object):
 			raise CMSException(500, "Unicode encode error")
 
 	def __generate(self, path, query, protocol):
-		groupname, pagename = self.__parsePagePath(path)
-		if groupname == "__thumbs":
-			return self.__getImageThumbnail(pagename, query, protocol)
-		return self.__getHtmlPage(groupname, pagename, query, protocol)
+		pageIdent = CMSPageIdent.parse(path)
+		if pageIdent.get(0, allowSysNames = True) == "__thumbs":
+			return self.__getImageThumbnail(pageIdent.get(1), query, protocol)
+		return self.__getHtmlPage(pageIdent, query, protocol)
 
 	def get(self, path, query={}, protocol="http"):
 		query = CMSQuery(query)
 		return self.__generate(path, query, protocol)
 
 	def __post(self, path, query, body, bodyType, protocol):
-		groupname, pagename = self.__parsePagePath(path)
-		postHandler = self.db.getPostHandler(groupname, pagename)
+		pageIdent = CMSPageIdent.parse(path)
+		postHandler = self.db.getPostHandler(pageIdent)
 		if not postHandler:
 			raise CMSException(405)
 		try:
@@ -1207,7 +1232,7 @@ class CMS(object):
 			lambda s: self.resolver.resolve(s, resolverVariables))
 		data = [self.__genHtmlHeader(cmsExcept.httpStatus,
 					     additional=pageHeader)]
-		data.append(self.__genHtmlBody('_nogroup_', '_nopage_',
+		data.append(self.__genHtmlBody(CMSPageIdent(("_nogroup_", "_nopage_")),
 					       cmsExcept.httpStatus,
 					       pageData,
 					       protocol,
