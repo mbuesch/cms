@@ -140,12 +140,16 @@ def f_subdirList(*path_elements):
 class CMSPageIdent(list):
 	# Page identifier.
 
-	__pageFileName_re = re.compile(r'^(.*)((?:\.html?)|(?:\.py)|(?:\.php))$', re.DOTALL)
-	__indexPages = {"", "index"}
+	__pageFileName_re	= re.compile(
+		r'^(.*)((?:\.html?)|(?:\.py)|(?:\.php))$', re.DOTALL)
+	__indexPages		= {"", "index"}
 
 	# Parse a page identifier from a string.
 	@classmethod
-	def parse(cls, path):
+	def parse(cls, path, maxPathLen = 512, maxIdentDepth = 32):
+		if len(path) > maxPathLen:
+			raise CMSException(400, "Invalid URL")
+
 		pageIdent = cls()
 
 		# Strip whitespace and slashes
@@ -159,6 +163,9 @@ class CMSPageIdent(list):
 		# Use the ident elements, if this is not the root page.
 		if path not in cls.__indexPages:
 			pageIdent.extend(path.split("/"))
+
+		if len(pageIdent) > maxIdentDepth:
+			raise CMSException(400, "Invalid URL")
 
 		return pageIdent
 
