@@ -1087,9 +1087,9 @@ class CMS(object):
 		body.append('\t\t</div>')
 		for navGroupElement in self.db.getSubPages(CMSPageIdent()):
 			navgroupname, navgrouplabel, navgroupprio = navGroupElement
-			body.append('\t\t<div class="navgroup"> '
-				    '<!-- %d -->' % navgroupprio)
 			if navgrouplabel:
+				body.append('\t\t<div class="navgroup"> '
+					    '<!-- %d -->' % navgroupprio)
 				subPageIdent = CMSPageIdent([navgroupname])
 				isActive = pageIdent.startswith(subPageIdent)
 				body.append('\t\t\t<div class="navhead">')
@@ -1102,8 +1102,8 @@ class CMS(object):
 				if isActive:
 					body.append('\t\t\t</div>')
 				body.append('\t\t\t</div>')
-			self.__genNavElem(body, CMSPageIdent((navgroupname,)), pageIdent)
-			body.append('\t\t</div>')
+				self.__genNavElem(body, CMSPageIdent((navgroupname,)), pageIdent)
+				body.append('\t\t</div>')
 		body.append('\t</div>')
 		body.append('</div>\n')
 
