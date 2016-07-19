@@ -1034,10 +1034,10 @@ class CMS(object):
 		body.append('%s<div class="navelems">' % tabs)
 		for pageElement in subPages:
 			pagename, pagelabel, pageprio = pageElement
-			body.append('%s\t<div class="navelem"> '
-				    '<!-- %d -->' % (
-				    tabs, pageprio))
 			if pagelabel:
+				body.append('%s\t<div class="navelem"> '
+					    '<!-- %d -->' % (
+					    tabs, pageprio))
 				subPageIdent = CMSPageIdent(basePageIdent + [pagename])
 				isActive = activePageIdent.startswith(subPageIdent)
 				if isActive:
@@ -1052,9 +1052,10 @@ class CMS(object):
 						    '<!-- class="navactive" -->' %\
 						    tabs)
 
-			self.__genNavElem(body, subPageIdent, activePageIdent, indent + 2)
+				self.__genNavElem(body, subPageIdent,
+						  activePageIdent, indent + 2)
 
-			body.append('%s\t</div>' % tabs)
+				body.append('%s\t</div>' % tabs)
 		body.append('%s</div>' % tabs)
 
 	def __genHtmlBody(self, pageIdent, pageTitle, pageData,
