@@ -370,8 +370,7 @@ class CMSDatabase(object):
 				prio = 500
 			res.append( (pagename, navlabel, prio) )
 		if sortByPrio:
-			#TODO also sort by name. This avoids random sorting in case of matching prios.
-			res.sort(key = lambda element: element[2])
+			res.sort(key = lambda e: "%010d_%s" % (e[2], e[1]))
 		return res
 
 	def getMacro(self, macroname, pageIdent = None):
