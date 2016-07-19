@@ -370,6 +370,7 @@ class CMSDatabase(object):
 				prio = 500
 			res.append( (pagename, navlabel, prio) )
 		if sortByPrio:
+			#TODO also sort by name. This avoids random sorting in case of matching prios.
 			res.sort(key = lambda element: element[2])
 		return res
 
@@ -962,6 +963,10 @@ class CMSQuery(object):
 		return stringBool(string, default)
 
 class CMS(object):
+	# Main CMS entry point.
+
+	__rootPageIdent = CMSPageIdent()
+
 	def __init__(self,
 		     dbPath,
 		     wwwPath,
@@ -1030,33 +1035,42 @@ class CMS(object):
 		subPages = self.db.getSubPages(basePageIdent)
 		if not subPages:
 			return
-		tabs = '\t\t\t' + '\t' * indent
-		body.append('%s<div class="navelems">' % tabs)
+		tabs = '\t' + '\t' * indent
+		if indent > 0:
+			body.append('%s<div class="navelems">' % tabs)
 		for pageElement in subPages:
 			pagename, pagelabel, pageprio = pageElement
 			if pagelabel:
-				body.append('%s\t<div class="navelem"> '
+				body.append('%s\t<div class="%s"> '
 					    '<!-- %d -->' % (
-					    tabs, pageprio))
+					    tabs,
+					    "navelem" if indent > 0 else "navgroup",
+					    pageprio))
+				if indent <= 0:
+					body.append('%s\t\t<div class="navhead">' %\
+						    tabs)
 				subPageIdent = CMSPageIdent(basePageIdent + [pagename])
 				isActive = activePageIdent.startswith(subPageIdent)
 				if isActive:
-					body.append('%s\t<div class="navactive">' %\
+					body.append('%s\t\t<div class="navactive">' %\
 						    tabs)
 				body.append('%s\t\t<a href="%s">%s</a>' %\
 					    (tabs,
 					     subPageIdent.getUrl(urlBase = self.urlBase),
 					     pagelabel))
 				if isActive:
-					body.append('%s\t</div> '
+					body.append('%s\t\t</div> '
 						    '<!-- class="navactive" -->' %\
 						    tabs)
+				if indent <= 0:
+					body.append('%s\t\t</div>' % tabs)
 
 				self.__genNavElem(body, subPageIdent,
 						  activePageIdent, indent + 2)
 
 				body.append('%s\t</div>' % tabs)
-		body.append('%s</div>' % tabs)
+		if indent > 0:
+			body.append('%s</div>' % tabs)
 
 	def __genHtmlBody(self, pageIdent, pageTitle, pageData,
 			  protocol,
@@ -1077,33 +1091,16 @@ class CMS(object):
 		body.append('<div class="navbar">')
 		body.append('\t<div class="navgroups">')
 		body.append('\t\t<div class="navhome">')
-		if not pageIdent:
+		rootActive = not pageIdent
+		if rootActive:
 			body.append('\t\t<div class="navactive">')
 		body.append('\t\t\t<a href="%s">%s</a>' %\
-			    (CMSPageIdent().getUrl(urlBase = self.urlBase),
+			    (self.__rootPageIdent.getUrl(urlBase = self.urlBase),
 			     self.db.getString("home")))
-		if not pageIdent:
+		if rootActive:
 			body.append('\t\t</div> <!-- class="navactive" -->')
 		body.append('\t\t</div>')
-		for navGroupElement in self.db.getSubPages(CMSPageIdent()):
-			navgroupname, navgrouplabel, navgroupprio = navGroupElement
-			if navgrouplabel:
-				body.append('\t\t<div class="navgroup"> '
-					    '<!-- %d -->' % navgroupprio)
-				subPageIdent = CMSPageIdent([navgroupname])
-				isActive = pageIdent.startswith(subPageIdent)
-				body.append('\t\t\t<div class="navhead">')
-				if isActive:
-					body.append('\t\t\t<div class="navactive">')
-				body.append('\t\t\t\t<a href="%s">%s</a>' %\
-					    (subPageIdent.getUrl(urlBase = self.urlBase,
-						pageSuffix = None),
-					     navgrouplabel))
-				if isActive:
-					body.append('\t\t\t</div>')
-				body.append('\t\t\t</div>')
-				self.__genNavElem(body, CMSPageIdent((navgroupname,)), pageIdent)
-				body.append('\t\t</div>')
+		self.__genNavElem(body, self.__rootPageIdent, pageIdent)
 		body.append('\t</div>')
 		body.append('</div>\n')
 
