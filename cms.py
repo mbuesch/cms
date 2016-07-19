@@ -755,6 +755,30 @@ class CMSStatementResolver(object):
 			self.__stmtError("RANDITEM: too few args")
 		return cons, random.choice(args)
 
+	__validDomainChars = LOWERCASE + UPPERCASE + NUMBERS + "."
+
+	# Statement: $(whois DOMAIN)
+	# Executes whois and returns the text.
+	def __stmt_whois(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 1:
+			self.__stmtError("WHOIS: invalid args")
+		domain = args[0]
+		if [ c for c in domain if c not in self.__validDomainChars ]:
+			self.__stmtError("WHOIS: invalid domain")
+		try:
+			import subprocess
+			whois = subprocess.Popen([ "whois", domain ],
+						 shell = False,
+						 stdout = subprocess.PIPE)
+			out, err = whois.communicate()
+			out = out.decode("UTF-8")
+		except UnicodeError as e:
+			self.__stmtError("WHOIS: unicode error")
+		except (OSError, ValueError) as e:
+			self.__stmtError("WHOIS: execution error")
+		return cons, out
+
 	__handlers = {
 		"$(if"		: __stmt_if,
 		"$(eq"		: __stmt_eq,
@@ -773,6 +797,7 @@ class CMSStatementResolver(object):
 		"$(pagelist"	: __stmt_pagelist,
 		"$(random"	: __stmt_random,
 		"$(randitem"	: __stmt_randitem,
+		"$(whois"	: __stmt_whois,
 	}
 
 	def __doMacro(self, macroname, d):
