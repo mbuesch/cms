@@ -178,9 +178,9 @@ class CMSPageIdent(list):
 	def validateSafePathComponent(cls, pcomp):
 		if pcomp.startswith('.'):
 			# No ".", ".." and hidden files.
-			raise CMSException(404)
+			raise CMSException(404, "Invalid page path")
 		if [ c for c in pcomp if c not in cls.__validPathChars ]:
-			raise CMSException(404)
+			raise CMSException(404, "Invalid page path")
 		return pcomp
 
 	# Validate a path. Avoid going back in the hierarchy (. and ..)
@@ -198,7 +198,7 @@ class CMSPageIdent(list):
 	def validateName(cls, name, allowSysNames = False):
 		if name.startswith("__") and not allowSysNames:
 			# Page names with __ are system folders.
-			raise CMSException(404)
+			raise CMSException(404, "Invalid page name")
 		return cls.validateSafePathComponent(name)
 
 	def __init__(self, *args):
