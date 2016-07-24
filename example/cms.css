@@ -281,9 +281,14 @@ pre {
 	body {
 		background: #FFFFFF;
 		border: none;
+		box-shadow: none;
 	}
 
 	.navbar {
+		display: none;
+	}
+
+	.footer {
 		display: none;
 	}
 
