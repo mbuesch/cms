@@ -621,6 +621,25 @@ class CMSStatementResolver(object):
 			token = ""
 		return cons, token
 
+	# Statement:  $(substr STRING, START)
+	# Statement:  $(substr STRING, START, END)
+	# Returns a sub-string of STRING.
+	def __stmt_substr(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) not in {2, 3}:
+			self.__stmtError("SUBSTR: invalid args")
+		string, start, end = args[0], args[1], args[2] if len(args) == 3 else ""
+		try:
+			if end.strip():
+				substr = string[int(start) : int(end)]
+			else:
+				substr = string[int(start)]
+		except ValueError:
+			self.__stmtError("SUBSTR: START or END is not an integer")
+		except IndexError:
+			substr = ""
+		return cons, substr
+
 	# Statement:  $(sanitize STRING)
 	# Sanitize a string.
 	# Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
@@ -789,6 +808,7 @@ class CMSStatementResolver(object):
 		"$(assert"	: __stmt_assert,
 		"$(strip"	: __stmt_strip,
 		"$(item"	: __stmt_item,
+		"$(substr"	: __stmt_substr,
 		"$(sanitize"	: __stmt_sanitize,
 		"$(file_exists"	: __stmt_fileExists,
 		"$(file_mdatet"	: __stmt_fileModDateTime,
