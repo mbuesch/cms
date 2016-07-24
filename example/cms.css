@@ -241,9 +241,14 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	margin-bottom: 40px;
 }
 
-.modifystamp {
+.footer {
 	font-size: x-small;
 	margin-top: 20px;
+}
+
+.modifystamp {
+	font-size: x-small;
+	margin-top: 10px;
 }
 
 .ssl {
