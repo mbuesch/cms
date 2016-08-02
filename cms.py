@@ -776,6 +776,84 @@ class CMSStatementResolver(object):
 
 	__validDomainChars = LOWERCASE + UPPERCASE + NUMBERS + "."
 
+	def __do_arith(self, oper, args):
+		try:
+			a = float(args[0])
+		except ValueError as e:
+			a = 0.0
+		try:
+			b = float(args[1])
+		except ValueError as e:
+			b = 0.0
+		res = oper(a, b)
+		rounded = int(round(res))
+		return ("%f" % res) if (abs(res - rounded) >= 0.000001)\
+			else str(rounded)
+
+	# Statement: $(add A, B)
+	# Returns A + B
+	def __stmt_add(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 2:
+			self.__stmtError("ADD: invalid args")
+		return cons, self.__do_arith(lambda a, b: a + b, args)
+
+	# Statement: $(sub A, B)
+	# Returns A - B
+	def __stmt_sub(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 2:
+			self.__stmtError("SUB: invalid args")
+		return cons, self.__do_arith(lambda a, b: a - b, args)
+
+	# Statement: $(mul A, B)
+	# Returns A * B
+	def __stmt_mul(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 2:
+			self.__stmtError("MUL: invalid args")
+		return cons, self.__do_arith(lambda a, b: a * b, args)
+
+	# Statement: $(div A, B)
+	# Returns A / B
+	def __stmt_div(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 2:
+			self.__stmtError("DIV: invalid args")
+		return cons, self.__do_arith(lambda a, b: a / b, args)
+
+	# Statement: $(mod A, B)
+	# Returns A % B
+	def __stmt_mod(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) != 2:
+			self.__stmtError("MOD: invalid args")
+		return cons, self.__do_arith(lambda a, b: a % b, args)
+
+	# Statement: $(round A)
+	# Statement: $(round A, NDIGITS)
+	# Returns A rounded
+	def __stmt_round(self, d):
+		cons, args = self.__parseArguments(d)
+		if len(args) not in {1, 2}:
+			self.__stmtError("ROUND: invalid args")
+		try:
+			a = float(args[0])
+		except ValueError as e:
+			a = 0.0
+		try:
+			if len(args) == 1:
+				res = str(int(round(a)))
+			else:
+				try:
+					n = int(args[1])
+				except ValueError as e:
+					n = 0
+				res = ("%." + str(n) + "f") % int(round(a, n))
+		except (ValueError, TypeError) as e:
+			self.__stmtError("ROUND: invalid value")
+		return cons, res
+
 	# Statement: $(whois DOMAIN)
 	# Executes whois and returns the text.
 	def __stmt_whois(self, d):
@@ -798,25 +876,47 @@ class CMSStatementResolver(object):
 			self.__stmtError("WHOIS: execution error")
 		return cons, out
 
+	# statement handlers
 	__handlers = {
+		# conditional / string compare / boolean
 		"$(if"		: __stmt_if,
 		"$(eq"		: __stmt_eq,
 		"$(ne"		: __stmt_ne,
 		"$(and"		: __stmt_and,
 		"$(or"		: __stmt_or,
 		"$(not"		: __stmt_not,
+
+		# debugging
 		"$(assert"	: __stmt_assert,
+
+		# string processing
 		"$(strip"	: __stmt_strip,
 		"$(item"	: __stmt_item,
 		"$(substr"	: __stmt_substr,
 		"$(sanitize"	: __stmt_sanitize,
+
+		# filesystem access
 		"$(file_exists"	: __stmt_fileExists,
 		"$(file_mdatet"	: __stmt_fileModDateTime,
+
+		# page index / page info
 		"$(index"	: __stmt_index,
 		"$(anchor"	: __stmt_anchor,
 		"$(pagelist"	: __stmt_pagelist,
+
+		# random numbers
 		"$(random"	: __stmt_random,
 		"$(randitem"	: __stmt_randitem,
+
+		# arithmetic
+		"$(add"		: __stmt_add,
+		"$(sub"		: __stmt_sub,
+		"$(mul"		: __stmt_mul,
+		"$(div"		: __stmt_div,
+		"$(mod"		: __stmt_mod,
+		"$(round"	: __stmt_round,
+
+		# external programs
 		"$(whois"	: __stmt_whois,
 	}
 
