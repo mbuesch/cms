@@ -98,8 +98,10 @@ def application(environ, start_response):
 	query = parse_qs(environ["QUERY_STRING"])
 	protocol = environ["wsgi.url_scheme"].lower()
 	try:
-		if method == "GET":
+		if method in {"GET", "HEAD"}:
 			response_body, response_mime = cms.get(path, query, protocol)
+			if method == "HEAD":
+				response_body = b""
 		elif method == "POST":
 			body, body_type = __recvBody(environ)
 			if body is None:
