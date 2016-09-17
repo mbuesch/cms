@@ -24,11 +24,16 @@ try:
 	from urllib.parse import parse_qs
 except ImportError:
 	from cgi import parse_qs
+
+sys.path.append("/var/cms") # workaround for old WSGI
 try:
-	sys.path.append("/var/cms") # workaround for old WSGI
-	from cms import *
+	from cms_cython import *
 except ImportError as e:
-	raise Exception("Failed to import cms.py. Wrong python-path in WSGIDaemonProcess?:\n" + str(e))
+	try:
+		from cms import *
+	except ImportError as e:
+		raise Exception("Failed to import cms.py. "\
+			"Wrong python-path in WSGIDaemonProcess?:\n" + str(e))
 
 cms = None
 maxPostContentLength = 0
