@@ -107,7 +107,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 }
 
 .navbar .navgroups .navgroup:hover {
-	background: #0000ff;
+	background: #5050A0;
 
 	border-top-left-radius: 15px;
 	border-top-right-radius: 15px;
@@ -139,7 +139,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .navbar .navgroups .navgroup .navelems {
 	display: none;
-	background: #e1e1ff;
+	background: #ebebff;
 	float: none;
 	position: absolute;
 	z-index: 200;
@@ -153,7 +153,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	border-bottom-left-radius: 15px;
 
 	border: solid #cbcbff;
-	border-width: 2px;
+	border-width: 1px;
 
 	box-shadow: 0px 0px 25px rgba(0, 0, 0, 0.25);
 }
@@ -181,7 +181,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .navbar .navgroups .navgroup .navelems .navelem a:hover {
 	color: #FFFFFF;
-	background: #5050ff;
+	background: #5050A0;
 }
 
 .navhome {
@@ -190,13 +190,13 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .navbar .navgroups .navgroup .navelems .navelem .navactive a {
 	font-weight: bold;
-	color: #FFFF00;
-	background: #0000FF;
+	color: #FFFFC0;
+	background: #5050A0;
 }
 
 .navbar .navgroups .navgroup .navelems .navelem .navactive a:hover {
-	color: #FFFF00;
-	background: #0000FF;
+	color: #FFFFC0;
+	background: #5050A0;
 }
 
 .main {
