@@ -184,8 +184,36 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	background: #5050A0;
 }
 
-.navhome {
-	display: none;
+.navbar .navgroups .navhome {
+	display: block;
+	float: left;
+	padding: 3px 0px 3px 0px;
+	margin: 0px;
+	font-size: 13.5pt;
+}
+
+.navbar .navgroups .navhome a {
+	display: block;
+	float: none;
+	margin: 0px 20px 0px 0px;
+	padding: 7px 10px 7px 10px;
+	overflow: visible;
+	white-space: nowrap;
+	color: #000000;
+
+	background-image: url(images/home-button.png);
+	background-size: 100%;
+	background-repeat: no-repeat;
+	width: 10px;
+	height: 14px;
+
+	border-radius: 3px;
+	border: solid 1px rgba(255,255,255,.5);
+}
+
+.navbar .navgroups .navhome a:hover {
+	color: #FFFFFF;
+	border: solid 1px #5050A0;
 }
 
 .navbar .navgroups .navgroup .navelems .navelem .navactive a {
