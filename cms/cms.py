@@ -400,7 +400,7 @@ class CMSDatabase(object):
 		string = f_read(self.stringBase, name).strip()
 		if string:
 			return string
-		return name if default is None else default
+		return default or ""
 
 	def getPostHandler(self, pageIdent):
 		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
