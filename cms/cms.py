@@ -484,10 +484,10 @@ class CMSStatementResolver(object):
 	def expandVariable(self, name):
 		try:
 			value = self.variables[name]
-			try:
+			if callable(value):
 				value = value(self, name)
-			except (TypeError) as e:
-				pass
+			if value is None:
+				raise KeyError
 			return str(value)
 		except (KeyError, TypeError) as e:
 			return ""
