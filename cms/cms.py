@@ -234,11 +234,12 @@ class CMSPageIdent(list):
 			url.append(domain)
 		if urlBase:
 			url.append(urlBase.strip("/"))
-		url.extend(self)
+		localPath = [elem for elem in self if elem]
+		url.extend(localPath)
 		if not protocol and not domain:
 			url.insert(0, "")
 		url = "/".join(url)
-		if self and pageSuffix:
+		if localPath and pageSuffix:
 			url += pageSuffix
 		return url
 
