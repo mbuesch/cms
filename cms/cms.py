@@ -148,8 +148,13 @@ def f_subdirList(*path_elements):
 	except OSError:
 		return []
 
-class CMSPageIdent(list):
+class CMSPageIdent(object):
 	# Page identifier.
+
+	__slots__ = (
+		"__elements",
+		"__allValidated",
+	)
 
 	__pageFileName_re	= re.compile(
 		r'^(.*)((?:\.html?)|(?:\.py)|(?:\.php))$', re.DOTALL)
@@ -157,7 +162,7 @@ class CMSPageIdent(list):
 
 	# Parse a page identifier from a string.
 	@classmethod
-	def parse(cls, path, maxPathLen = 512, maxIdentDepth = 32):
+	def parse(cls, path, maxPathLen=512, maxIdentDepth=32):
 		if len(path) > maxPathLen:
 			raise CMSException(400, "Invalid URL")
 
@@ -175,7 +180,7 @@ class CMSPageIdent(list):
 		if path not in cls.__indexPages:
 			pageIdent.extend(path.split("/"))
 
-		if len(pageIdent) > maxIdentDepth:
+		if len(pageIdent.__elements) > maxIdentDepth:
 			raise CMSException(400, "Invalid URL")
 
 		return pageIdent
@@ -206,37 +211,64 @@ class CMSPageIdent(list):
 	# Raises CMSException on failure.
 	# If allowSysNames is True, system names starting with "__" are allowed.
 	@classmethod
-	def validateName(cls, name, allowSysNames = False):
+	def validateName(cls, name, allowSysNames=False):
 		if name.startswith("__") and not allowSysNames:
 			# Page names with __ are system folders.
 			raise CMSException(404, "Invalid page name")
 		return cls.validateSafePathComponent(name)
 
-	def __init__(self, *args):
-		list.__init__(self, *args)
+	# Initialize this page identifier.
+	def __init__(self, initialElements=None):
+		self.__elements = []
+		self.extend(initialElements)
 		self.__allValidated = False
+
+	# Add a list of path elements to this identifier.
+	def extend(self, other):
+		if other is not None:
+			self.__allValidated = False
+
+			if isinstance(other, self.__class__):
+				self.__elements.extend(other.__elements)
+			elif isiterable(other):
+				self.__elements.extend(other)
+			else:
+				raise CMSException(500, "Invalid 'other' in CMSPageIdent.extend()")
+		return self
+
+	# Add a list of path elements to this identifier.
+	def __iadd__(self, other):
+		return self.extend(other)
+
+	# Create a new page identifier from 'self' and add 'other'.
+	def __add__(self, other):
+		return self.__class__(self.__elements).extend(other)
+
+	# Get the number of path components in this path identifier.
+	def __len__(self):
+		return len(self.__elements)
 
 	# Validate all page identifier name components.
 	# (Do not allow system name components)
 	def __validateAll(self):
 		if not self.__allValidated:
-			for pcomp in self:
+			for pcomp in self.__elements:
 				self.validateName(pcomp)
 			# Remember that we validated.
-			# Note that this assumes no components are added later!
+			# (This flag must be reset to false, if components are added.)
 			self.__allValidated = True
 
 	# Get one page identifier component by index.
-	def get(self, index, default = None, allowSysNames = False):
+	def get(self, index, default=None, allowSysNames=False):
 		try:
-			return self.validateName(self[index],
+			return self.validateName(self.__elements[index],
 						 allowSysNames)
 		except IndexError:
 			return default
 
 	# Get the page identifier as URL.
-	def getUrl(self, protocol = None, domain = None,
-		   urlBase = None, pageSuffix = ".html"):
+	def getUrl(self, protocol=None, domain=None,
+		   urlBase=None, pageSuffix=".html"):
 		self.__validateAll()
 		url = []
 		if protocol:
@@ -245,33 +277,33 @@ class CMSPageIdent(list):
 			url.append(domain)
 		if urlBase:
 			url.append(urlBase.strip("/"))
-		localPath = [elem for elem in self if elem]
+		localPath = [elem for elem in self.__elements if elem]
 		url.extend(localPath)
 		if not protocol and not domain:
 			url.insert(0, "")
-		url = "/".join(url)
+		urlStr = "/".join(url)
 		if localPath and pageSuffix:
-			url += pageSuffix
-		return url
+			urlStr += pageSuffix
+		return urlStr
 
 	# Get the page identifier as filesystem path.
-	def getFilesystemPath(self, rstrip = 0):
+	def getFilesystemPath(self, rstrip=0):
 		self.__validateAll()
-		if self:
+		if self.__elements:
 			if rstrip:
-				pcomps = self[ : 0 - rstrip]
+				pcomps = self.__elements[ : 0 - rstrip]
 				if pcomps:
 					return mkpath(*pcomps)
 				return ""
-			return mkpath(*self)
+			return mkpath(*(self.__elements))
 		return ""
 
 	# Test if this identifier starts with the same elements
 	# as another one.
 	def startswith(self, other):
 		return other is not None and\
-		       len(self) >= len(other) and\
-		       self[ : len(other)] == other
+		       len(self.__elements) >= len(other.__elements) and\
+		       self.__elements[ : len(other.__elements)] == other.__elements
 
 class CMSException(Exception):
 	__stats = {
