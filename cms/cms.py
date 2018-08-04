@@ -242,7 +242,7 @@ class CMSPageIdent(object):
 
 	# Create a new page identifier from 'self' and add 'other'.
 	def __add__(self, other):
-		return self.__class__(self.__elements).extend(other)
+		return self.__class__(self).extend(other)
 
 	# Get the number of path components in this path identifier.
 	def __len__(self):
