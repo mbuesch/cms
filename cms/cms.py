@@ -496,6 +496,7 @@ class CMSStatementResolver(object):
 			self.noIndex = noIndex
 
 		def makeUrl(self, resolver):
+			#TODO this does not work for sub pages
 			return "%s#%s" % (
 				CMSPageIdent((
 					resolver.expandVariable("GROUP"),
