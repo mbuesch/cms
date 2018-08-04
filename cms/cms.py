@@ -38,6 +38,17 @@ UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'
 NUMBERS   = '0123456789'
 
+# Check if an object is iterable.
+def isiterable(obj):
+	try:
+		iter(obj)
+		return True
+	except TypeError:
+		pass # obj is not an iterable.
+	except Exception:
+		raise CMSException(500, "isiterable: Unexpected exception.")
+	return False
+
 # Find the index in 'string' that is _not_ in 'template'.
 # Start search at 'idx'.
 # Returns -1 on failure to find.
