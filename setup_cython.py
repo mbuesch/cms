@@ -1,8 +1,8 @@
 #
 #   Cython patcher
-#   v1.0
+#   v1.10
 #
-#   Copyright (C) 2012-2016 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2012-2018 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -28,11 +28,9 @@ import shutil
 import hashlib
 import re
 
-from distutils.core import setup
-from distutils.extension import Extension
-
 
 parallelBuild = False
+profileEnabled = False
 ext_modules = []
 CythonBuildExtension = None
 
@@ -56,7 +54,8 @@ def hashFile(path):
 	else:
 		ExpectedException = FileNotFoundError
 	try:
-		return hashlib.sha1(open(path, "rb").read()).hexdigest()
+		with open(path, "rb") as fd:
+			return hashlib.sha1(fd.read()).hexdigest()
 	except ExpectedException as e:
 		return None
 
@@ -81,69 +80,109 @@ def makeDummyFile(path):
 		return
 	print("creating dummy file '%s'" % path)
 	makedirs(os.path.dirname(path))
-	fd = open(path, "w")
-	fd.write("\n")
-	fd.close()
+	with open(path, "wb") as fd:
+		fd.write("\n".encode("UTF-8"))
 
-def pyCythonPatchLine(line, basicOnly=False):
+def pyCythonPatchLine(line):
 	return line
 
-def pyCythonPatch(fromFile, toFile, basicOnly=False):
+def pyCythonPatch(fromFile, toFile):
 	print("cython-patch: patching file '%s' to '%s'" %\
 	      (fromFile, toFile))
 	tmpFile = toFile + ".TMP"
 	makedirs(os.path.dirname(tmpFile))
-	infd = open(fromFile, "r")
-	outfd = open(tmpFile, "w")
-	for line in infd.readlines():
-		stripLine = line.strip()
+	with open(fromFile, "rb") as infd,\
+	     open(tmpFile, "wb") as outfd:
+		for line in infd.read().decode("UTF-8").splitlines(True):
+			stripLine = line.strip()
 
-		if stripLine.endswith("#<no-cython-patch"):
-			outfd.write(line)
-			continue
+			if stripLine.endswith("#<no-cython-patch"):
+				outfd.write(line.encode("UTF-8"))
+				continue
 
-		# Uncomment all lines containing #@cy
-		if "#@cy" in stripLine:
-			line = line.replace("#@cy", "")
-			if line.startswith("#"):
-				line = line[1:]
-			if not line.endswith("\n"):
-				line += "\n"
+			# Replace import by cimport as requested by #+cimport
+			if "#+cimport" in stripLine:
+				line = line.replace("#+cimport", "#")
+				line = re.sub(r'\bimport\b', "cimport", line)
 
-		# Sprinkle magic cdef, as requested by #+cdef
-		if "#+cdef" in stripLine:
-			if stripLine.startswith("class"):
-				line = line.replace("class", "cdef class")
+			# Convert None to NULL
+			if "#@cy-NoneToNULL" in stripLine:
+				line = line.replace("#@cy-NoneToNULL", "#")
+				line = re.sub(r'\bNone\b', "NULL", line)
+
+			# Uncomment all lines containing #@cy
+			def uncomment(line, removeStr):
+				line = line.replace(removeStr, "")
+				if line.startswith("#"):
+					line = line[1:]
+				if not line.endswith("\n"):
+					line += "\n"
+				return line
+			if "#@cy" in stripLine and\
+			   not "#@cy2" in stripLine and\
+			   not "#@cy3" in stripLine:
+				line = uncomment(line, "#@cy")
+			if sys.version_info[0] < 3:
+				if "#@cy2" in stripLine:
+					line = uncomment(line, "#@cy2")
 			else:
-				line = line.replace("def", "cdef")
+				if "#@cy3" in stripLine:
+					line = uncomment(line, "#@cy3")
 
-		# Comment all lines containing #@nocy
-		if "#@nocy" in stripLine:
-			line = "#" + line
+			# Sprinkle magic cdef/cpdef, as requested by #+cdef/#+cpdef
+			if "#+cdef-" in stripLine:
+				# +cdef-foo-bar is the extended cdef patching.
+				# It adds cdef and any additional characters to the
+				# start of the line. Dashes are replaced with spaces.
 
-		if not basicOnly:
-			# Automagic types
-			line = re.sub(r'\b_Bool\b', "unsigned char", line)
-			line = re.sub(r'\bint8_t\b', "signed char", line)
-			line = re.sub(r'\buint8_t\b', "unsigned char", line)
-			line = re.sub(r'\bint16_t\b', "signed short", line)
-			line = re.sub(r'\buint16_t\b', "unsigned short", line)
-			line = re.sub(r'\bint32_t\b', "signed int", line)
-			line = re.sub(r'\buint32_t\b', "unsigned int", line)
-			line = re.sub(r'\bint64_t\b', "signed long long", line)
-			line = re.sub(r'\buint64_t\b', "unsigned long long", line)
+				# Get the additional text
+				idx = line.find("#+cdef-")
+				cdefText = line[idx+2 : ]
+				cdefText = cdefText.replace("-", " ").rstrip("\r\n")
+
+				# Get the initial space length
+				spaceCnt = 0
+				while spaceCnt < len(line) and line[spaceCnt].isspace():
+					spaceCnt += 1
+
+				# Construct the new line
+				line = line[ : spaceCnt] + cdefText + " " + line[spaceCnt : ]
+			elif "#+cdef" in stripLine:
+				# Simple cdef patching:
+				# def -> cdef
+				# class -> cdef class
+
+				if stripLine.startswith("class"):
+					line = re.sub(r'\bclass\b', "cdef class", line)
+				else:
+					line = re.sub(r'\bdef\b', "cdef", line)
+			if "#+cpdef" in stripLine:
+				# Simple cpdef patching:
+				# def -> cpdef
+
+				line = re.sub(r'\bdef\b', "cpdef", line)
+
+			# Comment all lines containing #@nocy
+			# or #@cyX for the not matching version.
+			if "#@nocy" in stripLine:
+				line = "#" + line
+			if sys.version_info[0] < 3:
+				if "#@cy3" in stripLine:
+					line = "#" + line
+			else:
+				if "#@cy2" in stripLine:
+					line = "#" + line
 
 			# Remove compat stuff
 			line = line.replace("absolute_import,", "")
 
-		line = pyCythonPatchLine(line, basicOnly)
+			line = pyCythonPatchLine(line)
 
-		outfd.write(line)
-	infd.close()
-	outfd.flush()
-	outfd.close()
-	if not moveIfChanged(tmpFile, toFile):
-		print("(already up to date)")
+			outfd.write(line.encode("UTF-8"))
+		outfd.flush()
+	if moveIfChanged(tmpFile, toFile):
+		print("(updated)")
+	else:
 		os.unlink(tmpFile)
 
 class CythonBuildUnit(object):
@@ -163,8 +202,7 @@ def patchCythonModules(buildDir):
 		if unit.baseName == "__init__":
 			# Copy and patch the package __init__.py
 			toPy = os.path.join(buildDir, *unit.cyModName.split(".")) + ".py"
-			pyCythonPatch(unit.fromPy, toPy,
-				      basicOnly=True)
+			pyCythonPatch(unit.fromPy, toPy)
 		else:
 			# Generate the .pyx
 			pyCythonPatch(unit.fromPy, unit.toPyx)
@@ -206,11 +244,16 @@ def registerCythonModule(baseDir, sourceModName):
 			continue
 
 		for filename in filenames:
-			if not filename.endswith(".py"):
+			if filename.endswith(".py"):
+				fromSuffix = ".py"
+			elif filename.endswith(".pyx.in"):
+				fromSuffix = ".pyx.in"
+			else:
 				continue
-			baseName = filename[:-3] # Strip .py
 
-			fromPy = os.path.join(dirpath, baseName + ".py")
+			baseName = filename[:-len(fromSuffix)] # Strip .py/.pyx.in
+
+			fromPy = os.path.join(dirpath, baseName + fromSuffix)
 			fromPxd = os.path.join(dirpath, baseName + ".pxd.in")
 			toDir = os.path.join(patchDir, subpath)
 			toPyx = os.path.join(toDir, baseName + ".pyx")
@@ -231,7 +274,13 @@ def registerCythonModule(baseDir, sourceModName):
 			if baseName != "__init__":
 				# Create a distutils Extension for the module
 				ext_modules.append(
-					Extension(cyModName, [toPyx])
+					_Cython_Distutils_Extension(
+						cyModName,
+						[toPyx],
+						cython_directives={
+							"profile" : profileEnabled,
+						}
+					)
 				)
 
 def registerCythonModules():
@@ -260,9 +309,19 @@ def cythonBuildPossible():
 		      "Windows installer.")
 		return False
 	try:
-		from Cython.Distutils import build_ext
+		import Cython.Compiler.Options
+		# Omit docstrings in cythoned modules.
+		Cython.Compiler.Options.docstrings = False
+		# Generate module exit cleanup code.
+		Cython.Compiler.Options.generate_cleanup_code = True
+		# Generate HTML outputs.
+		Cython.Compiler.Options.annotate = True
+
+		from Cython.Distutils import build_ext, Extension
 		global _Cython_Distutils_build_ext
+		global _Cython_Distutils_Extension
 		_Cython_Distutils_build_ext = build_ext
+		_Cython_Distutils_Extension = Extension
 	except ImportError as e:
 		print("WARNING: Could not build the CYTHON modules: "
 		      "%s" % str(e))

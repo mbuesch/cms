@@ -6,7 +6,7 @@ from distutils.core import setup
 import setup_cython
 
 
-def pyCythonPatchLine(line, basicOnly=False):
+def pyCythonPatchLine(line):
 	# Patch the import statements
 	line = re.sub(r'^(\s*from cms[0-9a-zA-Z_]*)\.([0-9a-zA-Z_\.]+) import', r'\1_cython.\2 import', line)
 	line = re.sub(r'^(\s*from cms[0-9a-zA-Z_]*)\.([0-9a-zA-Z_\.]+) cimport', r'\1_cython.\2 cimport', line)
