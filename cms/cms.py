@@ -1448,8 +1448,6 @@ class CMS(object):
 	def post(self, path, query={},
 		 body=b"", bodyType="text/plain",
 		 protocol="http"):
-		raise CMSException(405) #TODO disabled
-
 		query = CMSQuery(query)
 		return self.__post(path, query, body, bodyType, protocol)
 
