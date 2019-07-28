@@ -1,8 +1,8 @@
 #
 #   Cython patcher
-#   v1.10
+#   v1.20
 #
-#   Copyright (C) 2012-2018 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2012-2019 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -28,17 +28,45 @@ import shutil
 import hashlib
 import re
 
+WORKER_MEM_BYTES	= 800 * 1024*1024
+WORKER_CPU_OVERCOMMIT	= 2
 
+setupFileName = "setup.py"
 parallelBuild = False
 profileEnabled = False
+debugEnabled = False
 ext_modules = []
 CythonBuildExtension = None
 
+patchDirName = "cython_patched.%s-%s-%d.%d" % (
+		platform.system().lower(),
+		platform.machine().lower(),
+		sys.version_info[0],
+		sys.version_info[1])
 
 _Cython_Distutils_build_ext = None
 _cythonPossible = None
 _cythonBuildUnits = []
+_isWindows = os.name.lower() in {"nt", "ce"}
+_isPosix = os.name.lower() == "posix"
 
+
+def getSystemMemBytesCount():
+	try:
+		with open("/proc/meminfo", "rb") as fd:
+			for line in fd.read().decode("UTF-8", "ignore").splitlines():
+				if line.startswith("MemTotal:") and\
+				   line.endswith("kB"):
+					kB = int(line.split()[1], 10)
+					return kB * 1024
+	except (OSError, IndexError, ValueError, UnicodeError) as e:
+		pass
+	if hasattr(os, "sysconf"):
+		try:
+			return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+		except ValueError as e:
+			pass
+	return None
 
 def makedirs(path, mode=0o755):
 	try:
@@ -59,21 +87,36 @@ def hashFile(path):
 	except ExpectedException as e:
 		return None
 
-def __fileopIfChanged(fromFile, toFile, fileop):
+def __fileopIfChanged(fromFile, toFile, fileops):
 	toFileHash = hashFile(toFile)
 	if toFileHash is not None:
 		fromFileHash = hashFile(fromFile)
 		if toFileHash == fromFileHash:
 			return False
 	makedirs(os.path.dirname(toFile))
-	fileop(fromFile, toFile)
+	for fileop in fileops:
+		fileop(fromFile, toFile)
 	return True
 
+def removeFile(filename):
+	try:
+		os.unlink(filename)
+	except OSError:
+		pass
+
 def copyIfChanged(fromFile, toFile):
-	return __fileopIfChanged(fromFile, toFile, shutil.copy2)
+	fileops = []
+	if _isWindows:
+		fileops.append(lambda _fromFile, _toFile: removeFile(_toFile))
+	fileops.append(shutil.copy2)
+	return __fileopIfChanged(fromFile, toFile, fileops)
 
 def moveIfChanged(fromFile, toFile):
-	return __fileopIfChanged(fromFile, toFile, os.rename)
+	fileops = []
+	if _isWindows:
+		fileops.append(lambda _fromFile, _toFile: removeFile(_toFile))
+	fileops.append(os.rename)
+	return __fileopIfChanged(fromFile, toFile, fileops)
 
 def makeDummyFile(path):
 	if os.path.isfile(path):
@@ -96,7 +139,7 @@ def pyCythonPatch(fromFile, toFile):
 		for line in infd.read().decode("UTF-8").splitlines(True):
 			stripLine = line.strip()
 
-			if stripLine.endswith("#<no-cython-patch"):
+			if stripLine.endswith("#@no-cython-patch"):
 				outfd.write(line.encode("UTF-8"))
 				continue
 
@@ -106,8 +149,8 @@ def pyCythonPatch(fromFile, toFile):
 				line = re.sub(r'\bimport\b', "cimport", line)
 
 			# Convert None to NULL
-			if "#@cy-NoneToNULL" in stripLine:
-				line = line.replace("#@cy-NoneToNULL", "#")
+			if "#+NoneToNULL" in stripLine:
+				line = line.replace("#+NoneToNULL", "#")
 				line = re.sub(r'\bNone\b', "NULL", line)
 
 			# Uncomment all lines containing #@cy
@@ -118,16 +161,20 @@ def pyCythonPatch(fromFile, toFile):
 				if not line.endswith("\n"):
 					line += "\n"
 				return line
-			if "#@cy" in stripLine and\
-			   not "#@cy2" in stripLine and\
-			   not "#@cy3" in stripLine:
-				line = uncomment(line, "#@cy")
-			if sys.version_info[0] < 3:
-				if "#@cy2" in stripLine:
+			if "#@cy-posix" in stripLine:
+				if _isPosix:
+					line = uncomment(line, "#@cy-posix")
+			elif "#@cy-win" in stripLine:
+				if _isWindows:
+					line = uncomment(line, "#@cy-win")
+			elif "#@cy2" in stripLine:
+				if sys.version_info[0] < 3:
 					line = uncomment(line, "#@cy2")
-			else:
-				if "#@cy3" in stripLine:
+			elif "#@cy3" in stripLine:
+				if sys.version_info[0] >= 3:
 					line = uncomment(line, "#@cy3")
+			elif "#@cy" in stripLine:
+				line = uncomment(line, "#@cy")
 
 			# Sprinkle magic cdef/cpdef, as requested by #+cdef/#+cpdef
 			if "#+cdef-" in stripLine:
@@ -162,15 +209,42 @@ def pyCythonPatch(fromFile, toFile):
 
 				line = re.sub(r'\bdef\b', "cpdef", line)
 
+			# Add likely()/unlikely() to if-conditions.
+			for likely in ("likely", "unlikely"):
+				if "#+" + likely in stripLine:
+					line = re.sub(r'\bif\s(.*):', r'if ' + likely + r'(\1):', line)
+					break
+
+			# Add an "u" suffix to decimal and hexadecimal numbers.
+			if "#+suffix-u" in line or "#+suffix-U" in line:
+				line = re.sub(r'\b([0-9]+)\b', r'\1u', line)
+				line = re.sub(r'\b(0x[0-9a-fA-F]+)\b', r'\1u', line)
+
+			# Add an "LL" suffix to decimal and hexadecimal numbers.
+			if "#+suffix-ll" in line or "#+suffix-LL" in line:
+				line = re.sub(r'\b(\-?[0-9]+)\b', r'\1LL', line)
+				line = re.sub(r'\b(0x[0-9a-fA-F]+)\b', r'\1LL', line)
+
 			# Comment all lines containing #@nocy
-			# or #@cyX for the not matching version.
 			if "#@nocy" in stripLine:
 				line = "#" + line
+
+			# Comment all lines containing #@cyX
+			# for the not matching version.
 			if sys.version_info[0] < 3:
 				if "#@cy3" in stripLine:
 					line = "#" + line
 			else:
 				if "#@cy2" in stripLine:
+					line = "#" + line
+
+			# Comment all lines containing #@cy-posix/win
+			# for the not matching platform.
+			if _isPosix:
+				if "#@cy-win" in stripLine:
+					line = "#" + line
+			elif _isWindows:
+				if "#@cy-posix" in stripLine:
 					line = "#" + line
 
 			# Remove compat stuff
@@ -216,15 +290,10 @@ def registerCythonModule(baseDir, sourceModName):
 
 	modDir = os.path.join(baseDir, sourceModName)
 	# Make path to the cython patch-build-dir
-	patchDir = os.path.join(baseDir, "build",
-		"cython_patched.%s-%s-%d.%d" %\
-		(platform.system().lower(),
-		 platform.machine().lower(),
-		 sys.version_info[0], sys.version_info[1]),
-		"%s_cython" % sourceModName
-	)
+	patchDir = os.path.join(baseDir, "build", patchDirName,
+				("%s_cython" % sourceModName))
 
-	if not os.path.exists(os.path.join(baseDir, "setup.py")) or\
+	if not os.path.exists(os.path.join(baseDir, setupFileName)) or\
 	   not os.path.exists(modDir) or\
 	   not os.path.isdir(modDir):
 		raise Exception("Wrong directory. "
@@ -273,19 +342,58 @@ def registerCythonModule(baseDir, sourceModName):
 
 			if baseName != "__init__":
 				# Create a distutils Extension for the module
+				extra_compile_args = []
+				extra_link_args = []
+				if not _isWindows:
+					extra_compile_args.append("-Wall")
+					extra_compile_args.append("-Wextra")
+					#extra_compile_args.append("-Wcast-qual")
+					extra_compile_args.append("-Wlogical-op")
+					extra_compile_args.append("-Wpointer-arith")
+					extra_compile_args.append("-Wundef")
+					extra_compile_args.append("-Wno-cast-function-type")
+					extra_compile_args.append("-Wno-maybe-uninitialized")
+					extra_compile_args.append("-Wno-type-limits")
+					if debugEnabled:
+						# Enable debugging and UBSAN.
+						extra_compile_args.append("-g3")
+						extra_compile_args.append("-fsanitize=undefined")
+						extra_compile_args.append("-fsanitize=float-divide-by-zero")
+						extra_compile_args.append("-fsanitize=float-cast-overflow")
+						extra_compile_args.append("-fno-sanitize-recover")
+						extra_link_args.append("-lubsan")
+					else:
+						# Disable all debugging symbols.
+						extra_compile_args.append("-g0")
+						extra_link_args.append("-Wl,--strip-all")
 				ext_modules.append(
 					_Cython_Distutils_Extension(
 						cyModName,
 						[toPyx],
 						cython_directives={
-							"profile" : profileEnabled,
-						}
+							# Enable profile hooks?
+							"profile"	: profileEnabled,
+							"linetrace"	: profileEnabled,
+							# Warn about unused variables?
+							"warn.unused"	: False,
+							# Set language version
+							"language_level" : 2 if sys.version_info[0] < 3 else 3,
+						},
+						define_macros=[
+							("CYTHON_TRACE",	str(int(profileEnabled))),
+							("CYTHON_TRACE_NOGIL",	str(int(profileEnabled))),
+						],
+						include_dirs=[
+							os.path.join("libs", "cython_headers"),
+						],
+						extra_compile_args=extra_compile_args,
+						extra_link_args=extra_link_args
 					)
 				)
 
-def registerCythonModules():
-	baseDir = os.curdir # Base directory, where setup.py lives.
-
+def registerCythonModules(baseDir=None):
+	if baseDir is None:
+		baseDir = os.curdir
 	for filename in os.listdir(baseDir):
 		if os.path.isdir(os.path.join(baseDir, filename)) and\
 		   os.path.exists(os.path.join(baseDir, filename, "__init__.py")) and\
@@ -300,14 +408,6 @@ def cythonBuildPossible():
 
 	_cythonPossible = False
 
-	if os.name != "posix":
-		print("WARNING: Not building CYTHON modules on '%s' platform." %\
-		      os.name)
-		return False
-	if "bdist_wininst" in sys.argv:
-		print("WARNING: Omitting CYTHON modules while building "
-		      "Windows installer.")
-		return False
 	try:
 		import Cython.Compiler.Options
 		# Omit docstrings in cythoned modules.
@@ -358,6 +458,8 @@ def cyBuildWrapper(arg):
 if cythonBuildPossible():
 	# Override Cython's build_ext class.
 	class CythonBuildExtension(_Cython_Distutils_build_ext):
+		class Error(Exception): pass
+
 		def build_extension(self, ext):
 			assert(not ext.name.endswith("__init__"))
 			_Cython_Distutils_build_ext.build_extension(self, ext)
@@ -372,11 +474,26 @@ if cythonBuildPossible():
 				# Run the parallel build, yay.
 				try:
 					self.check_extensions_list(self.extensions)
+
+					# Calculate the number of worker processes to use.
+					memBytes = getSystemMemBytesCount()
+					if memBytes is None:
+						raise self.Error("Unknown system memory size")
+					print("System memory detected: %d MB" % (memBytes // (1024*1024)))
+					memProcsMax = memBytes // WORKER_MEM_BYTES
+					if memProcsMax < 2:
+						raise self.Error("Not enough system memory")
+					import multiprocessing
+					numProcs = min(multiprocessing.cpu_count() + WORKER_CPU_OVERCOMMIT,
+						       memProcsMax)
+
+					# Start the worker pool.
+					print("Building in parallel with %d workers." % numProcs)
 					from multiprocessing.pool import Pool
-					Pool().map(cyBuildWrapper,
-						   ((self, ext) for ext in self.extensions))
-				except OSError as e:
-					# This might happen in a restricted
+					Pool(numProcs).map(cyBuildWrapper,
+							   ((self, ext) for ext in self.extensions))
+				except (OSError, self.Error) as e:
+					# OSError might happen in a restricted
 					# environment like chroot.
 					print("WARNING: Parallel build "
 					      "disabled due to: %s" % str(e))
