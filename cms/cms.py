@@ -449,8 +449,15 @@ class CMSDatabase(object):
 	def getPostHandler(self, pageIdent):
 		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		handlerModFile = mkpath(path, "post.py")
+
 		if not f_exists(handlerModFile):
 			return None
+
+		# Add the path to sys.path, so that post.py can easily import
+		# more files from its directory.
+		if path not in sys.path:
+			sys.path.insert(0, path)
+
 		try:
 			loader = importlib.machinery.SourceFileLoader(
 				re.sub(r"[^A-Za-z]", "_", handlerModFile),
@@ -458,9 +465,8 @@ class CMSDatabase(object):
 			mod = loader.load_module()
 		except OSError:
 			return None
-		if not hasattr(mod, "post"):
-			return None
-		return mod
+
+		return getattr(mod, "post", None)
 
 class CMSStatementResolver(object):
 	# Macro argument expansion: $1, $2, $3...
@@ -1411,10 +1417,20 @@ class CMS(object):
 	def __post(self, path, query, body, bodyType, protocol):
 		pageIdent = CMSPageIdent.parse(path)
 		postHandler = self.db.getPostHandler(pageIdent)
-		if not postHandler:
+		if postHandler is None:
 			raise CMSException(405)
 		try:
-			ret = postHandler.post(query, body, bodyType, protocol)
+			fields = cgi.FieldStorage(
+				fp=BytesIO(body),
+				environ={
+					"CONTENT_LENGTH"	: str(len(body)),
+					"CONTENT_TYPE"		: bodyType,
+					"REQUEST_METHOD"	: "POST",
+				},
+				encoding="UTF-8",
+				errors="strict",
+			)
+			ret = postHandler(fields, query, body, bodyType, protocol)
 		except Exception as e:
 			msg = ""
 			if self.debug:
@@ -1424,9 +1440,9 @@ class CMS(object):
 				"text/plain")
 		if ret is None:
 			return self.__generate(path, query, protocol)
-		assert(isinstance(ret, tuple) and len(ret) == 2)
-		assert((isinstance(ret[0], bytes) or isinstance(ret[0], bytearray)) and\
-		       isinstance(ret[1], str))
+		assert isinstance(ret, tuple) and len(ret) == 2, "post() return is not 2-tuple."
+		assert isinstance(ret[0], (bytes, bytearray)), "post()[0] is not bytes."
+		assert isinstance(ret[1], str), "post()[1] is not str."
 		return ret
 
 	def post(self, path, query={},
