@@ -2,7 +2,7 @@
 #
 #   cms.py - simple WSGI/Python based CMS script
 #
-#   Copyright (C) 2011-2018 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2019 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -74,9 +74,9 @@ def htmlEscape(string):
 
 def stringBool(string, default=False):
 	s = string.lower()
-	if s in ("true", "yes", "on"):
+	if s in ("true", "yes", "on", "1"):
 		return True
-	if s in ("false", "no", "off"):
+	if s in ("false", "no", "off", "0"):
 		return False
 	try:
 		return bool(int(s, 10))

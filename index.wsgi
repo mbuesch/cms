@@ -1,9 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/python 3
 # -*- coding: utf-8 -*-
 #
 #   CMS WSGI wrapper
 #
-#   Copyright (C) 2011-2018 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2019 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -20,12 +20,8 @@
 
 import sys
 import atexit
-try:
-	from urllib.parse import parse_qs
-except ImportError:
-	from cgi import parse_qs
+import urllib.parse
 
-sys.path.append("/var/cms") # workaround for old WSGI
 try:
 	from cms_cython import *
 except ImportError as e:
@@ -43,21 +39,16 @@ def __initCMS(environ):
 	global maxPostContentLength
 	if cms:
 		return # Already initialized
-	try:
-		domain = environ["cms.domain"]
-		cmsBase = environ["cms.cmsBase"]
-		wwwBase = environ["cms.wwwBase"]
-	except KeyError as e:
+	domain = environ.get("cms.domain", None)
+	cmsBase = environ.get("cms.cmsBase", None)
+	wwwBase = environ.get("cms.wwwBase", None)
+	if domain is None or cmsBase is None or wwwBase is None:
 		raise Exception("WSGI environment %s not set" % str(e))
-	debug = False
+	debug = stringBool(environ.get("cms.debug", "0"))
 	try:
-		debug = stringBool(environ["cms.debug"])
-	except KeyError as e:
-		pass
-	try:
-		maxPostContentLength = int(environ["cms.maxPostContentLength"], 10)
-	except (KeyError, ValueError) as e:
-		pass
+		maxPostContentLength = int(environ.get("cms.maxPostContentLength", "0"), 10)
+	except ValueError as e:
+		maxPostContentLength = 0
 	# Initialize the CMS module
 	cms = CMS(dbPath = cmsBase + "/db",
 		  wwwPath = wwwBase,
@@ -67,28 +58,20 @@ def __initCMS(environ):
 
 def __recvBody(environ):
 	try:
-		body_len = int(environ["CONTENT_LENGTH"], 10)
-	except (ValueError, KeyError) as e:
+		body_len = int(environ.get("CONTENT_LENGTH", "0"), 10)
+	except ValueError as e:
 		body_len = 0
-	try:
-		body_type = environ["CONTENT_TYPE"]
-	except KeyError as e:
-		body_type = "text/plain"
+	body_type = environ.get("CONTENT_TYPE", "text/plain")
 	if body_len < 0 or \
 	   (maxPostContentLength >= 0 and\
 	    body_len > maxPostContentLength):
 		body = body_type = None
 	else:
-		body = environ["wsgi.input"].read(body_len)
+		wsgi_input = environ.get("wsgi.input", None)
+		if wsgi_input is None:
+			raise Exception("WSGI environment 'wsgi.input' not set.")
+		body = wsgi_input.read(body_len)
 	return body, body_type
-
-#post_env = env.copy()
-#post_env['QUERY_STRING'] = ''
-#post = cgi.FieldStorage(
-#    fp=env['wsgi.input'],
-#        environ=post_env,
-#	    keep_blank_values=True
-#	    )
 
 def application(environ, start_response):
 	__initCMS(environ)
@@ -98,10 +81,10 @@ def application(environ, start_response):
 	status = "200 OK"
 	additional_headers = []
 
-	method = environ["REQUEST_METHOD"].upper()
-	path = environ["PATH_INFO"]
-	query = parse_qs(environ["QUERY_STRING"])
-	protocol = environ["wsgi.url_scheme"].lower()
+	method = environ.get("REQUEST_METHOD", "").upper()
+	path = environ.get("PATH_INFO", "")
+	query = urllib.parse.parse_qs(environ.get("QUERY_STRING", ""))
+	protocol = environ.get("wsgi.url_scheme", "http").lower()
 	try:
 		if method in {"GET", "HEAD"}:
 			response_body, response_mime = cms.get(path, query, protocol)
