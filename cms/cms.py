@@ -468,6 +468,67 @@ class CMSDatabase(object):
 
 		return getattr(mod, "post", None)
 
+class CMSFormFields(object):
+	"""Form field parser.
+	"""
+
+	__slots__ = (
+		"__fields",
+	)
+
+	defaultCharset		= LOWERCASE + UPPERCASE + NUMBERS + "-_. "
+	defaultCharsetBool	= LOWERCASE + UPPERCASE + NUMBERS + " "
+	defaultCharsetInt	= NUMBERS + " "
+
+	def __init__(self, body, bodyType):
+		try:
+			self.__fields = cgi.FieldStorage(
+				fp=BytesIO(body),
+				environ={
+					"CONTENT_LENGTH"	: str(len(body)),
+					"CONTENT_TYPE"		: bodyType,
+					"REQUEST_METHOD"	: "POST",
+				},
+				encoding="UTF-8",
+				errors="strict",
+			)
+		except Exception as e:
+			raise CMSException(400, "Cannot parse form data.")
+
+	def getStr(self, name, default="", maxlen=32, charset=defaultCharset):
+		"""Get a form field.
+		Returns a str.
+		"""
+		field = self.__fields.getfirst(name, default)
+		if field is None:
+			return None
+		if maxlen is not None and len(field) > maxlen:
+			raise CMSException(400, "%s is too long." % name)
+		if charset is not None and [ c for c in field if c not in charset ]:
+			raise CMSException(400, "Invalid character in %s" % name)
+		return field
+
+	def getBool(self, name, default=False, maxlen=32, charset=defaultCharsetBool):
+		"""Get a form field.
+		Returns a bool.
+		"""
+		field = self.getStr(name, None, maxlen, charset)
+		if field is None:
+			return default
+		return stringBool(field, default)
+
+	def getInt(self, name, default=0, maxlen=32, charset=defaultCharsetInt):
+		"""Get a form field.
+		Returns an int.
+		"""
+		field = self.getStr(name, None, maxlen, charset)
+		if field is None:
+			return default
+		try:
+			return int(field, 10)
+		except ValueError:
+			return default
+
 class CMSStatementResolver(object):
 	# Macro argument expansion: $1, $2, $3...
 	macro_arg_re = re.compile(r'\$(\d+)', re.DOTALL)
@@ -1419,18 +1480,9 @@ class CMS(object):
 		postHandler = self.db.getPostHandler(pageIdent)
 		if postHandler is None:
 			raise CMSException(405)
+		formFields = CMSFormFields(body, bodyType)
 		try:
-			fields = cgi.FieldStorage(
-				fp=BytesIO(body),
-				environ={
-					"CONTENT_LENGTH"	: str(len(body)),
-					"CONTENT_TYPE"		: bodyType,
-					"REQUEST_METHOD"	: "POST",
-				},
-				encoding="UTF-8",
-				errors="strict",
-			)
-			ret = postHandler(fields, query, body, bodyType, protocol)
+			ret = postHandler(formFields, query, body, bodyType, protocol)
 		except Exception as e:
 			msg = ""
 			if self.debug:
