@@ -478,7 +478,7 @@ class CMSFormFields(object):
 
 	defaultCharset		= LOWERCASE + UPPERCASE + NUMBERS + "-_. "
 	defaultCharsetBool	= LOWERCASE + UPPERCASE + NUMBERS + " "
-	defaultCharsetInt	= NUMBERS + " "
+	defaultCharsetInt	= NUMBERS + " xXabcdefABCDEF-"
 
 	def __init__(self, body, bodyType):
 		try:
@@ -525,6 +525,9 @@ class CMSFormFields(object):
 		if field is None:
 			return default
 		try:
+			field = field.lower().strip()
+			if field.startswith("0x"):
+				return int(field[2:], 16)
 			return int(field, 10)
 		except ValueError:
 			return default
