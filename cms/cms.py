@@ -845,7 +845,7 @@ class CMSStatementResolver(object):
 		# Cache anchor for index creation
 		self.anchors.append(anchor)
 		# Create the anchor HTML
-		return cons, '<a name="%s" href="%s">%s</a>' %\
+		return cons, '<a id="%s" href="%s">%s</a>' %\
 			     (name, anchor.makeUrl(self), text)
 
 	# Statement: $(pagelist BASEPAGE, ...)
