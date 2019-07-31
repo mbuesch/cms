@@ -359,6 +359,10 @@ class CMSException301(CMSException):
 			'</p>' %\
 			(self.url(), self.url())
 
+class CMSPostException(CMSException):
+	def __init__(self, message=""):
+		CMSException.__init__(self, 400, "POST handler failed: " + message)
+
 class CMSDatabase(object):
 	validate = CMSPageIdent.validateName
 
@@ -465,6 +469,9 @@ class CMSDatabase(object):
 			mod = loader.load_module()
 		except OSError:
 			return None
+
+		mod.CMSException = CMSException
+		mod.CMSPostException = CMSPostException
 
 		return getattr(mod, "post", None)
 
@@ -1486,6 +1493,8 @@ class CMS(object):
 		formFields = CMSFormFields(body, bodyType)
 		try:
 			ret = postHandler(formFields, query, body, bodyType, protocol)
+		except CMSException as e:
+			raise e
 		except Exception as e:
 			msg = ""
 			if self.debug:
