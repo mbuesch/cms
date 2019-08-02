@@ -20,6 +20,7 @@
 from cms.exception import *
 
 import os
+import cgi
 from stat import S_ISDIR
 from io import BytesIO
 from datetime import datetime
