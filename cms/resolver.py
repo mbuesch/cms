@@ -27,6 +27,9 @@ import re
 from functools import reduce
 import random
 
+cround = round #@nocy
+#from libc.math cimport round as cround #@cy
+
 __all__ = [
 	"CMSStatementResolver",
 ]
@@ -69,6 +72,14 @@ class _ResolverRet(object):	#@nocy
 		"cons",		#@nocy
 		"data",		#@nocy
 	)			#@nocy
+
+def resolverRet(cons, data): #@nocy
+#cdef resolverRet(int64_t cons, str data): #@cy
+#@cy	cdef _ResolverRet r
+	r = _ResolverRet()
+	r.cons = cons
+	r.data = data
+	return r
 
 class CMSStatementResolver(object): #+cdef
 
@@ -153,11 +164,13 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef _ArgParserRet ret
 #@cy		cdef list arguments
 #@cy		cdef int64_t cons
+#@cy		cdef int64_t dlen
 
 		ret = _ArgParserRet()
 		ret.cons = 0
 		ret.arguments = []
-		while ret.cons < len(d):
+		dlen = len(d)
+		while ret.cons < dlen:
 			r = self.__expandRecStmts(d[ret.cons:], ',)')
 			ret.cons += r.cons
 			ret.arguments.append(r.data.strip() if strip else r.data)
@@ -173,6 +186,9 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
+#@cy		cdef str condition
+#@cy		cdef str b_then
+#@cy		cdef str b_else
 
 		a = self.__parseArguments(d, False)
 		cons, args = a.cons, a.arguments
@@ -182,19 +198,22 @@ class CMSStatementResolver(object): #+cdef
 		condition, b_then = args[0], args[1]
 		b_else = args[2] if len(args) == 3 else ""
 		result = b_then if condition.strip() else b_else
-		return cons, result
+		return resolverRet(cons, result)
 
-	def __do_compare(self, d, invert):
+	def __do_compare(self, d, invert): #@nocy
+#@cy	cdef _ResolverRet __do_compare(self, str d, _Bool invert):
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
+#@cy		cdef _Bool result
 
 		a = self.__parseArguments(d, True)
 		cons, args = a.cons, a.arguments
 		result = reduce(lambda a, b: a and b == args[0],
 				args[1:], True)
-		result = not result if invert else result
-		return cons, (args[-1] if result else "")
+		if invert:
+			result = not result
+		return resolverRet(cons, (args[-1] if result else ""))
 
 	# Statement:  $(eq A, B, ...)
 	# Returns the last argument, if all stripped arguments are equal.
@@ -218,7 +237,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, True)
 		cons, args = a.cons, a.arguments
-		return cons, (args[0] if all(args) else "")
+		return resolverRet(cons, (args[0] if all(args) else ""))
 
 	# Statement:  $(or A, B, ...)
 	# Returns the first stripped non-empty argument.
@@ -231,7 +250,7 @@ class CMSStatementResolver(object): #+cdef
 		a = self.__parseArguments(d, True)
 		cons, args = a.cons, a.arguments
 		nonempty = [ a for a in args if a ]
-		return cons, (nonempty[0] if nonempty else "")
+		return resolverRet(cons, (nonempty[0] if nonempty else ""))
 
 	# Statement:  $(not A)
 	# Returns 1, if A is an empty string after stripping.
@@ -245,7 +264,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) != 1:
 			self.__stmtError("NOT: invalid args")
-		return cons, ("" if args[0] else "1")
+		return resolverRet(cons, ("" if args[0] else "1"))
 
 	# Statement:  $(assert A, ...)
 	# Raises a 500-assertion-failed exception, if any argument
@@ -260,7 +279,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if not all(args):
 			self.__stmtError("ASSERT: failed")
-		return cons, ""
+		return resolverRet(cons, "")
 
 	# Statement:  $(strip STRING)
 	# Strip whitespace at the start and at the end of the string.
@@ -271,7 +290,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, True)
 		cons, args = a.cons, a.arguments
-		return cons, "".join(args)
+		return resolverRet(cons, "".join(args))
 
 	# Statement:  $(item STRING, N)
 	# Statement:  $(item STRING, N, SEPARATOR)
@@ -294,7 +313,7 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("ITEM: N is not an integer")
 		except IndexError:
 			token = ""
-		return cons, token
+		return resolverRet(cons, token)
 
 	# Statement:  $(substr STRING, START)
 	# Statement:  $(substr STRING, START, END)
@@ -318,7 +337,7 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("SUBSTR: START or END is not an integer")
 		except IndexError:
 			substr = ""
-		return cons, substr
+		return resolverRet(cons, substr)
 
 	# Statement:  $(sanitize STRING)
 	# Sanitize a string.
@@ -335,7 +354,7 @@ class CMSStatementResolver(object): #+cdef
 		string = string.lower()
 		string = "".join( c if c in validChars else '_' for c in string )
 		string = re.sub(r'_+', '_', string).strip('_')
-		return cons, string
+		return resolverRet(cons, string)
 
 	# Statement:  $(file_exists RELATIVE_PATH)
 	# Statement:  $(file_exists RELATIVE_PATH, DOES_NOT_EXIST)
@@ -357,7 +376,7 @@ class CMSStatementResolver(object): #+cdef
 					  CMSPageIdent.validateSafePath(relpath))
 		except (CMSException) as e:
 			exists = False
-		return cons, (relpath if exists else enoent)
+		return resolverRet(cons, (relpath if exists else enoent))
 
 	# Statement:  $(file_mdatet RELATIVE_PATH)
 	# Statement:  $(file_mdatet RELATIVE_PATH, DOES_NOT_EXIST, FORMAT_STRING)
@@ -382,8 +401,8 @@ class CMSStatementResolver(object): #+cdef
 			stamp = f_mtime(self.cms.wwwPath,
 					CMSPageIdent.validateSafePath(relpath))
 		except (CMSException) as e:
-			return cons, enoent
-		return cons, stamp.strftime(fmtstr.strip())
+			return resolverRet(cons, enoent)
+		return resolverRet(cons, stamp.strftime(fmtstr.strip()))
 
 	# Statement: $(index)
 	# Returns the site index.
@@ -397,7 +416,7 @@ class CMSStatementResolver(object): #+cdef
 		if len(args) != 1 or args[0]:
 			self.__stmtError("INDEX: invalid args")
 		self.indexRefs.append(IndexRef(self.charCount))
-		return cons, ""
+		return resolverRet(cons, "")
 
 	# Statement: $(anchor NAME, TEXT)
 	# Statement: $(anchor NAME, TEXT, INDENT_LEVEL)
@@ -428,8 +447,8 @@ class CMSStatementResolver(object): #+cdef
 		# Cache anchor for index creation
 		self.anchors.append(anchor)
 		# Create the anchor HTML
-		return cons, '<a id="%s" href="%s">%s</a>' %\
-			     (name, anchor.makeUrl(self), text)
+		return resolverRet(cons, '<a id="%s" href="%s">%s</a>' %\
+					 (name, anchor.makeUrl(self), text))
 
 	# Statement: $(pagelist BASEPAGE, ...)
 	# Returns an <ul>-list of all sub-page names in the page.
@@ -453,7 +472,7 @@ class CMSStatementResolver(object): #+cdef
 				    (pageIdent.getUrl(urlBase = self.cms.urlBase),
 				     pagetitle))
 		html.append('</ul>')
-		return cons, ''.join(html)
+		return resolverRet(cons, ''.join(html))
 
 	# Statement: $(random)
 	# Statement: $(random BEGIN)
@@ -479,7 +498,7 @@ class CMSStatementResolver(object): #+cdef
 			rnd = random.randint(begin, end)
 		except ValueError as e:
 			self.__stmtError("RANDOM: invalid range")
-		return cons, '%d' % rnd
+		return resolverRet(cons, '%d' % rnd)
 
 	# Statement: $(randitem ITEM0, ITEM1, ...)
 	# Returns one random item of its arguments.
@@ -492,11 +511,17 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) < 1:
 			self.__stmtError("RANDITEM: too few args")
-		return cons, random.choice(args)
+		return resolverRet(cons, random.choice(args))
 
 	__validDomainChars = LOWERCASE + UPPERCASE + NUMBERS + "."
 
-	def __do_arith(self, oper, args):
+	def __do_arith(self, oper, args): #@nocy
+#@cy	cdef str __do_arith(self, object oper, list args):
+#@cy		cdef float res
+#@cy		cdef int64_t rounded
+#@cy		cdef float a
+#@cy		cdef float b
+
 		try:
 			a = float(args[0])
 		except ValueError as e:
@@ -506,9 +531,9 @@ class CMSStatementResolver(object): #+cdef
 		except ValueError as e:
 			b = 0.0
 		res = oper(a, b)
-		rounded = int(round(res))
+		rounded = int(cround(res))
 		return ("%f" % res) if (abs(res - rounded) >= 0.000001)\
-			else str(rounded)
+		       else str(rounded)
 
 	# Statement: $(add A, B)
 	# Returns A + B
@@ -521,7 +546,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("ADD: invalid args")
-		return cons, self.__do_arith(lambda a, b: a + b, args)
+		return resolverRet(cons, self.__do_arith(lambda a, b: a + b, args))
 
 	# Statement: $(sub A, B)
 	# Returns A - B
@@ -534,7 +559,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("SUB: invalid args")
-		return cons, self.__do_arith(lambda a, b: a - b, args)
+		return resolverRet(cons, self.__do_arith(lambda a, b: a - b, args))
 
 	# Statement: $(mul A, B)
 	# Returns A * B
@@ -547,7 +572,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("MUL: invalid args")
-		return cons, self.__do_arith(lambda a, b: a * b, args)
+		return resolverRet(cons, self.__do_arith(lambda a, b: a * b, args))
 
 	# Statement: $(div A, B)
 	# Returns A / B
@@ -560,7 +585,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("DIV: invalid args")
-		return cons, self.__do_arith(lambda a, b: a / b, args)
+		return resolverRet(cons, self.__do_arith(lambda a, b: a / b, args))
 
 	# Statement: $(mod A, B)
 	# Returns A % B
@@ -573,7 +598,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("MOD: invalid args")
-		return cons, self.__do_arith(lambda a, b: a % b, args)
+		return resolverRet(cons, self.__do_arith(lambda a, b: a % b, args))
 
 	# Statement: $(round A)
 	# Statement: $(round A, NDIGITS)
@@ -593,7 +618,7 @@ class CMSStatementResolver(object): #+cdef
 			a = 0.0
 		try:
 			if len(args) == 1:
-				res = str(int(round(a)))
+				res = str(int(cround(a)))
 			else:
 				try:
 					n = int(args[1])
@@ -602,7 +627,7 @@ class CMSStatementResolver(object): #+cdef
 				res = ("%." + str(n) + "f") % int(round(a, n))
 		except (ValueError, TypeError) as e:
 			self.__stmtError("ROUND: invalid value")
-		return cons, res
+		return resolverRet(cons, res)
 
 	# Statement: $(whois DOMAIN)
 	# Executes whois and returns the text.
@@ -629,7 +654,7 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("WHOIS: unicode error")
 		except (OSError, ValueError) as e:
 			self.__stmtError("WHOIS: execution error")
-		return cons, out
+		return resolverRet(cons, out)
 
 	# statement handlers
 	__handlers = {
@@ -677,7 +702,6 @@ class CMSStatementResolver(object): #+cdef
 
 	def __doMacro(self, macroname, d): #@nocy
 #@cy	cdef _ResolverRet __doMacro(self, str macroname, str d):
-#@cy		cdef _ResolverRet ret
 #@cy		cdef _ArgParserRet a
 #@cy		cdef str macrodata
 
@@ -707,22 +731,20 @@ class CMSStatementResolver(object): #+cdef
 		self.callStack.append(StackElem(macroname))
 		macrodata = self.__resolve(macrodata)
 		self.callStack.pop()
-
-		ret = _ResolverRet()
-		ret.cons = a.cons
-		ret.data = macrodata
-		return ret
+		return resolverRet(a.cons, macrodata)
 
 	def __expandRecStmts(self, d, stopchars): #@nocy
 #@cy	cdef _ResolverRet __expandRecStmts(self, str d, str stopchars):
 #@cy		cdef int64_t i
 #@cy		cdef int64_t end
 #@cy		cdef int64_t cons
+#@cy		cdef int64_t dlen
 #@cy		cdef str stmtName
 #@cy		cdef str escapedChars
 #@cy		cdef dict handlers
 #@cy		cdef list ret
 #@cy		cdef _ResolverRet macroRet
+#@cy		cdef _ResolverRet handlerRet
 #@cy		cdef _ResolverRet retObj
 
 		# Recursively expand statements and macro calls
@@ -730,11 +752,12 @@ class CMSStatementResolver(object): #+cdef
 		handlers = self.__handlers
 		retObj = _ResolverRet()
 		ret, i = [], 0
-		while i < len(d):
+		dlen = len(d)
+		while i < dlen:
 			cons, res = 1, d[i]
 			if d[i] == '\\': # Escaped characters
 				# Keep escapes. They are removed later.
-				if i + 1 < len(d) and\
+				if i + 1 < dlen and\
 				   d[i + 1] in escapedChars:
 					res = d[i:i+2]
 					i += 1
@@ -747,7 +770,7 @@ class CMSStatementResolver(object): #+cdef
 					# If comment is on a line of its own,
 					# remove the line.
 					if (i == 0 or d[i - 1] == '\n') and\
-					   (end + 4 < len(d) and d[end + 4] == '\n'):
+					   (end + 4 < dlen and d[end + 4] == '\n'):
 						strip_nl = 1
 					cons, res = end - i + 4 + strip_nl, ""
 			elif d[i] in stopchars: # Stop character
@@ -769,8 +792,9 @@ class CMSStatementResolver(object): #+cdef
 						h = handlers[stmtName]
 						i = end + 1 if d[end] == ' ' else end
 					else:
-						h = lambda _self, x: (cons, res) # nop
-				cons, res = h(self, d[i:])
+						h = lambda _self, x: resolverRet(cons, res) # nop
+				handlerRet = h(self, d[i:])
+				cons, res = handlerRet.cons, handlerRet.data
 			elif d[i] == '$': # Variable
 				end = findNot(d, self.VARNAME_CHARS, i + 1)
 				if end > i + 1:
@@ -779,7 +803,7 @@ class CMSStatementResolver(object): #+cdef
 			ret.append(res)
 			i += cons
 			self.charCount += len(res)
-		if stopchars and i >= len(d) and d[-1] not in stopchars:
+		if stopchars and i >= dlen and d[-1] not in stopchars:
 			self.__stmtError("Unterminated statement")
 
 		retObj.data = "".join(ret)
