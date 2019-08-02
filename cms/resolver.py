@@ -31,7 +31,34 @@ __all__ = [
 	"CMSStatementResolver",
 ]
 
-class CMSStatementResolver(object):
+class StackElem(object): # Call stack element
+	def __init__(self, name):
+		self.name = name
+		self.lineno = 1
+
+class IndexRef(object): # Index references
+	def __init__(self, charOffset):
+		self.charOffset = charOffset
+
+class Anchor(object): # Anchor
+	def __init__(self, name, text,
+		     indent=-1, noIndex=False):
+		self.name = name
+		self.text = text
+		self.indent = indent
+		self.noIndex = noIndex
+
+	def makeUrl(self, resolver):
+		#TODO this does not work for sub pages
+		return "%s#%s" % (
+			CMSPageIdent((
+				resolver.expandVariable("GROUP"),
+				resolver.expandVariable("PAGE"))).getUrl(
+				urlBase = resolver.cms.urlBase),
+			self.name)
+
+class CMSStatementResolver(object): #+cdef
+
 	# Macro argument expansion: $1, $2, $3...
 	macro_arg_re = re.compile(r'\$(\d+)', re.DOTALL)
 
@@ -47,32 +74,6 @@ class CMSStatementResolver(object):
 		"__DUMPVARS__"	: lambda self, n: self.__dumpVars(),
 	}
 
-	class StackElem(object): # Call stack element
-		def __init__(self, name):
-			self.name = name
-			self.lineno = 1
-
-	class IndexRef(object): # Index references
-		def __init__(self, charOffset):
-			self.charOffset = charOffset
-
-	class Anchor(object): # Anchor
-		def __init__(self, name, text,
-			     indent=-1, noIndex=False):
-			self.name = name
-			self.text = text
-			self.indent = indent
-			self.noIndex = noIndex
-
-		def makeUrl(self, resolver):
-			#TODO this does not work for sub pages
-			return "%s#%s" % (
-				CMSPageIdent((
-					resolver.expandVariable("GROUP"),
-					resolver.expandVariable("PAGE"))).getUrl(
-					urlBase = resolver.cms.urlBase),
-				self.name)
-
 	def __init__(self, cms):
 		self.cms = cms
 		self.__reset()
@@ -81,7 +82,7 @@ class CMSStatementResolver(object):
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
 		self.pageIdent = pageIdent
-		self.callStack = [ self.StackElem("content.html") ]
+		self.callStack = [ StackElem("content.html") ]
 		self.charCount = 0
 		self.indexRefs = []
 		self.anchors = []
@@ -118,7 +119,7 @@ class CMSStatementResolver(object):
 			ret.append("%s%s=> %s" % (name, sep, value))
 		return "\n".join(ret)
 
-	__escapedChars = ('\\', ',', '@', '$', '(', ')')
+	__escapedChars = '\\,@$()'
 
 	@classmethod
 	def escape(cls, data):
@@ -134,7 +135,13 @@ class CMSStatementResolver(object):
 
 	# Parse statement arguments.
 	# Returns (consumed-characters-count, arguments) tuple.
-	def __parseArguments(self, d, strip=False):
+	def __parseArguments(self, d, strip): #@nocy
+#@cy	cdef tuple __parseArguments(self, str d, _Bool strip):
+#@cy		cdef list arguments
+#@cy		cdef int64_t cons
+#@cy		cdef int64_t c
+#@cy		cdef str arg
+
 		arguments, cons = [], 0
 		while cons < len(d):
 			c, arg = self.__expandRecStmts(d[cons:], ',)')
@@ -149,7 +156,7 @@ class CMSStatementResolver(object):
 	# Returns THEN if CONDITION is nonempty after stripping whitespace.
 	# Returns ELSE otherwise.
 	def __stmt_if(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 2 and len(args) != 3:
 			self.__stmtError("IF: invalid number of arguments (%d)" %\
 					 len(args))
@@ -159,7 +166,7 @@ class CMSStatementResolver(object):
 		return cons, result
 
 	def __do_compare(self, d, invert):
-		cons, args = self.__parseArguments(d, strip=True)
+		cons, args = self.__parseArguments(d, True)
 		result = reduce(lambda a, b: a and b == args[0],
 				args[1:], True)
 		result = not result if invert else result
@@ -181,14 +188,14 @@ class CMSStatementResolver(object):
 	# Returns A, if all stripped arguments are non-empty strings.
 	# Returns an empty string otherwise.
 	def __stmt_and(self, d):
-		cons, args = self.__parseArguments(d, strip=True)
+		cons, args = self.__parseArguments(d, True)
 		return cons, (args[0] if all(args) else "")
 
 	# Statement:  $(or A, B, ...)
 	# Returns the first stripped non-empty argument.
 	# Returns an empty string, if there is no non-empty argument.
 	def __stmt_or(self, d):
-		cons, args = self.__parseArguments(d, strip=True)
+		cons, args = self.__parseArguments(d, True)
 		nonempty = [ a for a in args if a ]
 		return cons, (nonempty[0] if nonempty else "")
 
@@ -196,7 +203,7 @@ class CMSStatementResolver(object):
 	# Returns 1, if A is an empty string after stripping.
 	# Returns an empty string, if A is a non-empty stripped string.
 	def __stmt_not(self, d):
-		cons, args = self.__parseArguments(d, strip=True)
+		cons, args = self.__parseArguments(d, True)
 		if len(args) != 1:
 			self.__stmtError("NOT: invalid args")
 		return cons, ("" if args[0] else "1")
@@ -206,7 +213,7 @@ class CMSStatementResolver(object):
 	# is empty after stripping.
 	# Returns an empty string, otherwise.
 	def __stmt_assert(self, d):
-		cons, args = self.__parseArguments(d, strip=True)
+		cons, args = self.__parseArguments(d, True)
 		if not all(args):
 			self.__stmtError("ASSERT: failed")
 		return cons, ""
@@ -214,7 +221,7 @@ class CMSStatementResolver(object):
 	# Statement:  $(strip STRING)
 	# Strip whitespace at the start and at the end of the string.
 	def __stmt_strip(self, d):
-		cons, args = self.__parseArguments(d, strip=True)
+		cons, args = self.__parseArguments(d, True)
 		return cons, "".join(args)
 
 	# Statement:  $(item STRING, N)
@@ -222,7 +229,7 @@ class CMSStatementResolver(object):
 	# Split a string into tokens and return the N'th token.
 	# SEPARATOR defaults to whitespace.
 	def __stmt_item(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) not in {2, 3}:
 			self.__stmtError("ITEM: invalid args")
 		string, n, sep = args[0], args[1], args[2].strip() if len(args) == 3 else ""
@@ -239,7 +246,7 @@ class CMSStatementResolver(object):
 	# Statement:  $(substr STRING, START, END)
 	# Returns a sub-string of STRING.
 	def __stmt_substr(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) not in {2, 3}:
 			self.__stmtError("SUBSTR: invalid args")
 		string, start, end = args[0], args[1], args[2] if len(args) == 3 else ""
@@ -258,7 +265,7 @@ class CMSStatementResolver(object):
 	# Sanitize a string.
 	# Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
 	def __stmt_sanitize(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		string = "_".join(args)
 		validChars = LOWERCASE + NUMBERS
 		string = string.lower()
@@ -272,7 +279,7 @@ class CMSStatementResolver(object):
 	# Returns the path, if the file exists or an empty string if it doesn't.
 	# If DOES_NOT_EXIST is specified, it returns this if the file doesn't exist.
 	def __stmt_fileExists(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 1 and len(args) != 2:
 			self.__stmtError("FILE_EXISTS: invalid args")
 		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
@@ -290,7 +297,7 @@ class CMSStatementResolver(object):
 	# RELATIVE_PATH is relative to wwwPath.
 	# FORMAT_STRING is an optional strftime format string.
 	def __stmt_fileModDateTime(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) not in {1, 2, 3}:
 			self.__stmtError("FILE_MDATET: invalid args")
 		relpath, enoent, fmtstr =\
@@ -307,10 +314,10 @@ class CMSStatementResolver(object):
 	# Statement: $(index)
 	# Returns the site index.
 	def __stmt_index(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 1 or args[0]:
 			self.__stmtError("INDEX: invalid args")
-		self.indexRefs.append(self.IndexRef(self.charCount))
+		self.indexRefs.append(IndexRef(self.charCount))
 		return cons, ""
 
 	# Statement: $(anchor NAME, TEXT)
@@ -318,7 +325,7 @@ class CMSStatementResolver(object):
 	# Statement: $(anchor NAME, TEXT, INDENT_LEVEL, NO_INDEX)
 	# Sets an index-anchor
 	def __stmt_anchor(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) < 2 or len(args) > 4:
 			self.__stmtError("ANCHOR: invalid args")
 		name, text = args[0:2]
@@ -333,7 +340,7 @@ class CMSStatementResolver(object):
 		if len(args) >= 4:
 			noIndex = bool(args[3].strip())
 		name, text = name.strip(), text.strip()
-		anchor = self.Anchor(name, text, indent, noIndex)
+		anchor = Anchor(name, text, indent, noIndex)
 		# Cache anchor for index creation
 		self.anchors.append(anchor)
 		# Create the anchor HTML
@@ -343,7 +350,7 @@ class CMSStatementResolver(object):
 	# Statement: $(pagelist BASEPAGE, ...)
 	# Returns an <ul>-list of all sub-page names in the page.
 	def __stmt_pagelist(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		try:
 			basePageIdent = CMSPageIdent(args)
 			subPages = self.cms.db.getSubPages(basePageIdent)
@@ -366,7 +373,7 @@ class CMSStatementResolver(object):
 	# (including both end points)
 	# BEGIN defaults to 0. END defaults to 65535.
 	def __stmt_random(self, d):
-		cons, args = self.__parseArguments(d, strip=True)
+		cons, args = self.__parseArguments(d, True)
 		if len(args) not in {0, 1, 2}:
 			self.__stmtError("RANDOM: invalid args")
 		begin, end = 0, 65535
@@ -383,7 +390,7 @@ class CMSStatementResolver(object):
 	# Statement: $(randitem ITEM0, ITEM1, ...)
 	# Returns one random item of its arguments.
 	def __stmt_randitem(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) < 1:
 			self.__stmtError("RANDITEM: too few args")
 		return cons, random.choice(args)
@@ -407,7 +414,7 @@ class CMSStatementResolver(object):
 	# Statement: $(add A, B)
 	# Returns A + B
 	def __stmt_add(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 2:
 			self.__stmtError("ADD: invalid args")
 		return cons, self.__do_arith(lambda a, b: a + b, args)
@@ -415,7 +422,7 @@ class CMSStatementResolver(object):
 	# Statement: $(sub A, B)
 	# Returns A - B
 	def __stmt_sub(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 2:
 			self.__stmtError("SUB: invalid args")
 		return cons, self.__do_arith(lambda a, b: a - b, args)
@@ -423,7 +430,7 @@ class CMSStatementResolver(object):
 	# Statement: $(mul A, B)
 	# Returns A * B
 	def __stmt_mul(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 2:
 			self.__stmtError("MUL: invalid args")
 		return cons, self.__do_arith(lambda a, b: a * b, args)
@@ -431,7 +438,7 @@ class CMSStatementResolver(object):
 	# Statement: $(div A, B)
 	# Returns A / B
 	def __stmt_div(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 2:
 			self.__stmtError("DIV: invalid args")
 		return cons, self.__do_arith(lambda a, b: a / b, args)
@@ -439,7 +446,7 @@ class CMSStatementResolver(object):
 	# Statement: $(mod A, B)
 	# Returns A % B
 	def __stmt_mod(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 2:
 			self.__stmtError("MOD: invalid args")
 		return cons, self.__do_arith(lambda a, b: a % b, args)
@@ -448,7 +455,7 @@ class CMSStatementResolver(object):
 	# Statement: $(round A, NDIGITS)
 	# Returns A rounded
 	def __stmt_round(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) not in {1, 2}:
 			self.__stmtError("ROUND: invalid args")
 		try:
@@ -471,7 +478,7 @@ class CMSStatementResolver(object):
 	# Statement: $(whois DOMAIN)
 	# Executes whois and returns the text.
 	def __stmt_whois(self, d):
-		cons, args = self.__parseArguments(d)
+		cons, args = self.__parseArguments(d, False)
 		if len(args) != 1:
 			self.__stmtError("WHOIS: invalid args")
 		domain = args[0]
@@ -534,10 +541,11 @@ class CMSStatementResolver(object):
 		"$(whois"	: __stmt_whois,
 	}
 
-	def __doMacro(self, macroname, d):
+	def __doMacro(self, macroname, d): #@nocy
+#@cy	cdef tuple __doMacro(self, str macroname, str d):
 		if len(self.callStack) > 16:
 			raise CMSException(500, "Exceed macro call stack depth")
-		cons, arguments = self.__parseArguments(d, strip=True)
+		cons, arguments = self.__parseArguments(d, True)
 		# Fetch the macro data from the database
 		macrodata = None
 		try:
@@ -558,20 +566,31 @@ class CMSStatementResolver(object):
 			return macroname if nr == 0 else ""
 		macrodata = self.macro_arg_re.sub(expandArg, macrodata)
 		# Resolve statements and recursive macro calls
-		self.callStack.append(self.StackElem(macroname))
+		self.callStack.append(StackElem(macroname))
 		macrodata = self.__resolve(macrodata)
 		self.callStack.pop()
 		return cons, macrodata
 
-	def __expandRecStmts(self, d, stopchars=""):
+	def __expandRecStmts(self, d, stopchars): #@nocy
+#@cy	cdef tuple __expandRecStmts(self, str d, str stopchars):
+#@cy		cdef int64_t i
+#@cy		cdef int64_t end
+#@cy		cdef int64_t cons
+#@cy		cdef str stmtName
+#@cy		cdef str escapedChars
+#@cy		cdef dict handlers
+#@cy		cdef str retData
+
 		# Recursively expand statements and macro calls
+		escapedChars = self.__escapedChars
+		handlers = self.__handlers
 		ret, i = [], 0
 		while i < len(d):
 			cons, res = 1, d[i]
 			if d[i] == '\\': # Escaped characters
 				# Keep escapes. They are removed later.
 				if i + 1 < len(d) and\
-				   d[i + 1] in self.__escapedChars:
+				   d[i + 1] in escapedChars:
 					res = d[i:i+2]
 					i += 1
 			elif d[i] == '\n':
@@ -597,13 +616,14 @@ class CMSStatementResolver(object):
 						d[end+1:])
 					i = end + 1
 			elif d.startswith('$(', i): # Statement
-				h = lambda _self, x: (cons, res) # nop
 				end = findAny(d, ' )', i)
 				if end > i:
-					try:
-						h = self.__handlers[d[i:end]]
+					stmtName = d[i:end]
+					if stmtName in handlers:
+						h = handlers[stmtName]
 						i = end + 1 if d[end] == ' ' else end
-					except KeyError: pass
+					else:
+						h = lambda _self, x: (cons, res) # nop
 				cons, res = h(self, d[i:])
 			elif d[i] == '$': # Variable
 				end = findNot(d, self.VARNAME_CHARS, i + 1)
@@ -684,9 +704,12 @@ class CMSStatementResolver(object):
 			offset += len(indexData)
 		return data
 
-	def __resolve(self, data):
+	def __resolve(self, data): #@nocy
+#@cy	cdef str __resolve(self, str data):
+#@cy		cdef int64_t unused
+
 		# Expand recursive statements
-		unused, data = self.__expandRecStmts(data)
+		unused, data = self.__expandRecStmts(data, "")
 		return data
 
 	def resolve(self, data, variables = {}, pageIdent = None):

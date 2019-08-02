@@ -1,0 +1,15 @@
+from cms.cython_support cimport *
+
+cdef class CMSStatementResolver(object):
+	cdef public object cms
+	cdef public dict variables
+	cdef public object pageIdent
+	cdef public list callStack
+	cdef public uint64_t charCount
+	cdef public list indexRefs
+	cdef public list anchors
+
+	cdef tuple __parseArguments(self, str d, _Bool strip)
+	cdef tuple __doMacro(self, str macroname, str d)
+	cdef tuple __expandRecStmts(self, str d, str stopchars)
+	cdef str __resolve(self, str data)

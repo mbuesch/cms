@@ -24,7 +24,7 @@ from cms.exception import *
 from cms.formfields import *
 from cms.pageident import *
 from cms.query import *
-from cms.resolver import *
+from cms.resolver import * #+cimport
 from cms.util import *
 
 import PIL.Image as Image
