@@ -17,31 +17,4 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#from cms.cython_support cimport * #@cy
 
-from cms.exception import *
-from cms.util import *
-
-__all__ = [
-	"CMSQuery",
-]
-
-class CMSQuery(object):
-	def __init__(self, queryDict):
-		self.queryDict = queryDict
-
-	def get(self, name, default=""):
-		try:
-			return self.queryDict[name][-1]
-		except (KeyError, IndexError) as e:
-			return default
-
-	def getInt(self, name, default=0):
-		try:
-			return int(self.get(name, str(int(default))), 10)
-		except (ValueError) as e:
-			return default
-
-	def getBool(self, name, default=False):
-		string = self.get(name, str(bool(default)))
-		return stringBool(string, default)

@@ -17,9 +17,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = [
-	"CMS",
-]
+#from cms.cython_support cimport * #@cy
 
 from cms.db import *
 from cms.exception import *
@@ -31,6 +29,10 @@ from cms.util import *
 
 import PIL.Image as Image
 import urllib.request, urllib.parse, urllib.error
+
+__all__ = [
+	"CMS",
+]
 
 class CMS(object):
 	# Main CMS entry point.
