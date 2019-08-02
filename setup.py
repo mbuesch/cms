@@ -15,6 +15,7 @@ def pyCythonPatchLine(line):
 	line = line.replace("Python based", "Cython based")
 	return line
 
+setup_cython.parallelBuild = True
 setup_cython.pyCythonPatchLine = pyCythonPatchLine
 
 cmdclass = {}
