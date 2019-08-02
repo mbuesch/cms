@@ -24,7 +24,6 @@ from cms.pageident import *
 from cms.util import *
 
 import re
-from functools import reduce
 import random
 
 cround = round #@nocy
@@ -205,12 +204,16 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
+#@cy		cdef str arg
+#@cy		cdef str firstArg
 #@cy		cdef _Bool result
 
 		a = self.__parseArguments(d, True)
 		cons, args = a.cons, a.arguments
-		result = reduce(lambda a, b: a and b == args[0],
-				args[1:], True)
+		result = True
+		firstArg = args[0]
+		for arg in args[1:]:
+			result = result and arg == firstArg
 		if invert:
 			result = not result
 		return resolverRet(cons, (args[-1] if result else ""))
