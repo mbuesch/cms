@@ -1,5 +1,13 @@
 from cms.cython_support cimport *
 
+cdef class _ArgParserRet(object):
+	cdef int64_t cons
+	cdef list arguments
+
+cdef class _ResolverRet(object):
+	cdef int64_t cons
+	cdef str data
+
 cdef class CMSStatementResolver(object):
 	cdef public object cms
 	cdef public dict variables
@@ -9,7 +17,7 @@ cdef class CMSStatementResolver(object):
 	cdef public list indexRefs
 	cdef public list anchors
 
-	cdef tuple __parseArguments(self, str d, _Bool strip)
-	cdef tuple __doMacro(self, str macroname, str d)
-	cdef tuple __expandRecStmts(self, str d, str stopchars)
+	cdef _ArgParserRet __parseArguments(self, str d, _Bool strip)
+	cdef _ResolverRet __doMacro(self, str macroname, str d)
+	cdef _ResolverRet __expandRecStmts(self, str d, str stopchars)
 	cdef str __resolve(self, str data)

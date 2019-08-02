@@ -57,6 +57,19 @@ class Anchor(object): # Anchor
 				urlBase = resolver.cms.urlBase),
 			self.name)
 
+
+class _ArgParserRet(object):	#@nocy
+	__slots__ = (		#@nocy
+		"cons",		#@nocy
+		"arguments",	#@nocy
+	)			#@nocy
+
+class _ResolverRet(object):	#@nocy
+	__slots__ = (		#@nocy
+		"cons",		#@nocy
+		"data",		#@nocy
+	)			#@nocy
+
 class CMSStatementResolver(object): #+cdef
 
 	# Macro argument expansion: $1, $2, $3...
@@ -134,29 +147,35 @@ class CMSStatementResolver(object): #+cdef
 		return data
 
 	# Parse statement arguments.
-	# Returns (consumed-characters-count, arguments) tuple.
 	def __parseArguments(self, d, strip): #@nocy
-#@cy	cdef tuple __parseArguments(self, str d, _Bool strip):
+#@cy	cdef _ArgParserRet __parseArguments(self, str d, _Bool strip):
+#@cy		cdef _ResolverRet r
+#@cy		cdef _ArgParserRet ret
 #@cy		cdef list arguments
 #@cy		cdef int64_t cons
-#@cy		cdef int64_t c
-#@cy		cdef str arg
 
-		arguments, cons = [], 0
-		while cons < len(d):
-			c, arg = self.__expandRecStmts(d[cons:], ',)')
-			cons += c
-			arguments.append(arg.strip() if strip else arg)
-			if cons <= 0 or d[cons - 1] == ')':
+		ret = _ArgParserRet()
+		ret.cons = 0
+		ret.arguments = []
+		while ret.cons < len(d):
+			r = self.__expandRecStmts(d[ret.cons:], ',)')
+			ret.cons += r.cons
+			ret.arguments.append(r.data.strip() if strip else r.data)
+			if ret.cons <= 0 or d[ret.cons - 1] == ')':
 				break
-		return cons, arguments
+		return ret
 
 	# Statement:  $(if CONDITION, THEN, ELSE)
 	# Statement:  $(if CONDITION, THEN)
 	# Returns THEN if CONDITION is nonempty after stripping whitespace.
 	# Returns ELSE otherwise.
 	def __stmt_if(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 2 and len(args) != 3:
 			self.__stmtError("IF: invalid number of arguments (%d)" %\
 					 len(args))
@@ -166,7 +185,12 @@ class CMSStatementResolver(object): #+cdef
 		return cons, result
 
 	def __do_compare(self, d, invert):
-		cons, args = self.__parseArguments(d, True)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, True)
+		cons, args = a.cons, a.arguments
 		result = reduce(lambda a, b: a and b == args[0],
 				args[1:], True)
 		result = not result if invert else result
@@ -188,14 +212,24 @@ class CMSStatementResolver(object): #+cdef
 	# Returns A, if all stripped arguments are non-empty strings.
 	# Returns an empty string otherwise.
 	def __stmt_and(self, d):
-		cons, args = self.__parseArguments(d, True)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, True)
+		cons, args = a.cons, a.arguments
 		return cons, (args[0] if all(args) else "")
 
 	# Statement:  $(or A, B, ...)
 	# Returns the first stripped non-empty argument.
 	# Returns an empty string, if there is no non-empty argument.
 	def __stmt_or(self, d):
-		cons, args = self.__parseArguments(d, True)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, True)
+		cons, args = a.cons, a.arguments
 		nonempty = [ a for a in args if a ]
 		return cons, (nonempty[0] if nonempty else "")
 
@@ -203,7 +237,12 @@ class CMSStatementResolver(object): #+cdef
 	# Returns 1, if A is an empty string after stripping.
 	# Returns an empty string, if A is a non-empty stripped string.
 	def __stmt_not(self, d):
-		cons, args = self.__parseArguments(d, True)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, True)
+		cons, args = a.cons, a.arguments
 		if len(args) != 1:
 			self.__stmtError("NOT: invalid args")
 		return cons, ("" if args[0] else "1")
@@ -213,7 +252,12 @@ class CMSStatementResolver(object): #+cdef
 	# is empty after stripping.
 	# Returns an empty string, otherwise.
 	def __stmt_assert(self, d):
-		cons, args = self.__parseArguments(d, True)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, True)
+		cons, args = a.cons, a.arguments
 		if not all(args):
 			self.__stmtError("ASSERT: failed")
 		return cons, ""
@@ -221,7 +265,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement:  $(strip STRING)
 	# Strip whitespace at the start and at the end of the string.
 	def __stmt_strip(self, d):
-		cons, args = self.__parseArguments(d, True)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, True)
+		cons, args = a.cons, a.arguments
 		return cons, "".join(args)
 
 	# Statement:  $(item STRING, N)
@@ -229,7 +278,12 @@ class CMSStatementResolver(object): #+cdef
 	# Split a string into tokens and return the N'th token.
 	# SEPARATOR defaults to whitespace.
 	def __stmt_item(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) not in {2, 3}:
 			self.__stmtError("ITEM: invalid args")
 		string, n, sep = args[0], args[1], args[2].strip() if len(args) == 3 else ""
@@ -246,7 +300,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement:  $(substr STRING, START, END)
 	# Returns a sub-string of STRING.
 	def __stmt_substr(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) not in {2, 3}:
 			self.__stmtError("SUBSTR: invalid args")
 		string, start, end = args[0], args[1], args[2] if len(args) == 3 else ""
@@ -265,7 +324,12 @@ class CMSStatementResolver(object): #+cdef
 	# Sanitize a string.
 	# Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
 	def __stmt_sanitize(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		string = "_".join(args)
 		validChars = LOWERCASE + NUMBERS
 		string = string.lower()
@@ -279,7 +343,12 @@ class CMSStatementResolver(object): #+cdef
 	# Returns the path, if the file exists or an empty string if it doesn't.
 	# If DOES_NOT_EXIST is specified, it returns this if the file doesn't exist.
 	def __stmt_fileExists(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 1 and len(args) != 2:
 			self.__stmtError("FILE_EXISTS: invalid args")
 		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
@@ -297,7 +366,12 @@ class CMSStatementResolver(object): #+cdef
 	# RELATIVE_PATH is relative to wwwPath.
 	# FORMAT_STRING is an optional strftime format string.
 	def __stmt_fileModDateTime(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) not in {1, 2, 3}:
 			self.__stmtError("FILE_MDATET: invalid args")
 		relpath, enoent, fmtstr =\
@@ -314,7 +388,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(index)
 	# Returns the site index.
 	def __stmt_index(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 1 or args[0]:
 			self.__stmtError("INDEX: invalid args")
 		self.indexRefs.append(IndexRef(self.charCount))
@@ -325,7 +404,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(anchor NAME, TEXT, INDENT_LEVEL, NO_INDEX)
 	# Sets an index-anchor
 	def __stmt_anchor(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) < 2 or len(args) > 4:
 			self.__stmtError("ANCHOR: invalid args")
 		name, text = args[0:2]
@@ -350,7 +434,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(pagelist BASEPAGE, ...)
 	# Returns an <ul>-list of all sub-page names in the page.
 	def __stmt_pagelist(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		try:
 			basePageIdent = CMSPageIdent(args)
 			subPages = self.cms.db.getSubPages(basePageIdent)
@@ -373,7 +462,12 @@ class CMSStatementResolver(object): #+cdef
 	# (including both end points)
 	# BEGIN defaults to 0. END defaults to 65535.
 	def __stmt_random(self, d):
-		cons, args = self.__parseArguments(d, True)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, True)
+		cons, args = a.cons, a.arguments
 		if len(args) not in {0, 1, 2}:
 			self.__stmtError("RANDOM: invalid args")
 		begin, end = 0, 65535
@@ -390,7 +484,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(randitem ITEM0, ITEM1, ...)
 	# Returns one random item of its arguments.
 	def __stmt_randitem(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) < 1:
 			self.__stmtError("RANDITEM: too few args")
 		return cons, random.choice(args)
@@ -414,7 +513,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(add A, B)
 	# Returns A + B
 	def __stmt_add(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("ADD: invalid args")
 		return cons, self.__do_arith(lambda a, b: a + b, args)
@@ -422,7 +526,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(sub A, B)
 	# Returns A - B
 	def __stmt_sub(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("SUB: invalid args")
 		return cons, self.__do_arith(lambda a, b: a - b, args)
@@ -430,7 +539,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(mul A, B)
 	# Returns A * B
 	def __stmt_mul(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("MUL: invalid args")
 		return cons, self.__do_arith(lambda a, b: a * b, args)
@@ -438,7 +552,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(div A, B)
 	# Returns A / B
 	def __stmt_div(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("DIV: invalid args")
 		return cons, self.__do_arith(lambda a, b: a / b, args)
@@ -446,7 +565,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(mod A, B)
 	# Returns A % B
 	def __stmt_mod(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 2:
 			self.__stmtError("MOD: invalid args")
 		return cons, self.__do_arith(lambda a, b: a % b, args)
@@ -455,7 +579,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(round A, NDIGITS)
 	# Returns A rounded
 	def __stmt_round(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) not in {1, 2}:
 			self.__stmtError("ROUND: invalid args")
 		try:
@@ -478,7 +607,12 @@ class CMSStatementResolver(object): #+cdef
 	# Statement: $(whois DOMAIN)
 	# Executes whois and returns the text.
 	def __stmt_whois(self, d):
-		cons, args = self.__parseArguments(d, False)
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, False)
+		cons, args = a.cons, a.arguments
 		if len(args) != 1:
 			self.__stmtError("WHOIS: invalid args")
 		domain = args[0]
@@ -542,10 +676,14 @@ class CMSStatementResolver(object): #+cdef
 	}
 
 	def __doMacro(self, macroname, d): #@nocy
-#@cy	cdef tuple __doMacro(self, str macroname, str d):
+#@cy	cdef _ResolverRet __doMacro(self, str macroname, str d):
+#@cy		cdef _ResolverRet ret
+#@cy		cdef _ArgParserRet a
+#@cy		cdef str macrodata
+
 		if len(self.callStack) > 16:
 			raise CMSException(500, "Exceed macro call stack depth")
-		cons, arguments = self.__parseArguments(d, True)
+		a = self.__parseArguments(d, True)
 		# Fetch the macro data from the database
 		macrodata = None
 		try:
@@ -557,33 +695,40 @@ class CMSStatementResolver(object): #+cdef
 					"Macro name '%s' contains "
 					"invalid characters" % macroname)
 		if not macrodata:
-			return cons, ""  # Macro does not exist.
+			return a.cons, ""  # Macro does not exist.
 		# Expand the macro arguments ($1, $2, $3, ...)
 		def expandArg(match):
 			nr = int(match.group(1), 10)
-			if nr >= 1 and nr <= len(arguments):
-				return arguments[nr - 1]
+			if nr >= 1 and nr <= len(a.arguments):
+				return a.arguments[nr - 1]
 			return macroname if nr == 0 else ""
 		macrodata = self.macro_arg_re.sub(expandArg, macrodata)
 		# Resolve statements and recursive macro calls
 		self.callStack.append(StackElem(macroname))
 		macrodata = self.__resolve(macrodata)
 		self.callStack.pop()
-		return cons, macrodata
+
+		ret = _ResolverRet()
+		ret.cons = a.cons
+		ret.data = macrodata
+		return ret
 
 	def __expandRecStmts(self, d, stopchars): #@nocy
-#@cy	cdef tuple __expandRecStmts(self, str d, str stopchars):
+#@cy	cdef _ResolverRet __expandRecStmts(self, str d, str stopchars):
 #@cy		cdef int64_t i
 #@cy		cdef int64_t end
 #@cy		cdef int64_t cons
 #@cy		cdef str stmtName
 #@cy		cdef str escapedChars
 #@cy		cdef dict handlers
-#@cy		cdef str retData
+#@cy		cdef list ret
+#@cy		cdef _ResolverRet macroRet
+#@cy		cdef _ResolverRet retObj
 
 		# Recursively expand statements and macro calls
 		escapedChars = self.__escapedChars
 		handlers = self.__handlers
+		retObj = _ResolverRet()
 		ret, i = [], 0
 		while i < len(d):
 			cons, res = 1, d[i]
@@ -611,9 +756,10 @@ class CMSStatementResolver(object): #+cdef
 			elif d[i] == '@': # Macro call
 				end = d.find('(', i)
 				if end > i:
-					cons, res = self.__doMacro(
+					macroRet = self.__doMacro(
 						d[i:end],
 						d[end+1:])
+					cons, res = macroRet.cons, macroRet.data
 					i = end + 1
 			elif d.startswith('$(', i): # Statement
 				end = findAny(d, ' )', i)
@@ -635,9 +781,11 @@ class CMSStatementResolver(object): #+cdef
 			self.charCount += len(res)
 		if stopchars and i >= len(d) and d[-1] not in stopchars:
 			self.__stmtError("Unterminated statement")
-		retData = "".join(ret)
-		self.charCount -= len(retData)
-		return i, retData
+
+		retObj.data = "".join(ret)
+		self.charCount -= len(retObj.data)
+		retObj.cons = i
+		return retObj
 
 	# Create an index
 	def __createIndex(self, anchors):
@@ -706,11 +854,11 @@ class CMSStatementResolver(object): #+cdef
 
 	def __resolve(self, data): #@nocy
 #@cy	cdef str __resolve(self, str data):
-#@cy		cdef int64_t unused
+#@cy		cdef _ResolverRet ret
 
 		# Expand recursive statements
-		unused, data = self.__expandRecStmts(data, "")
-		return data
+		ret = self.__expandRecStmts(data, "")
+		return ret.data
 
 	def resolve(self, data, variables = {}, pageIdent = None):
 		if not data:
