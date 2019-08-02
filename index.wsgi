@@ -24,9 +24,11 @@ import urllib.parse
 
 try:
 	from cms_cython import *
+	from cms_cython.util import stringBool, datetime
 except ImportError as e:
 	try:
 		from cms import *
+		from cms.util import stringBool, datetime
 	except ImportError as e:
 		raise Exception("Failed to import cms.py. "\
 			"Wrong python-path in WSGIDaemonProcess?:\n" + str(e))
