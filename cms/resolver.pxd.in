@@ -1,5 +1,20 @@
 from cms.cython_support cimport *
 
+cdef class _StackElem(object):
+	cdef str name
+	cdef int64_t lineno
+
+cdef class _IndexRef(object):
+	cdef int64_t charOffset
+
+cdef class _Anchor(object):
+	cdef str name
+	cdef str text
+	cdef int64_t indent
+	cdef _Bool noIndex
+
+	cdef str makeUrl(self, CMSStatementResolver resolver)
+
 cdef class _ArgParserRet(object):
 	cdef int64_t cons
 	cdef list arguments
@@ -16,6 +31,13 @@ cdef class CMSStatementResolver(object):
 	cdef public uint64_t charCount
 	cdef public list indexRefs
 	cdef public list anchors
+
+	cdef object __macro_arg_re
+	cdef dict __handlers
+	cdef str __escapedChars
+	cdef str VARNAME_CHARS
+
+	cdef str expandVariable(self, str name)
 
 	cdef _ResolverRet __do_compare(self, str d, _Bool invert)
 	cdef str __do_arith(self, object oper, list args)

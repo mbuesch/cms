@@ -33,16 +33,19 @@ __all__ = [
 	"CMSStatementResolver",
 ]
 
-class StackElem(object): # Call stack element
+class _StackElem(object): #+cdef
+	# Call stack element
 	def __init__(self, name):
 		self.name = name
 		self.lineno = 1
 
-class IndexRef(object): # Index references
+class _IndexRef(object): #+cdef
+	# Index references
 	def __init__(self, charOffset):
 		self.charOffset = charOffset
 
-class Anchor(object): # Anchor
+class _Anchor(object): #+cdef
+	# HTML anchor
 	def __init__(self, name, text,
 		     indent=-1, noIndex=False):
 		self.name = name
@@ -50,7 +53,8 @@ class Anchor(object): # Anchor
 		self.indent = indent
 		self.noIndex = noIndex
 
-	def makeUrl(self, resolver):
+	def makeUrl(self, resolver): #@nocy
+#@cy	cdef str makeUrl(self, CMSStatementResolver resolver):
 		#TODO this does not work for sub pages
 		return "%s#%s" % (
 			CMSPageIdent((
@@ -73,7 +77,7 @@ class _ResolverRet(object):	#@nocy
 	)			#@nocy
 
 def resolverRet(cons, data): #@nocy
-#cdef resolverRet(int64_t cons, str data): #@cy
+#cdef _ResolverRet resolverRet(int64_t cons, str data): #@cy
 #@cy	cdef _ResolverRet r
 	r = _ResolverRet()
 	r.cons = cons
@@ -85,9 +89,6 @@ class CMSStatementResolver(object): #+cdef
 	# Macro argument expansion: $1, $2, $3...
 	macro_arg_re = re.compile(r'\$(\d+)', re.DOTALL)
 
-	# Valid characters for variable names (without the leading $)
-	VARNAME_CHARS = UPPERCASE + '_'
-
 	__genericVars = {
 		"DOMAIN"	: lambda self, n: self.cms.domain,
 		"CMS_BASE"	: lambda self, n: self.cms.urlBase,
@@ -98,6 +99,12 @@ class CMSStatementResolver(object): #+cdef
 	}
 
 	def __init__(self, cms):
+		self.__macro_arg_re = self.macro_arg_re
+		self.__handlers = self._handlers
+		self.__escapedChars = self._escapedChars
+		# Valid characters for variable names (without the leading $)
+		self.VARNAME_CHARS = UPPERCASE + '_'
+
 		self.cms = cms
 		self.__reset()
 
@@ -105,20 +112,22 @@ class CMSStatementResolver(object): #+cdef
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
 		self.pageIdent = pageIdent
-		self.callStack = [ StackElem("content.html") ]
+		self.callStack = [ _StackElem("content.html") ]
 		self.charCount = 0
 		self.indexRefs = []
 		self.anchors = []
 
 	def __stmtError(self, msg):
+#@cy		cdef _StackElem se
+
 		pfx = ""
 		if self.cms.debug:
-			pfx = "%s:%d: " %\
-				(self.callStack[-1].name,
-				 self.callStack[-1].lineno)
+			se = self.callStack[-1]
+			pfx = "%s:%d: " % (se.name, se.lineno)
 		raise CMSException(500, pfx + msg)
 
-	def expandVariable(self, name):
+	def expandVariable(self, name): #@nocy
+#@cy	cdef str expandVariable(self, str name):
 		try:
 			value = self.variables[name]
 			if callable(value):
@@ -142,17 +151,17 @@ class CMSStatementResolver(object): #+cdef
 			ret.append("%s%s=> %s" % (name, sep, value))
 		return "\n".join(ret)
 
-	__escapedChars = '\\,@$()'
+	_escapedChars = '\\,@$()'
 
 	@classmethod
 	def escape(cls, data):
-		for c in cls.__escapedChars:
+		for c in cls._escapedChars:
 			data = data.replace(c, '\\' + c)
 		return data
 
 	@classmethod
 	def unescape(cls, data):
-		for c in cls.__escapedChars:
+		for c in cls._escapedChars:
 			data = data.replace('\\' + c, c)
 		return data
 
@@ -418,7 +427,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) != 1 or args[0]:
 			self.__stmtError("INDEX: invalid args")
-		self.indexRefs.append(IndexRef(self.charCount))
+		self.indexRefs.append(_IndexRef(self.charCount))
 		return resolverRet(cons, "")
 
 	# Statement: $(anchor NAME, TEXT)
@@ -429,6 +438,7 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
+#@cy		cdef _Anchor anchor
 
 		a = self.__parseArguments(d, False)
 		cons, args = a.cons, a.arguments
@@ -446,7 +456,7 @@ class CMSStatementResolver(object): #+cdef
 		if len(args) >= 4:
 			noIndex = bool(args[3].strip())
 		name, text = name.strip(), text.strip()
-		anchor = Anchor(name, text, indent, noIndex)
+		anchor = _Anchor(name, text, indent, noIndex)
 		# Cache anchor for index creation
 		self.anchors.append(anchor)
 		# Create the anchor HTML
@@ -660,7 +670,7 @@ class CMSStatementResolver(object): #+cdef
 		return resolverRet(cons, out)
 
 	# statement handlers
-	__handlers = {
+	_handlers = {
 		# conditional / string compare / boolean
 		"$(if"		: __stmt_if,
 		"$(eq"		: __stmt_eq,
@@ -729,9 +739,9 @@ class CMSStatementResolver(object): #+cdef
 			if nr >= 1 and nr <= len(a.arguments):
 				return a.arguments[nr - 1]
 			return macroname if nr == 0 else ""
-		macrodata = self.macro_arg_re.sub(expandArg, macrodata)
+		macrodata = self.__macro_arg_re.sub(expandArg, macrodata)
 		# Resolve statements and recursive macro calls
-		self.callStack.append(StackElem(macroname))
+		self.callStack.append(_StackElem(macroname))
 		macrodata = self.__resolve(macrodata)
 		self.callStack.pop()
 		return resolverRet(a.cons, macrodata)
@@ -743,30 +753,32 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef int64_t cons
 #@cy		cdef int64_t dlen
 #@cy		cdef str stmtName
-#@cy		cdef str escapedChars
-#@cy		cdef dict handlers
 #@cy		cdef list ret
 #@cy		cdef _ResolverRet macroRet
 #@cy		cdef _ResolverRet handlerRet
 #@cy		cdef _ResolverRet retObj
+#@cy		cdef _StackElem se
+#@cy		cdef Py_UCS4 c
+#@cy		cdef str res
 
 		# Recursively expand statements and macro calls
-		escapedChars = self.__escapedChars
-		handlers = self.__handlers
-		retObj = _ResolverRet()
-		ret, i = [], 0
+		ret = []
 		dlen = len(d)
+		i = 0
 		while i < dlen:
-			cons, res = 1, d[i]
-			if d[i] == '\\': # Escaped characters
+			c = d[i]
+			res = c
+			cons = 1
+			if c == '\\': # Escaped characters
 				# Keep escapes. They are removed later.
 				if i + 1 < dlen and\
-				   d[i + 1] in escapedChars:
+				   d[i + 1] in self.__escapedChars:
 					res = d[i:i+2]
 					i += 1
-			elif d[i] == '\n':
-				self.callStack[-1].lineno += 1
-			elif d.startswith('<!---', i): # Comment
+			elif c == '\n':
+				se = self.callStack[-1]
+				se.lineno += 1
+			elif c == '<' and d.startswith('<!---', i): # Comment
 				end = d.find('--->', i)
 				if end > i:
 					strip_nl = 0
@@ -776,10 +788,10 @@ class CMSStatementResolver(object): #+cdef
 					   (end + 4 < dlen and d[end + 4] == '\n'):
 						strip_nl = 1
 					cons, res = end - i + 4 + strip_nl, ""
-			elif d[i] in stopchars: # Stop character
+			elif c in stopchars: # Stop character
 				i += 1
 				break
-			elif d[i] == '@': # Macro call
+			elif c == '@': # Macro call
 				end = d.find('(', i)
 				if end > i:
 					macroRet = self.__doMacro(
@@ -787,18 +799,18 @@ class CMSStatementResolver(object): #+cdef
 						d[end+1:])
 					cons, res = macroRet.cons, macroRet.data
 					i = end + 1
-			elif d.startswith('$(', i): # Statement
+			elif c == '$' and i + 1 < dlen and d[i + 1] == '(': # Statement
 				end = findAny(d, ' )', i)
 				if end > i:
 					stmtName = d[i:end]
-					if stmtName in handlers:
-						h = handlers[stmtName]
+					if stmtName in self.__handlers:
+						h = self.__handlers[stmtName]
 						i = end + 1 if d[end] == ' ' else end
 					else:
 						h = lambda _self, x: resolverRet(cons, res) # nop
 				handlerRet = h(self, d[i:])
 				cons, res = handlerRet.cons, handlerRet.data
-			elif d[i] == '$': # Variable
+			elif c == '$': # Variable
 				end = findNot(d, self.VARNAME_CHARS, i + 1)
 				if end > i + 1:
 					res = self.expandVariable(d[i+1:end])
@@ -809,13 +821,14 @@ class CMSStatementResolver(object): #+cdef
 		if stopchars and i >= dlen and d[-1] not in stopchars:
 			self.__stmtError("Unterminated statement")
 
-		retObj.data = "".join(ret)
+		retObj = resolverRet(i, "".join(ret))
 		self.charCount -= len(retObj.data)
-		retObj.cons = i
 		return retObj
 
 	# Create an index
 	def __createIndex(self, anchors):
+#@cy		cdef _Anchor anchor
+
 		indexData = [ '\t<ul>\n' ]
 		indent = 0
 
@@ -869,6 +882,8 @@ class CMSStatementResolver(object): #+cdef
 
 	# Insert the referenced indices
 	def __processIndices(self, data):
+#@cy		cdef _IndexRef indexRef
+
 		offset = 0
 		for indexRef in self.indexRefs:
 			indexData = self.__createIndex(self.anchors)
