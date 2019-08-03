@@ -244,9 +244,10 @@ class CMS(object):
 			with Image.open(fs.mkpath(self.wwwPath, self.imagesDir,
 					CMSPageIdent.validateSafePathComponent(imagename))) as img:
 				img.thumbnail((width, height), qual)
-				output = BytesIO()
-				img.save(output, "JPEG")
-				data = output.getvalue()
+				with img.convert("RGB") as cimg:
+					output = BytesIO()
+					cimg.save(output, "JPEG")
+					data = output.getvalue()
 		except (IOError) as e:
 			raise CMSException(404)
 		return data, "image/jpeg"
