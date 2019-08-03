@@ -115,9 +115,11 @@ class FSHelpers(object): #+cdef
 
 	def exists(self, *path_elements):
 		try:
-			os.stat(self.mkpath(*path_elements))
+			os.stat(self.mkpath(*path_elements).encode("UTF-8", "strict"))
 		except OSError:
 			return False
+		except UnicodeError:
+			raise CMSException(500, "Unicode decode error")
 		return True
 
 	def exists_nonempty(self, *path_elements):
@@ -143,9 +145,12 @@ class FSHelpers(object): #+cdef
 
 	def mtime(self, *path_elements):
 		try:
-			return datetime.utcfromtimestamp(os.stat(self.mkpath(*path_elements)).st_mtime)
+			path = self.mkpath(*path_elements).encode("UTF-8", "strict")
+			return datetime.utcfromtimestamp(os.stat(path).st_mtime)
 		except OSError:
 			raise CMSException(404)
+		except UnicodeError:
+			raise CMSException(500, "Unicode decode error")
 
 	def mtime_nofail(self, *path_elements):
 		try:
@@ -154,22 +159,28 @@ class FSHelpers(object): #+cdef
 			return datetime.utcnow()
 
 	def subdirList(self, *path_elements):
-		def dirfilter(dentry):
+		def dirfilter(path, dentry):
 			if dentry.startswith("."):
 				return False # Omit ".", ".." and hidden entries
 			if dentry.startswith("__"):
 				return False # Omit system folders/files.
 			try:
-				if not stat.S_ISDIR(os.stat(self.mkpath(path, dentry)).st_mode):
+				p = self.mkpath(path, dentry).encode("UTF-8", "strict")
+				if not stat.S_ISDIR(os.stat(p).st_mode):
 					return False
 			except OSError:
 				return False
+			except UnicodeError:
+				raise CMSException(500, "Unicode decode error")
 			return True
-		path = self.mkpath(*path_elements)
 		try:
-			return [ dentry for dentry in os.listdir(path) \
-				 if dirfilter(dentry) ]
+			path = self.mkpath(*path_elements)
+			dentries = (dentry.decode("UTF-8", "strict")
+				    for dentry in os.listdir(path.encode("UTF-8", "strict")))
+			return [ dentry for dentry in dentries if dirfilter(path, dentry) ]
 		except OSError:
 			return []
+		except UnicodeError:
+			raise CMSException(500, "Unicode decode error")
 
 fs = FSHelpers() #+cdef-FSHelpers
