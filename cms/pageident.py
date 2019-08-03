@@ -20,7 +20,7 @@
 #from cms.cython_support cimport * #@cy
 
 from cms.exception import *
-from cms.util import *
+from cms.util import * #+cimport
 
 import re
 import os
@@ -174,9 +174,9 @@ class CMSPageIdent(object):
 			if rstrip:
 				pcomps = self.__elements[ : 0 - rstrip]
 				if pcomps:
-					return mkpath(*pcomps)
+					return fs.mkpath(*pcomps)
 				return ""
-			return mkpath(*(self.__elements))
+			return fs.mkpath(*(self.__elements))
 		return ""
 
 	# Test if this identifier starts with the same elements

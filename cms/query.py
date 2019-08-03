@@ -20,7 +20,7 @@
 #from cms.cython_support cimport * #@cy
 
 from cms.exception import *
-from cms.util import *
+from cms.util import * #+cimport
 
 __all__ = [
 	"CMSQuery",

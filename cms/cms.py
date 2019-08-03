@@ -25,7 +25,7 @@ from cms.formfields import *
 from cms.pageident import *
 from cms.query import *
 from cms.resolver import * #+cimport
-from cms.util import *
+from cms.util import * #+cimport
 
 import PIL.Image as Image
 import urllib.request, urllib.parse, urllib.error
@@ -241,7 +241,7 @@ class CMS(object):
 		except (KeyError) as e:
 			qual = qualities[1]
 		try:
-			img = Image.open(mkpath(self.wwwPath, self.imagesDir,
+			img = Image.open(fs.mkpath(self.wwwPath, self.imagesDir,
 				CMSPageIdent.validateSafePathComponent(imagename)))
 			img.thumbnail((width, height), qual)
 			output = BytesIO()

@@ -21,11 +21,11 @@
 
 from cms.exception import *
 
-import os
 import cgi
-from stat import S_ISDIR
-from io import BytesIO
-from datetime import datetime
+import datetime
+import io
+import os
+import stat
 
 __all__ = [
 	"BytesIO",
@@ -38,22 +38,19 @@ __all__ = [
 	"findAny",
 	"htmlEscape",
 	"stringBool",
-	"mkpath",
-	"f_exists",
-	"f_exists_nonempty",
-	"f_read",
-	"f_read_int",
-	"f_mtime",
-	"f_mtime_nofail",
-	"f_subdirList",
+	"fs",
 ]
 
-UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'
-NUMBERS   = '0123456789'
+BytesIO = io.BytesIO				#+cdef-public-object
+datetime = datetime.datetime			#+cdef-public-object
+
+UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'	#+cdef-public-str
+LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'	#+cdef-public-str
+NUMBERS   = '0123456789'			#+cdef-public-str
 
 # Check if an object is iterable.
-def isiterable(obj):
+def isiterable(obj): #@nocy
+#cdef ExBool_t isiterable(object obj) except ExBool_val: #@cy
 	try:
 		iter(obj)
 		return True
@@ -66,27 +63,39 @@ def isiterable(obj):
 # Find the index in 'string' that is _not_ in 'template'.
 # Start search at 'idx'.
 # Returns -1 on failure to find.
-def findNot(string, template, idx=0):
-	while idx < len(string):
-		if string[idx] not in template:
-			return idx
-		idx += 1
+def findNot(string, template, idx): #@nocy
+#cdef _Bool findNot(str string, str template, int64_t idx): #@cy
+#@cy	cdef int64_t slen
+
+	if idx >= 0:
+		slen = len(string)
+		while idx < slen:
+			if string[idx] not in template:
+				return idx
+			idx += 1
 	return -1
 
 # Find the index in 'string' that matches _any_ character in 'template'.
 # Start search at 'idx'.
 # Returns -1 on failure to find.
-def findAny(string, template, idx=0):
-	while idx < len(string):
-		if string[idx] in template:
-			return idx
-		idx += 1
+def findAny(string, template, idx): #@nocy
+#cdef _Bool findAny(str string, str template, int64_t idx): #@cy
+#@cy	cdef int64_t slen
+
+	if idx >= 0:
+		slen = len(string)
+		while idx < slen:
+			if string[idx] in template:
+				return idx
+			idx += 1
 	return -1
 
-def htmlEscape(string):
+def htmlEscape(string): #@nocy
+#cdef str htmlEscape(str string): #@cy
 	return cgi.escape(string, True)
 
-def stringBool(string, default=False):
+def stringBool(string, default): #@nocy
+#cdef _Bool stringBool(str string, _Bool default): #@cy
 	s = string.lower()
 	if s in ("true", "yes", "on", "1"):
 		return True
@@ -97,67 +106,70 @@ def stringBool(string, default=False):
 	except ValueError:
 		return default
 
-# Create a path string from path element strings.
-def mkpath(*path_elements):
-	# Do not use os.path.join, because it discards elements, if
-	# one element begins with a separator (= is absolute).
-	return os.path.sep.join(path_elements)
+class FSHelpers(object): #+cdef
+	# Create a path string from path element strings.
+	def mkpath(self, *path_elements):
+		# Do not use os.path.join, because it discards elements, if
+		# one element begins with a separator (= is absolute).
+		return os.path.sep.join(path_elements)
 
-def f_exists(*path_elements):
-	try:
-		os.stat(mkpath(*path_elements))
-	except OSError:
-		return False
-	return True
-
-def f_exists_nonempty(*path_elements):
-	if f_exists(*path_elements):
-		return bool(f_read(*path_elements).strip())
-	return False
-
-def f_read(*path_elements):
-	try:
-		with open(mkpath(*path_elements), "rb") as fd:
-			return fd.read().decode("UTF-8")
-	except IOError:
-		return ""
-	except UnicodeError:
-		raise CMSException(500, "Unicode decode error")
-
-def f_read_int(*path_elements):
-	data = f_read(*path_elements)
-	try:
-		return int(data.strip(), 10)
-	except ValueError:
-		return None
-
-def f_mtime(*path_elements):
-	try:
-		return datetime.utcfromtimestamp(os.stat(mkpath(*path_elements)).st_mtime)
-	except OSError:
-		raise CMSException(404)
-
-def f_mtime_nofail(*path_elements):
-	try:
-		return f_mtime(*path_elements)
-	except CMSException:
-		return datetime.utcnow()
-
-def f_subdirList(*path_elements):
-	def dirfilter(dentry):
-		if dentry.startswith("."):
-			return False # Omit ".", ".." and hidden entries
-		if dentry.startswith("__"):
-			return False # Omit system folders/files.
+	def exists(self, *path_elements):
 		try:
-			if not S_ISDIR(os.stat(mkpath(path, dentry)).st_mode):
-				return False
+			os.stat(self.mkpath(*path_elements))
 		except OSError:
 			return False
 		return True
-	path = mkpath(*path_elements)
-	try:
-		return [ dentry for dentry in os.listdir(path) \
-			 if dirfilter(dentry) ]
-	except OSError:
-		return []
+
+	def exists_nonempty(self, *path_elements):
+		if self.exists(*path_elements):
+			return bool(self.read(*path_elements).strip())
+		return False
+
+	def read(self, *path_elements):
+		try:
+			with open(self.mkpath(*path_elements), "rb") as fd:
+				return fd.read().decode("UTF-8")
+		except IOError:
+			return ""
+		except UnicodeError:
+			raise CMSException(500, "Unicode decode error")
+
+	def read_int(self, *path_elements):
+		data = self.read(*path_elements)
+		try:
+			return int(data.strip(), 10)
+		except ValueError:
+			return None
+
+	def mtime(self, *path_elements):
+		try:
+			return datetime.utcfromtimestamp(os.stat(self.mkpath(*path_elements)).st_mtime)
+		except OSError:
+			raise CMSException(404)
+
+	def mtime_nofail(self, *path_elements):
+		try:
+			return self.mtime(*path_elements)
+		except CMSException:
+			return datetime.utcnow()
+
+	def subdirList(self, *path_elements):
+		def dirfilter(dentry):
+			if dentry.startswith("."):
+				return False # Omit ".", ".." and hidden entries
+			if dentry.startswith("__"):
+				return False # Omit system folders/files.
+			try:
+				if not stat.S_ISDIR(os.stat(self.mkpath(path, dentry)).st_mode):
+					return False
+			except OSError:
+				return False
+			return True
+		path = self.mkpath(*path_elements)
+		try:
+			return [ dentry for dentry in os.listdir(path) \
+				 if dirfilter(dentry) ]
+		except OSError:
+			return []
+
+fs = FSHelpers() #+cdef-FSHelpers

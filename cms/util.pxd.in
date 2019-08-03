@@ -1,0 +1,18 @@
+#from cms.cython_support cimport * #@cy
+
+cdef public object BytesIO
+cdef public object datetime
+
+cdef public str UPPERCASE
+cdef public str LOWERCASE
+cdef public str NUMBERS
+
+cdef ExBool_t isiterable(object obj) except ExBool_val
+cdef _Bool findNot(str string, str template, int64_t idx)
+cdef _Bool findAny(str string, str template, int64_t idx)
+cdef str htmlEscape(str string)
+cdef _Bool stringBool(str string, _Bool default)
+
+cdef class FSHelpers(object):
+	pass
+cdef public FSHelpers fs

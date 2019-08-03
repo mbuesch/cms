@@ -21,7 +21,7 @@
 
 from cms.exception import *
 from cms.pageident import *
-from cms.util import *
+from cms.util import * #+cimport
 
 import re
 import sys
@@ -35,53 +35,53 @@ class CMSDatabase(object):
 	validate = CMSPageIdent.validateName
 
 	def __init__(self, basePath):
-		self.pageBase = mkpath(basePath, "pages")
-		self.macroBase = mkpath(basePath, "macros")
-		self.stringBase = mkpath(basePath, "strings")
+		self.pageBase = fs.mkpath(basePath, "pages")
+		self.macroBase = fs.mkpath(basePath, "macros")
+		self.stringBase = fs.mkpath(basePath, "strings")
 
 	def __redirect(self, redirectString):
 		raise CMSException301(redirectString)
 
 	def __getPageTitle(self, pagePath):
-		title = f_read(pagePath, "title").strip()
+		title = fs.read(pagePath, "title").strip()
 		if not title:
-			title = f_read(pagePath, "nav_label").strip()
+			title = fs.read(pagePath, "nav_label").strip()
 		return title
 
 	def getNavStop(self, pageIdent):
-		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		return bool(f_read_int(path, "nav_stop"))
+		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
+		return bool(fs.read_int(path, "nav_stop"))
 
 	def getHeader(self, pageIdent):
-		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		return f_read(path, "header.html")
+		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
+		return fs.read(path, "header.html")
 
 	def getPage(self, pageIdent):
-		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		redirect = f_read(path, "redirect").strip()
+		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
+		redirect = fs.read(path, "redirect").strip()
 		if redirect:
 			return self.__redirect(redirect)
 		title = self.__getPageTitle(path)
-		data = f_read(path, "content.html")
-		stamp = f_mtime_nofail(path, "content.html")
+		data = fs.read(path, "content.html")
+		stamp = fs.mtime_nofail(path, "content.html")
 		return (title, data, stamp)
 
 	def getPageTitle(self, pageIdent):
-		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
+		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		return self.__getPageTitle(path)
 
 	# Get a list of sub-pages.
 	# Returns list of (pagename, navlabel, prio)
 	def getSubPages(self, pageIdent, sortByPrio = True):
 		res = []
-		gpath = mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		for pagename in f_subdirList(gpath):
-			path = mkpath(gpath, pagename)
-			if f_exists(path, "hidden") or \
-			   f_exists_nonempty(path, "redirect"):
+		gpath = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
+		for pagename in fs.subdirList(gpath):
+			path = fs.mkpath(gpath, pagename)
+			if fs.exists(path, "hidden") or \
+			   fs.exists_nonempty(path, "redirect"):
 				continue
-			navlabel = f_read(path, "nav_label").strip()
-			prio = f_read_int(path, "priority")
+			navlabel = fs.read(path, "nav_label").strip()
+			prio = fs.read_int(path, "priority")
 			if prio is None:
 				prio = 500
 			res.append( (pagename, navlabel, prio) )
@@ -98,31 +98,31 @@ class CMSDatabase(object):
 				path = pageIdent.getFilesystemPath(rstrip)
 				if not path:
 					break
-				data = f_read(self.pageBase,
+				data = fs.read(self.pageBase,
 					      path,
 					      "__macros",
 					      macroname)
 				rstrip += 1
 		if not data:
-			data = f_read(self.pageBase,
+			data = fs.read(self.pageBase,
 				      "__macros",
 				      macroname)
 		if not data:
-			data = f_read(self.macroBase, macroname)
+			data = fs.read(self.macroBase, macroname)
 		return '\n'.join( l for l in data.splitlines() if l )
 
 	def getString(self, name, default=None):
 		name = self.validate(name)
-		string = f_read(self.stringBase, name).strip()
+		string = fs.read(self.stringBase, name).strip()
 		if string:
 			return string
 		return default or ""
 
 	def getPostHandler(self, pageIdent):
-		path = mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		handlerModFile = mkpath(path, "post.py")
+		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
+		handlerModFile = fs.mkpath(path, "post.py")
 
-		if not f_exists(handlerModFile):
+		if not fs.exists(handlerModFile):
 			return None
 
 		# Add the path to sys.path, so that post.py can easily import

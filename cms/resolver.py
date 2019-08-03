@@ -21,7 +21,7 @@
 
 from cms.exception import *
 from cms.pageident import *
-from cms.util import *
+from cms.util import * #+cimport
 
 import re
 import random
@@ -375,8 +375,8 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("FILE_EXISTS: invalid args")
 		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
 		try:
-			exists = f_exists(self.cms.wwwPath,
-					  CMSPageIdent.validateSafePath(relpath))
+			exists = fs.exists(self.cms.wwwPath,
+					   CMSPageIdent.validateSafePath(relpath))
 		except (CMSException) as e:
 			exists = False
 		return resolverRet(cons, (relpath if exists else enoent))
@@ -401,8 +401,8 @@ class CMSStatementResolver(object): #+cdef
 			args[1] if len(args) >= 2 else "",\
 			args[2] if len(args) >= 3 else "%d %B %Y %H:%M (UTC)"
 		try:
-			stamp = f_mtime(self.cms.wwwPath,
-					CMSPageIdent.validateSafePath(relpath))
+			stamp = fs.mtime(self.cms.wwwPath,
+					 CMSPageIdent.validateSafePath(relpath))
 		except (CMSException) as e:
 			return resolverRet(cons, enoent)
 		return resolverRet(cons, stamp.strftime(fmtstr.strip()))

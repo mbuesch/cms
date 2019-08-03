@@ -24,14 +24,13 @@ import urllib.parse
 
 try:
 	from cms_cython import *
-	from cms_cython.util import stringBool, datetime
 except ImportError as e:
 	try:
 		from cms import *
-		from cms.util import stringBool, datetime
 	except ImportError as e:
 		raise Exception("Failed to import cms.py. "\
 			"Wrong python-path in WSGIDaemonProcess?:\n" + str(e))
+from cms.util import stringBool, datetime
 
 cms = None
 maxPostContentLength = 0
@@ -46,7 +45,7 @@ def __initCMS(environ):
 	wwwBase = environ.get("cms.wwwBase", None)
 	if domain is None or cmsBase is None or wwwBase is None:
 		raise Exception("WSGI environment %s not set" % str(e))
-	debug = stringBool(environ.get("cms.debug", "0"))
+	debug = stringBool(environ.get("cms.debug", "0"), False)
 	try:
 		maxPostContentLength = int(environ.get("cms.maxPostContentLength", "0"), 10)
 	except ValueError as e:
