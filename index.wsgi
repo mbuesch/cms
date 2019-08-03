@@ -64,14 +64,14 @@ def __recvBody(environ):
 	except ValueError as e:
 		body_len = 0
 	body_type = environ.get("CONTENT_TYPE", "text/plain")
-	if (body_len < 0 or
-	    (maxPostContentLength >= 0 and body_len > maxPostContentLength)):
-		body = body_type = None
-	else:
+	if (body_len >= 0 and
+	    (body_len <= maxPostContentLength or maxPostContentLength < 0)):
 		wsgi_input = environ.get("wsgi.input", None)
 		if wsgi_input is None:
 			raise Exception("WSGI environment 'wsgi.input' not set.")
 		body = wsgi_input.read(body_len)
+	else:
+		body = body_type = None
 	return body, body_type
 
 def application(environ, start_response):
