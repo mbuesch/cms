@@ -399,7 +399,7 @@ class CMSStatementResolver(object): #+cdef
 	# Statement:  $(file_mdatet RELATIVE_PATH)
 	# Statement:  $(file_mdatet RELATIVE_PATH, DOES_NOT_EXIST, FORMAT_STRING)
 	# Returns the file modification time.
-	# If the file does not exist, it returns DOES_NOT_EXIST or and empty string.
+	# If the file does not exist, it returns DOES_NOT_EXIST or an empty string.
 	# RELATIVE_PATH is relative to wwwPath.
 	# FORMAT_STRING is an optional strftime format string.
 	def __stmt_fileModDateTime(self, d):
