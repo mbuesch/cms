@@ -20,7 +20,7 @@
 
 import sys
 import atexit
-import urllib.parse
+from urllib.parse import parse_qs
 
 try:
 	from cms_cython import *
@@ -38,8 +38,7 @@ maxPostContentLength = 0
 def __initCMS(environ):
 	global cms
 	global maxPostContentLength
-	if cms:
-		return # Already initialized
+
 	domain = environ.get("cms.domain", None)
 	cmsBase = environ.get("cms.cmsBase", None)
 	wwwBase = environ.get("cms.wwwBase", None)
@@ -51,21 +50,22 @@ def __initCMS(environ):
 	except ValueError as e:
 		maxPostContentLength = 0
 	# Initialize the CMS module
-	cms = CMS(dbPath = cmsBase + "/db",
-		  wwwPath = wwwBase,
-		  domain = domain,
-		  debug = debug)
+	cms = CMS(dbPath=(cmsBase + "/db"),
+		  wwwPath=wwwBase,
+		  domain=domain,
+		  debug=debug)
 	atexit.register(cms.shutdown)
 
 def __recvBody(environ):
+	global maxPostContentLength
+
 	try:
 		body_len = int(environ.get("CONTENT_LENGTH", "0"), 10)
 	except ValueError as e:
 		body_len = 0
 	body_type = environ.get("CONTENT_TYPE", "text/plain")
-	if body_len < 0 or \
-	   (maxPostContentLength >= 0 and\
-	    body_len > maxPostContentLength):
+	if (body_len < 0 or
+	    (maxPostContentLength >= 0 and body_len > maxPostContentLength)):
 		body = body_type = None
 	else:
 		wsgi_input = environ.get("wsgi.input", None)
@@ -75,7 +75,10 @@ def __recvBody(environ):
 	return body, body_type
 
 def application(environ, start_response):
-	__initCMS(environ)
+	global cms
+
+	if cms is None:
+		__initCMS(environ)
 	if cms.debug:
 		startStamp = datetime.now()
 
@@ -84,10 +87,10 @@ def application(environ, start_response):
 
 	method = environ.get("REQUEST_METHOD", "").upper()
 	path = environ.get("PATH_INFO", "")
-	query = urllib.parse.parse_qs(environ.get("QUERY_STRING", ""))
+	query = parse_qs(environ.get("QUERY_STRING", ""))
 	protocol = environ.get("wsgi.url_scheme", "http").lower()
 	try:
-		if method in {"GET", "HEAD"}:
+		if method == "GET" or method == "HEAD":
 			response_body, response_mime = cms.get(path, query, protocol)
 			if method == "HEAD":
 				response_body = b""
@@ -114,8 +117,8 @@ def application(environ, start_response):
 		response_body, response_mime, additional_headers = cms.getErrorPage(e, protocol)
 	if cms.debug and response_mime.startswith("text/html"):
 		delta = datetime.now() - startStamp
-		sec = float(delta.seconds) + float(delta.microseconds) / 1000000
-		response_body += ("\n<!-- generated in %.3f seconds -->" % sec).encode("UTF-8")
+		ms = (float(delta.seconds) * 1e3) + (float(delta.microseconds) * 1e-3)
+		response_body += ("\n<!-- generated in %.3f ms -->" % ms).encode("UTF-8")
 	response_headers = [ ('Content-Type', response_mime),
 			     ('Content-Length', str(len(response_body))) ]
 	response_headers.extend(additional_headers)
