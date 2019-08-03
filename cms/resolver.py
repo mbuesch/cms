@@ -668,7 +668,7 @@ class CMSStatementResolver(object): #+cdef
 						 shell = False,
 						 stdout = subprocess.PIPE)
 			out, err = whois.communicate()
-			out = out.decode("UTF-8")
+			out = out.decode("UTF-8", "strict")
 		except UnicodeError as e:
 			self.__stmtError("WHOIS: unicode error")
 		except (OSError, ValueError) as e:

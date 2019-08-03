@@ -128,7 +128,7 @@ class FSHelpers(object): #+cdef
 	def read(self, *path_elements):
 		try:
 			with open(self.mkpath(*path_elements).encode("UTF-8", "strict"), "rb") as fd:
-				return fd.read().decode("UTF-8")
+				return fd.read().decode("UTF-8", "strict")
 		except IOError:
 			return ""
 		except UnicodeError:

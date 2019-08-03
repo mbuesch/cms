@@ -282,8 +282,8 @@ class CMS(object):
 					       protocol, stamp))
 		data.append(self.__genHtmlFooter())
 		try:
-			return "".join(data).encode("UTF-8"), \
-			       "text/html; charset=UTF-8"
+			return ("".join(data).encode("UTF-8", "strict"),
+				"text/html; charset=UTF-8")
 		except UnicodeError as e:
 			raise CMSException(500, "Unicode encode error")
 
@@ -360,7 +360,7 @@ class CMS(object):
 				(e.httpStatus, e.message)
 			mime, headers = "text/plain; charset=UTF-8", ()
 		try:
-			return data.encode("UTF-8"), mime, headers
+			return data.encode("UTF-8", "strict"), mime, headers
 		except UnicodeError as e:
 			# Whoops. All is lost.
 			raise CMSException(500, "Unicode encode error")
