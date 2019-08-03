@@ -37,7 +37,7 @@ setup(	name		= "cms",
 	scripts		= [ "index.wsgi", "cms-cli", ],
 	cmdclass	= cmdclass,
 	ext_modules	= ext_modules,
-	keywords	= [ "CMS", "WSGI", ],
+	keywords	= "CMS WSGI Apache httpd",
 	classifiers	= [
 		"Development Status :: 5 - Production/Stable",
 		"Environment :: Console",
