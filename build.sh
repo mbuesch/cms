@@ -12,7 +12,7 @@ fi
 
 cd "$basedir"
 
-rm -r build
+rm -rf build
 rm -f cms_cython
 python3 ./setup.py build
 ln -s build/lib.*-3.*/cms_cython .
