@@ -20,7 +20,6 @@
 
 import sys
 import getopt
-from cms import *
 
 
 def usage():
@@ -31,6 +30,7 @@ def usage():
 	print("  -w|--www PATH          Path to the static data. Default: ./www-data")
 	print("  -i|--images SUBPATH    Path to images. Default: /images")
 	print("  -D|--domain DOMAIN     The domain name. Default: example.com")
+	print("  -C|--cython            Import Cython modules")
 	print("")
 	print("Actions:")
 	print("  GET <path>             Do a GET request on 'path'")
@@ -43,11 +43,12 @@ def main():
 	opt_www = "./www-data"
 	opt_images = "/images"
 	opt_domain = "example.com"
+	opt_cython = False
 
 	try:
 		(opts, args) = getopt.getopt(sys.argv[1:],
-			"hd:w:i:D:",
-			[ "help", "db=", "www=", "images=", "domain=", ])
+			"hd:w:i:D:C",
+			[ "help", "db=", "www=", "images=", "domain=", "cython", ])
 	except (getopt.GetoptError) as e:
 		usage()
 		return 1
@@ -63,6 +64,8 @@ def main():
 			opt_images = v
 		if o in ("-D", "--domain"):
 			opt_domain = v
+		if o in ("-C", "--cython"):
+			opt_cython = True
 	if len(args) >= 1:
 		action = args[0]
 	if len(args) >= 2:
@@ -72,6 +75,11 @@ def main():
 		return 1
 	cms = None
 	try:
+		if opt_cython:
+			from cms_cython import CMS, CMSException
+		else:
+			from cms import CMS, CMSException
+
 		cms = CMS(dbPath=opt_db,
 			  wwwPath=opt_www,
 			  imagesDir=opt_images,
