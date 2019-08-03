@@ -2,6 +2,7 @@
 *.swp
 *.pyo
 *.pyc
+__pycache__/
 /db
 /www-data
 /build
