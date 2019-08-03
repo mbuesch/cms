@@ -241,14 +241,17 @@ class CMS(object):
 		except (KeyError) as e:
 			qual = qualities[1]
 		try:
-			with Image.open(fs.mkpath(self.wwwPath, self.imagesDir,
-					CMSPageIdent.validateSafePathComponent(imagename))) as img:
-				img.thumbnail((width, height), qual)
-				with img.convert("RGB") as cimg:
-					output = BytesIO()
-					cimg.save(output, "JPEG")
-					data = output.getvalue()
-		except (IOError) as e:
+			imgPath = fs.mkpath(self.wwwPath,
+					    self.imagesDir,
+					    CMSPageIdent.validateSafePathComponent(imagename))
+			with open(imgPath.encode("UTF-8", "strict"), "rb") as fd:
+				with Image.open(fd) as img:
+					img.thumbnail((width, height), qual)
+					with img.convert("RGB") as cimg:
+						output = BytesIO()
+						cimg.save(output, "JPEG")
+						data = output.getvalue()
+		except (IOError, UnicodeError) as e:
 			raise CMSException(404)
 		return data, "image/jpeg"
 
