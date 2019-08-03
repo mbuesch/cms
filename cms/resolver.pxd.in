@@ -39,6 +39,9 @@ cdef class CMSStatementResolver(object):
 
 	cdef str expandVariable(self, str name)
 
+	cpdef str escape(self, str data)
+	cpdef str unescape(self, str data)
+
 	cdef _ResolverRet __do_compare(self, str d, _Bool invert)
 	cdef str __do_arith(self, object oper, list args)
 

@@ -153,15 +153,19 @@ class CMSStatementResolver(object): #+cdef
 
 	_escapedChars = '\\,@$()'
 
-	@classmethod
-	def escape(cls, data):
-		for c in cls._escapedChars:
+	def escape(self, data): #@nocy
+#@cy	cpdef str escape(self, str data):
+#@cy		cdef str c
+
+		for c in self.__escapedChars:
 			data = data.replace(c, '\\' + c)
 		return data
 
-	@classmethod
-	def unescape(cls, data):
-		for c in cls._escapedChars:
+	def unescape(self, data): #@nocy
+#@cy	cpdef str unescape(self, str data):
+#@cy		cdef str c
+
+		for c in self.__escapedChars:
 			data = data.replace('\\' + c, c)
 		return data
 
@@ -173,6 +177,7 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef list arguments
 #@cy		cdef int64_t cons
 #@cy		cdef int64_t dlen
+#@cy		cdef str data
 
 		ret = _ArgParserRet()
 		ret.cons = 0
@@ -180,8 +185,9 @@ class CMSStatementResolver(object): #+cdef
 		dlen = len(d)
 		while ret.cons < dlen:
 			r = self.__expandRecStmts(d[ret.cons:], ',)')
+			data = r.data
 			ret.cons += r.cons
-			ret.arguments.append(r.data.strip() if strip else r.data)
+			ret.arguments.append(data.strip() if strip else data)
 			if ret.cons <= 0 or d[ret.cons - 1] == ')':
 				break
 		return ret

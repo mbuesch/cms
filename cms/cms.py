@@ -264,8 +264,8 @@ class CMS(object):
 		resolve = self.resolver.resolve
 		for k, v in query.queryDict.items():
 			k, v = k.upper(), v[-1]
-			resolverVariables["Q_" + k] = CMSStatementResolver.escape(htmlEscape(v))
-			resolverVariables["QRAW_" + k] = CMSStatementResolver.escape(v)
+			resolverVariables["Q_" + k] = self.resolver.escape(htmlEscape(v))
+			resolverVariables["QRAW_" + k] = self.resolver.escape(v)
 		pageTitle = resolve(pageTitle, resolverVariables, pageIdent)
 		resolverVariables["TITLE"] = lambda r, n: pageTitle
 		pageData = resolve(pageData, resolverVariables, pageIdent)
@@ -330,7 +330,7 @@ class CMS(object):
 			"PAGE"			: lambda r, n: "_nopage_",
 			"HTTP_STATUS"		: lambda r, n: cmsExcept.httpStatus,
 			"HTTP_STATUS_CODE"	: lambda r, n: str(cmsExcept.httpStatusCode),
-			"ERROR_MESSAGE"		: lambda r, n: CMSStatementResolver.escape(htmlEscape(cmsExcept.message)),
+			"ERROR_MESSAGE"		: lambda r, n: self.resolver.escape(htmlEscape(cmsExcept.message)),
 		}
 		pageHeader = cmsExcept.getHtmlHeader(self.db)
 		pageHeader = self.resolver.resolve(pageHeader, resolverVariables)
