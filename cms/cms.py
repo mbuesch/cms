@@ -266,8 +266,8 @@ class CMS(object):
 			"PAGE"		: lambda r, n: pageIdent.get(1),
 		}
 		resolve = self.resolver.resolve
-		for k, v in query.queryDict.items():
-			k, v = k.upper(), v[-1]
+		for k, v in query.items():
+			k = k.upper()
 			resolverVariables["Q_" + k] = self.resolver.escape(htmlEscape(v))
 			resolverVariables["QRAW_" + k] = self.resolver.escape(v)
 		pageTitle = resolve(pageTitle, resolverVariables, pageIdent)

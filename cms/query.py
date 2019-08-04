@@ -27,21 +27,34 @@ __all__ = [
 ]
 
 class CMSQuery(object):
+	__slots__ = (
+		"__queryDict",
+	)
+
 	def __init__(self, queryDict):
-		self.queryDict = queryDict
+		self.__queryDict = {
+			name : values[-1]
+			for name, values in queryDict.items()
+		}
+
+	def items(self):
+		return self.__queryDict.items()
 
 	def get(self, name, default=""):
-		try:
-			return self.queryDict[name][-1]
-		except (KeyError, IndexError) as e:
-			return default
+		return self.__queryDict.get(name, default)
 
 	def getInt(self, name, default=0):
 		try:
-			return int(self.get(name, str(int(default))), 10)
+			return int(self.__queryDict.get(name, default))
 		except (ValueError) as e:
 			return default
 
 	def getBool(self, name, default=False):
-		string = self.get(name, str(bool(default)))
-		return stringBool(string, default)
+		return stringBool(self.__queryDict.get(name, str(default)), default)
+
+	def __hash__(self):
+		return hash(frozenset(self.__queryDict.items()))
+
+	def __eq__(self, other):
+		return (isinstance(other, self.__class__) and
+			self.__queryDict == other.__queryDict)
