@@ -8,11 +8,8 @@ import setup_cython
 
 def pyCythonPatchLine(line):
 	# Patch the import statements
-	line = re.sub(r'^(\s*from cms[0-9a-zA-Z_]*)\.([0-9a-zA-Z_\.]+) import', r'\1_cython.\2 import', line)
-	line = re.sub(r'^(\s*from cms[0-9a-zA-Z_]*)\.([0-9a-zA-Z_\.]+) cimport', r'\1_cython.\2 cimport', line)
-	line = re.sub(r'^(\s*import cms[0-9a-zA-Z_]*)\.', r'\1_cython.', line)
-	line = re.sub(r'^(\s*cimport cms[0-9a-zA-Z_]*)\.', r'\1_cython.', line)
-	line = line.replace("Python based", "Cython based")
+	line = re.sub(r'^(\s*from cms)(\.[0-9a-zA-Z_\.]+)? (c?import)', r'\1_cython\2 \3', line)
+	line = re.sub(r'^(\s*c?import cms)(\.)?', r'\1_cython\2', line)
 	return line
 
 setup_cython.parallelBuild = True
