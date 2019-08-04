@@ -27,6 +27,7 @@ from cms.query import *
 from cms.resolver import * #+cimport
 from cms.util import * #+cimport
 
+import functools
 import PIL.Image as Image
 import urllib.request, urllib.parse, urllib.error
 
@@ -224,6 +225,7 @@ class CMS(object):
 
 		return "\n".join(body)
 
+	@functools.lru_cache(maxsize=2**8)
 	def __getImageThumbnail(self, imagename, query, protocol):
 		if not imagename:
 			raise CMSException(404)
