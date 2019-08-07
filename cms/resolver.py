@@ -720,7 +720,7 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef str macrodata
 #@cy		cdef int64_t nrArguments
 
-		if len(self.callStack) > 16:
+		if len(self.callStack) >= 64:
 			raise CMSException(500, "Exceed macro call stack depth")
 		a = self.__parseArguments(d, True)
 		nrArguments = len(a.arguments)
