@@ -718,10 +718,12 @@ class CMSStatementResolver(object): #+cdef
 #@cy	cdef _ResolverRet __doMacro(self, str macroname, str d):
 #@cy		cdef _ArgParserRet a
 #@cy		cdef str macrodata
+#@cy		cdef int64_t nrArguments
 
 		if len(self.callStack) > 16:
 			raise CMSException(500, "Exceed macro call stack depth")
 		a = self.__parseArguments(d, True)
+		nrArguments = len(a.arguments)
 		# Fetch the macro data from the database
 		macrodata = None
 		try:
@@ -736,10 +738,14 @@ class CMSStatementResolver(object): #+cdef
 			return a.cons, ""  # Macro does not exist.
 		# Expand the macro arguments ($1, $2, $3, ...)
 		def expandArg(match):
+#@cy			cdef int64_t nr
 			nr = int(match.group(1), 10)
-			if nr >= 1 and nr <= len(a.arguments):
-				return a.arguments[nr - 1]
-			return macroname if nr == 0 else ""
+			if nr >= 0:
+				if nr >= 1 and nr <= nrArguments:
+					return a.arguments[nr - 1]
+				if nr == 0:
+					return macroname
+			return ""
 		macrodata = self.__macro_arg_re.sub(expandArg, macrodata)
 		# Resolve statements and recursive macro calls
 		self.callStack.append(_StackElem(macroname))
