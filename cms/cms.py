@@ -264,6 +264,8 @@ class CMS(object):
 
 		resolverVariables = {
 			"PROTOCOL"	: lambda r, n: protocol,
+			"PAGEIDENT"	: lambda r, n: pageIdent.getUrl(),
+			"CMS_PAGEIDENT"	: lambda r, n: pageIdent.getUrl(urlBase=self.urlBase),
 			"GROUP"		: lambda r, n: pageIdent.get(0),
 			"PAGE"		: lambda r, n: pageIdent.get(1),
 		}

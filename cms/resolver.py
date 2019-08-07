@@ -55,14 +55,8 @@ class _Anchor(object): #+cdef
 
 	def makeUrl(self, resolver): #@nocy
 #@cy	cdef str makeUrl(self, CMSStatementResolver resolver):
-		#TODO this does not work for sub pages
-		return "%s#%s" % (
-			CMSPageIdent((
-				resolver.expandVariable("GROUP"),
-				resolver.expandVariable("PAGE"))).getUrl(
-				urlBase = resolver.cms.urlBase),
-			self.name)
-
+		return "%s#%s" % (resolver.expandVariable("CMS_PAGEIDENT"),
+				  self.name)
 
 class _ArgParserRet(object):	#@nocy
 	__slots__ = (		#@nocy
