@@ -1,0 +1,5 @@
+<!--- @FORM(content) --->
+
+<form method="POST" enctype="multipart/form-data" action="$CMS_PAGEIDENT">
+	$1
+</form>

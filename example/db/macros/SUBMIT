@@ -1,0 +1,2 @@
+<!--- SUBMIT(buttontext) --->
+<input type="submit" value="$1" />

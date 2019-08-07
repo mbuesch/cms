@@ -1,0 +1,2 @@
+<!--- @LINPUT(type, name, value, (pre-text), (post-text), (checked)) --->
+<label>$4<input type="$1" name="$2" value="$3"$(if $6, checked="checked") />$5</label>
