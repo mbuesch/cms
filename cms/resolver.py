@@ -759,6 +759,7 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef int64_t end
 #@cy		cdef int64_t cons
 #@cy		cdef int64_t dlen
+#@cy		cdef int64_t strip_nl
 #@cy		cdef str stmtName
 #@cy		cdef list ret
 #@cy		cdef _ResolverRet macroRet
