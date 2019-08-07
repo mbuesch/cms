@@ -90,6 +90,7 @@ class CMSStatementResolver(object): #+cdef
 	macro_arg_re = re.compile(r'\$(\d+)', re.DOTALL)
 
 	__genericVars = {
+		"BR"		: "<br />",
 		"DOMAIN"	: lambda self, n: self.cms.domain,
 		"CMS_BASE"	: lambda self, n: self.cms.urlBase,
 		"IMAGES_DIR"	: lambda self, n: self.cms.imagesDir,
@@ -108,7 +109,7 @@ class CMSStatementResolver(object): #+cdef
 		self.cms = cms
 		self.__reset()
 
-	def __reset(self, variables = {}, pageIdent = None):
+	def __reset(self, variables={}, pageIdent=None):
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
 		self.pageIdent = pageIdent
@@ -908,7 +909,7 @@ class CMSStatementResolver(object): #+cdef
 		ret = self.__expandRecStmts(data, "")
 		return ret.data
 
-	def resolve(self, data, variables = {}, pageIdent = None):
+	def resolve(self, data, variables={}, pageIdent=None):
 		if not data:
 			return data
 		self.__reset(variables, pageIdent)
