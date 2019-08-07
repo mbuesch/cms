@@ -26,6 +26,7 @@ from cms.util import * #+cimport
 import re
 import sys
 import importlib.machinery
+import functools
 
 __all__ = [
 	"CMSDatabase",
@@ -38,6 +39,10 @@ class CMSDatabase(object):
 		self.pageBase = fs.mkpath(basePath, "pages")
 		self.macroBase = fs.mkpath(basePath, "macros")
 		self.stringBase = fs.mkpath(basePath, "strings")
+
+	def beginSession(self):
+		# Clear all lru_cache.
+		self.getMacro.cache_clear()
 
 	def __redirect(self, redirectString):
 		raise CMSException301(redirectString)
@@ -89,7 +94,11 @@ class CMSDatabase(object):
 			res.sort(key = lambda e: "%010d_%s" % (e[2], e[1]))
 		return res
 
-	def getMacro(self, macroname, pageIdent = None):
+	# Get the contents of a @MACRO().
+	# This method is cached for this db session.
+	# So one page using one macro multiple times is cheap.
+	@functools.lru_cache(maxsize=2**6)
+	def getMacro(self, macroname, pageIdent=None):
 		data = None
 		macroname = self.validate(macroname)
 		if pageIdent:

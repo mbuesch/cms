@@ -291,18 +291,20 @@ class CMS(object):
 		except UnicodeError as e:
 			raise CMSException(500, "Unicode encode error")
 
-	def __generate(self, path, query, protocol):
+	def __get(self, path, query, protocol):
 		pageIdent = CMSPageIdent.parse(path)
-		if pageIdent.get(0, allowSysNames = True) == "__thumbs":
+		self.db.beginSession()
+		if pageIdent.get(0, allowSysNames=True) == "__thumbs":
 			return self.__getImageThumbnail(pageIdent.get(1), query, protocol)
 		return self.__getHtmlPage(pageIdent, query, protocol)
 
 	def get(self, path, query={}, protocol="http"):
 		query = CMSQuery(query)
-		return self.__generate(path, query, protocol)
+		return self.__get(path, query, protocol)
 
 	def __post(self, path, query, body, bodyType, protocol):
 		pageIdent = CMSPageIdent.parse(path)
+		self.db.beginSession()
 		postHandler = self.db.getPostHandler(pageIdent)
 		if postHandler is None:
 			raise CMSException(405)
@@ -319,7 +321,7 @@ class CMS(object):
 			return (b"Failed to run POST handler." + msg,
 				"text/plain")
 		if ret is None:
-			return self.__generate(path, query, protocol)
+			return self.__get(path, query, protocol)
 		assert isinstance(ret, tuple) and len(ret) == 2, "post() return is not 2-tuple."
 		assert isinstance(ret[0], (bytes, bytearray)), "post()[0] is not bytes."
 		assert isinstance(ret[1], str), "post()[1] is not str."
