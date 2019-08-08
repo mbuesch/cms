@@ -31,6 +31,8 @@ def usage():
 	print("  -i|--images SUBPATH    Path to images. Default: /images")
 	print("  -D|--domain DOMAIN     The domain name. Default: example.com")
 	print("  -C|--cython            Import Cython modules")
+	print("  -P|--profile LEVEL     Enable profiling")
+	print("  -L|--loop LOOPS        Run LOOPS number of loops. For profiling.")
 	print("")
 	print("Actions:")
 	print("  GET <path>             Do a GET request on 'path'")
@@ -44,11 +46,14 @@ def main():
 	opt_images = "/images"
 	opt_domain = "example.com"
 	opt_cython = False
+	opt_profile = 0
+	opt_loop = 1
 
 	try:
 		(opts, args) = getopt.getopt(sys.argv[1:],
-			"hd:w:i:D:C",
-			[ "help", "db=", "www=", "images=", "domain=", "cython", ])
+			"hd:w:i:D:CP:L:",
+			[ "help", "db=", "www=", "images=", "domain=", "cython",
+			  "profile=", "loop=", ])
 	except (getopt.GetoptError) as e:
 		usage()
 		return 1
@@ -66,6 +71,20 @@ def main():
 			opt_domain = v
 		if o in ("-C", "--cython"):
 			opt_cython = True
+		if o in ("-P", "--profile"):
+			try:
+				opt_profile = int(v)
+			except ValueError:
+				print("Invalid -P|--profile value")
+				return 1
+		if o in ("-L", "--loop"):
+			try:
+				opt_loop = int(v)
+				if opt_loop < 1:
+					raise ValueError
+			except ValueError:
+				print("Invalid -L|--loop value")
+				return 1
 	if len(args) >= 1:
 		action = args[0]
 	if len(args) >= 2:
@@ -73,37 +92,57 @@ def main():
 	if not action:
 		print("No action specified")
 		return 1
-	cms = None
+	retval = 0
+	cms = prof = None
 	try:
 		if opt_cython:
 			from cms_cython import CMS, CMSException
+			from cms_cython.profiler import Profiler
 		else:
 			from cms import CMS, CMSException
+			from cms.profiler import Profiler
+
+		if opt_profile >= 1:
+			prof = Profiler()
+			if opt_profile >= 2:
+				prof.start()
 
 		cms = CMS(dbPath=opt_db,
 			  wwwPath=opt_www,
 			  imagesDir=opt_images,
 			  domain=opt_domain)
-		if action.upper() == "GET":
-			data, mime = cms.get(path)
-		elif action.upper() == "POST":
-			data, mime = cms.post(path)
-		else:
-			print("Invalid action")
-			return 1
+
+		if opt_profile == 1:
+			prof.start()
+
+		for _ in range(opt_loop):
+			if action.upper() == "GET":
+				data, mime = cms.get(path)
+			elif action.upper() == "POST":
+				data, mime = cms.post(path)
+			else:
+				print("Invalid action")
+				return 1
 		cms.shutdown()
+
+		if opt_profile >= 1:
+			prof.stop()
+
 	except (CMSException) as e:
 		if cms:
 			data, mime, headers = cms.getErrorPage(e)
 		else:
 			data, mime = "CMSException", "text/html"
+		retval = 1
 	if mime.startswith("text/html"):
 		result = data + b"\n"
 	else:
 		result = data
 	sys.stdout.buffer.write(result)
 	sys.stdout.buffer.flush()
-	return 0
+	if prof:
+		print(prof.getResult(), file=sys.stderr)
+	return retval
 
 if __name__ == "__main__":
 	sys.exit(main())
