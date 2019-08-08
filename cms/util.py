@@ -21,7 +21,7 @@
 
 from cms.exception import *
 
-import cgi
+import html
 import datetime as datetime_mod
 import io
 import os
@@ -92,7 +92,7 @@ def findAny(string, template, idx): #@nocy
 
 def htmlEscape(string): #@nocy
 #cdef str htmlEscape(str string): #@cy
-	return cgi.escape(string, True)
+	return html.escape(string, True)
 
 def stringBool(string, default): #@nocy
 #cdef _Bool stringBool(str string, _Bool default): #@cy
