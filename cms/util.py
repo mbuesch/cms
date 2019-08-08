@@ -109,80 +109,138 @@ def stringBool(string, default): #@nocy
 		return default
 
 class FSHelpers(object): #+cdef
-	# Create a path string from path element strings.
-	def mkpath(self, *path_elements):
+	def __init__(self):
+		self.__pathSep = os.path.sep
+		self.__os_stat = os.stat
+		self.__os_listdir = os.listdir
+		self.__stat_S_ISDIR = stat.S_ISDIR
+
+	def __mkpath(self, path_elements): #@nocy
+#@cy	cdef str __mkpath(self, tuple path_elements):
 		# Do not use os.path.join, because it discards elements, if
 		# one element begins with a separator (= is absolute).
-		return os.path.sep.join(path_elements)
+		return self.__pathSep.join(path_elements)
 
-	def exists(self, *path_elements):
+	# Create a path string from path element strings.
+	def mkpath(self, *path_elements):
+		return self.__mkpath(path_elements)
+
+	def __exists(self, path_elements): #@nocy
+#@cy	cdef _Bool __exists(self, tuple path_elements):
+#@cy		cdef str path
+
 		try:
-			os.stat(self.mkpath(*path_elements).encode("UTF-8", "strict"))
+			path = self.__mkpath(path_elements)
+			self.__os_stat(path.encode("UTF-8", "strict"))
 		except OSError:
 			return False
 		except UnicodeError:
 			raise CMSException(500, "Unicode decode error")
 		return True
 
-	def exists_nonempty(self, *path_elements):
-		if self.exists(*path_elements):
-			return bool(self.read(*path_elements).strip())
+	def exists(self, *path_elements):
+		return self.__exists(path_elements)
+
+	def __exists_nonempty(self, path_elements): #@nocy
+#@cy	cdef _Bool __exists_nonempty(self, tuple path_elements):
+		if self.__exists(path_elements):
+			return bool(self.__read(path_elements).strip())
 		return False
 
-	def read(self, *path_elements):
+	def exists_nonempty(self, *path_elements):
+		return self.__exists_nonempty(path_elements)
+
+	def __read(self, path_elements): #@nocy
+#@cy	cdef str __read(self, tuple path_elements):
+#@cy		cdef str path
+#@cy		cdef bytes data
+
 		try:
-			with open(self.mkpath(*path_elements).encode("UTF-8", "strict"), "rb") as fd:
-				return fd.read().decode("UTF-8", "strict")
+			path = self.__mkpath(path_elements)
+			with open(path.encode("UTF-8", "strict"), "rb") as fd:
+				data = fd.read()
+				return data.decode("UTF-8", "strict")
 		except IOError:
 			return ""
 		except UnicodeError:
 			raise CMSException(500, "Unicode decode error")
 
-	def read_int(self, *path_elements):
-		data = self.read(*path_elements)
+	def read(self, *path_elements):
+		return self.__read(path_elements)
+
+	def __read_int(self, path_elements): #@nocy
+#@cy	cdef object __read_int(self, tuple path_elements):
+#@cy		cdef str data
+
+		data = self.__read(path_elements)
 		try:
-			return int(data.strip(), 10)
+			return int(data.strip())
 		except ValueError:
 			return None
 
-	def mtime(self, *path_elements):
+	def read_int(self, *path_elements):
+		return self.__read_int(path_elements)
+
+	def __mtime(self, path_elements): #@nocy
+#@cy	cdef object __mtime(self, tuple path_elements):
 		try:
-			path = self.mkpath(*path_elements).encode("UTF-8", "strict")
-			return datetime.utcfromtimestamp(os.stat(path).st_mtime)
+			path = self.__mkpath(path_elements).encode("UTF-8", "strict")
+			return datetime.utcfromtimestamp(self.__os_stat(path).st_mtime)
 		except OSError:
 			raise CMSException(404)
 		except UnicodeError:
 			raise CMSException(500, "Unicode decode error")
 
-	def mtime_nofail(self, *path_elements):
+	def mtime(self, *path_elements):
+		return self.__mtime(path_elements)
+
+	def __mtime_nofail(self, path_elements): #@nocy
+#@cy	cdef object __mtime_nofail(self, tuple path_elements):
 		try:
-			return self.mtime(*path_elements)
+			return self.__mtime(path_elements)
 		except CMSException:
 			return datetime.utcnow()
 
-	def subdirList(self, *path_elements):
-		def dirfilter(path, dentry):
-			if dentry.startswith("."):
-				return False # Omit ".", ".." and hidden entries
-			if dentry.startswith("__"):
-				return False # Omit system folders/files.
-			try:
-				p = self.mkpath(path, dentry).encode("UTF-8", "strict")
-				if not stat.S_ISDIR(os.stat(p).st_mode):
-					return False
-			except OSError:
-				return False
-			except UnicodeError:
-				raise CMSException(500, "Unicode decode error")
-			return True
+	def mtime_nofail(self, *path_elements):
+		return self.__mtime_nofail(path_elements)
+
+	def __subdirList(self, path_elements): #@nocy
+#@cy	cdef list __subdirList(self, tuple path_elements):
+#@cy		cdef str path
+#@cy		cdef bytes bdentry
+#@cy		cdef bytes bp
+#@cy		cdef str dentry
+#@cy		cdef list dirListing
+#@cy		cdef list ret
+
 		try:
-			path = self.mkpath(*path_elements)
-			dentries = (dentry.decode("UTF-8", "strict")
-				    for dentry in os.listdir(path.encode("UTF-8", "strict")))
-			return [ dentry for dentry in dentries if dirfilter(path, dentry) ]
+			ret = []
+			path = self.__mkpath(path_elements)
+			dirListing = self.__os_listdir(path.encode("UTF-8", "strict"))
+			S_ISDIR = self.__stat_S_ISDIR
+			stat = self.__os_stat
+			for bdentry in dirListing:
+				dentry = bdentry.decode("UTF-8", "strict")
+				if dentry.startswith("."):
+					continue # Omit ".", ".." and hidden entries
+				if dentry.startswith("__"):
+					continue # Omit system folders/files.
+				try:
+					bp = self.__mkpath((path, dentry)).encode("UTF-8", "strict")
+					if not S_ISDIR(stat(bp).st_mode):
+						continue
+				except OSError:
+					continue
+				except UnicodeError:
+					raise CMSException(500, "Unicode decode error")
+				ret.append(dentry)
+			return ret
 		except OSError:
 			return []
 		except UnicodeError:
 			raise CMSException(500, "Unicode decode error")
+
+	def subdirList(self, *path_elements):
+		return self.__subdirList(path_elements)
 
 fs = FSHelpers() #+cdef-FSHelpers

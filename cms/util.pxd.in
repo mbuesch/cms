@@ -14,5 +14,18 @@ cdef str htmlEscape(str string)
 cdef _Bool stringBool(str string, _Bool default)
 
 cdef class FSHelpers(object):
-	pass
+	cdef str __pathSep
+	cdef object __os_stat
+	cdef object __os_listdir
+	cdef object __stat_S_ISDIR
+
+	cdef str __mkpath(self, tuple path_elements)
+	cdef _Bool __exists(self, tuple path_elements)
+	cdef _Bool __exists_nonempty(self, tuple path_elements)
+	cdef str __read(self, tuple path_elements)
+	cdef object __read_int(self, tuple path_elements)
+	cdef object __mtime(self, tuple path_elements)
+	cdef object __mtime_nofail(self, tuple path_elements)
+	cdef list __subdirList(self, tuple path_elements)
+
 cdef public FSHelpers fs
