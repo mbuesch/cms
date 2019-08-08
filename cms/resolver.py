@@ -739,7 +739,7 @@ class CMSStatementResolver(object): #+cdef
 		# Expand the macro arguments ($1, $2, $3, ...)
 		def expandArg(match):
 #@cy			cdef int64_t nr
-			nr = int(match.group(1), 10)
+			nr = int(match.group(1))
 			if nr >= 0:
 				if nr >= 1 and nr <= nrArguments:
 					return a.arguments[nr - 1]

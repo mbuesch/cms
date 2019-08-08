@@ -88,6 +88,6 @@ class CMSFormFields(object):
 			field = field.lower().strip()
 			if field.startswith("0x"):
 				return int(field[2:], 16)
-			return int(field, 10)
+			return int(field)
 		except ValueError:
 			return default

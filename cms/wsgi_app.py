@@ -43,7 +43,7 @@ def __initCMS(environ):
 				"or cms.wwwBase not set.")
 	debug = stringBool(environ.get("cms.debug", "0"), False)
 	try:
-		maxPostContentLength = int(environ.get("cms.maxPostContentLength", "0"), 10)
+		maxPostContentLength = int(environ.get("cms.maxPostContentLength", "0"))
 	except ValueError as e:
 		maxPostContentLength = 0
 	# Initialize the CMS module
@@ -57,7 +57,7 @@ def __recvBody(environ):
 	global maxPostContentLength
 
 	try:
-		body_len = int(environ.get("CONTENT_LENGTH", "0"), 10)
+		body_len = int(environ.get("CONTENT_LENGTH", "0"))
 	except ValueError as e:
 		body_len = 0
 	body_type = environ.get("CONTENT_TYPE", "text/plain")
