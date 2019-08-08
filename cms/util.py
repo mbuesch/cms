@@ -22,10 +22,13 @@
 from cms.exception import *
 
 import cgi
-import datetime
+import datetime as datetime_mod
 import io
 import os
 import stat
+
+BytesIO = io.BytesIO				#+cdef-public-object
+datetime = datetime_mod.datetime		#+cdef-public-object
 
 __all__ = [
 	"BytesIO",
@@ -40,9 +43,6 @@ __all__ = [
 	"stringBool",
 	"fs",
 ]
-
-BytesIO = io.BytesIO				#+cdef-public-object
-datetime = datetime.datetime			#+cdef-public-object
 
 UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'	#+cdef-public-str
 LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'	#+cdef-public-str
