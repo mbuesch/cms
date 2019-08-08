@@ -96,13 +96,15 @@ def htmlEscape(string): #@nocy
 
 def stringBool(string, default): #@nocy
 #cdef _Bool stringBool(str string, _Bool default): #@cy
+#@cy	cdef str s
+
 	s = string.lower()
 	if s in ("true", "yes", "on", "1"):
 		return True
 	if s in ("false", "no", "off", "0"):
 		return False
 	try:
-		return bool(int(s, 10))
+		return bool(int(s))
 	except ValueError:
 		return default
 
