@@ -775,7 +775,7 @@ class CMSStatementResolver(object): #+cdef
 		i = 0
 		while i < dlen:
 			c = d[i]
-			res = c
+			res = None
 			cons = 1
 			if c == '\\': # Escaped characters
 				# Keep escapes. They are removed later.
@@ -823,10 +823,14 @@ class CMSStatementResolver(object): #+cdef
 				if end > i + 1:
 					res = self.expandVariable(d[i+1:end])
 					cons = end - i
-			ret.append(res)
+			if res is None:
+				ret.append(c)
+				self.charCount += 1
+			else:
+				ret.append(res)
+				self.charCount += len(res)
 			i += cons
-			self.charCount += len(res)
-		if stopchars and i >= dlen and d[-1] not in stopchars:
+		if i >= dlen and stopchars and d[-1] not in stopchars:
 			self.__stmtError("Unterminated statement")
 
 		retObj = resolverRet(i, "".join(ret))
