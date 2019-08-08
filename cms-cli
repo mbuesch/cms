@@ -110,7 +110,8 @@ def main():
 		cms = CMS(dbPath=opt_db,
 			  wwwPath=opt_www,
 			  imagesDir=opt_images,
-			  domain=opt_domain)
+			  domain=opt_domain,
+			  debug=True)
 
 		if opt_profile == 1:
 			prof.start()
