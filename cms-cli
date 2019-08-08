@@ -94,14 +94,14 @@ def main():
 		return 1
 	retval = 0
 	cms = prof = None
-	try:
-		if opt_cython:
-			from cms_cython import CMS, CMSException
-			from cms_cython.profiler import Profiler
-		else:
-			from cms import CMS, CMSException
-			from cms.profiler import Profiler
 
+	if opt_cython:
+		from cms_cython import CMS, CMSException
+		from cms_cython.profiler import Profiler
+	else:
+		from cms import CMS, CMSException
+		from cms.profiler import Profiler
+	try:
 		if opt_profile >= 1:
 			prof = Profiler()
 			if opt_profile >= 2:
