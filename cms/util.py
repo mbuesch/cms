@@ -41,6 +41,9 @@ __all__ = [
 	"findAny",
 	"htmlEscape",
 	"stringBool",
+	"StrCArray",
+	"str2carray",
+	"carray2str",
 	"fs",
 ]
 
@@ -107,6 +110,18 @@ def stringBool(string, default): #@nocy
 		return bool(int(s))
 	except ValueError:
 		return default
+
+class StrCArray(object):				#@nocy
+	__slots__ = ( "_string", )			#@nocy
+
+def str2carray(carray, string, arrayLen):		#@nocy
+	if arrayLen > 0:				#@nocy
+		carray._string = string[:arrayLen-1]	#@nocy
+
+def carray2str(carray, arrayLen):			#@nocy
+	if arrayLen > 0:				#@nocy
+		return carray._string			#@nocy
+	return ""					#@nocy
 
 class FSHelpers(object): #+cdef
 	def __init__(self):

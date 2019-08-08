@@ -13,6 +13,27 @@ cdef _Bool findAny(str string, str template, int64_t idx)
 cdef str htmlEscape(str string)
 cdef _Bool stringBool(str string, _Bool default)
 
+cdef inline void str2carray(Py_UCS4 *carray, str string, Py_ssize_t arrayLen):
+	cdef Py_ssize_t count
+	cdef Py_ssize_t i
+	if arrayLen > 0:
+		count = min(len(string), arrayLen - 1)
+		for i in range(count):
+			carray[i] = string[i]
+		carray[count] = 0
+
+cdef inline str carray2str(const Py_UCS4 *carray, Py_ssize_t arrayLen):
+	cdef str ret = ""
+	cdef Py_ssize_t i
+	cdef Py_UCS4 c
+	if arrayLen > 0:
+		for i in range(arrayLen - 1):
+			c = carray[i]
+			if c == 0:
+				break
+			ret += c
+	return ret
+
 cdef class FSHelpers(object):
 	cdef str __pathSep
 	cdef object __os_stat
