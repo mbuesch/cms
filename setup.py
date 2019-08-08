@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 
-import re
+import os, re
 from distutils.core import setup
 
 import setup_cython
 
+
+def getEnvInt(name, default=0):
+	try:
+		return int(os.getenv(name, "%d" % default))
+	except ValueError:
+		return default
+
+def getEnvBool(name, default=False):
+	return bool(getEnvInt(name, 1 if default else 0))
 
 def pyCythonPatchLine(line):
 	# Patch the import statements
@@ -12,14 +21,21 @@ def pyCythonPatchLine(line):
 	line = re.sub(r'^(\s*c?import cms)(\.)?', r'\1_cython\2', line)
 	return line
 
-setup_cython.parallelBuild = True
+buildCython = getEnvBool("CMS_CYTHON_BUILD", True)
+setup_cython.parallelBuild = getEnvBool("CMS_CYTHON_PARALLEL", True)
+setup_cython.profileEnabled = getEnvBool("CMS_PROFILE")
+setup_cython.debugEnabled = getEnvBool("CMS_DEBUG_BUILD")
 setup_cython.pyCythonPatchLine = pyCythonPatchLine
 
 cmdclass = {}
 
-if setup_cython.cythonBuildPossible():
+if buildCython:
+	buildCython = setup_cython.cythonBuildPossible()
+if buildCython:
 	cmdclass["build_ext"] = setup_cython.CythonBuildExtension
 	setup_cython.registerCythonModules()
+else:
+	print("Skipping build of CYTHON modules.")
 
 ext_modules = setup_cython.ext_modules
 
