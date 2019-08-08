@@ -721,6 +721,7 @@ class CMSStatementResolver(object): #+cdef
 	def __doMacro(self, macroname, d, dOffs): #@nocy
 #@cy	cdef _ResolverRet __doMacro(self, str macroname, str d, int64_t dOffs):
 #@cy		cdef _ArgParserRet a
+#@cy		cdef _ResolverRet mRet
 #@cy		cdef str macrodata
 #@cy		cdef int64_t nrArguments
 
@@ -751,10 +752,13 @@ class CMSStatementResolver(object): #+cdef
 					return macroname
 			return ""
 		macrodata = self.__macro_arg_re.sub(expandArg, macrodata)
+
 		# Resolve statements and recursive macro calls
 		self.callStack.append(_StackElem(macroname))
-		macrodata = self.__resolve(macrodata)
+		mRet = self.__expandRecStmts(macrodata, 0, "")
+		macrodata = mRet.data
 		self.callStack.pop()
+
 		return resolverRet(a.cons, macrodata)
 
 	def __expandRecStmts(self, d, dOffs, stopchars): #@nocy
@@ -908,21 +912,16 @@ class CMSStatementResolver(object): #+cdef
 			offset += len(indexData)
 		return data
 
-	def __resolve(self, data): #@nocy
-#@cy	cdef str __resolve(self, str data):
+	def resolve(self, data, variables={}, pageIdent=None):
 #@cy		cdef _ResolverRet ret
 
-		# Expand recursive statements
-		ret = self.__expandRecStmts(data, 0, "")
-		return ret.data
-
-	def resolve(self, data, variables={}, pageIdent=None):
 		if not data:
 			return data
 		self.__reset(variables, pageIdent)
-		data = self.__resolve(data)
+		# Expand recursive statements
+		ret = self.__expandRecStmts(data, 0, "")
 		# Insert the indices
-		data = self.__processIndices(data)
+		data = self.__processIndices(ret.data)
 		# Remove escapes
 		data = self.unescape(data)
 		return data

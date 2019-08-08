@@ -48,4 +48,3 @@ cdef class CMSStatementResolver(object):
 	cdef _ArgParserRet __parseArguments(self, str d, int64_t dOffs, _Bool strip)
 	cdef _ResolverRet __doMacro(self, str macroname, str d, int64_t dOffs)
 	cdef _ResolverRet __expandRecStmts(self, str d, int64_t dOffs, str stopchars)
-	cdef str __resolve(self, str data)
