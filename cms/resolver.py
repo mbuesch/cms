@@ -33,11 +33,28 @@ __all__ = [
 	"CMSStatementResolver",
 ]
 
-class _StackElem(object): #+cdef
-	# Call stack element
-	def __init__(self, name):
-		self.name = name
-		self.lineno = 1
+MACRO_STACK_SIZE	= 64 #@nocy
+MACRO_STACK_NAME_SIZE	= 32 #@nocy
+
+# Call stack element
+class _StackElem(object):		#@nocy
+	__slots__ = (			#@nocy
+		"name",			#@nocy
+		"lineno",		#@nocy
+	)				#@nocy
+	def __init__(self):		#@nocy
+		self.name = StrCArray()	#@nocy
+
+def stackElem(name, lineno): #@nocy
+#cdef _StackElem stackElem(str name, int64_t lineno): #@cy
+#@cy	cdef _StackElem se
+#@cy	cdef int64_t nlen
+#@cy	cdef int64_t i
+
+	se = _StackElem() #@nocy
+	str2carray(se.name, name, MACRO_STACK_NAME_SIZE)
+	se.lineno = lineno
+	return se
 
 class _IndexRef(object): #+cdef
 	# Index references
@@ -107,18 +124,22 @@ class CMSStatementResolver(object): #+cdef
 		self.variables = variables.copy()
 		self.variables.update(self.__genericVars)
 		self.pageIdent = pageIdent
-		self.callStack = [ _StackElem("content.html") ]
 		self.charCount = 0
 		self.indexRefs = []
 		self.anchors = []
+
+		self.__callStack = [ None ] * MACRO_STACK_SIZE #@nocy
+		self.__callStack[0] = stackElem("content.html", 1)
+		self.__callStackLen = 1
 
 	def __stmtError(self, msg):
 #@cy		cdef _StackElem se
 
 		pfx = ""
 		if self.cms.debug:
-			se = self.callStack[-1]
-			pfx = "%s:%d: " % (se.name, se.lineno)
+			se = self.__callStack[self.__callStackLen - 1]
+			pfx = "%s:%d: " % (carray2str(se.name, MACRO_STACK_NAME_SIZE),
+					   se.lineno)
 		raise CMSException(500, pfx + msg)
 
 	def expandVariable(self, name): #@nocy
@@ -725,7 +746,7 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef str macrodata
 #@cy		cdef int64_t nrArguments
 
-		if len(self.callStack) >= 64:
+		if self.__callStackLen >= MACRO_STACK_SIZE:
 			raise CMSException(500, "Exceed macro call stack depth")
 		a = self.__parseArguments(d, dOffs, True)
 		nrArguments = len(a.arguments)
@@ -754,10 +775,11 @@ class CMSStatementResolver(object): #+cdef
 		macrodata = self.__macro_arg_re.sub(expandArg, macrodata)
 
 		# Resolve statements and recursive macro calls
-		self.callStack.append(_StackElem(macroname))
+		self.__callStack[self.__callStackLen] = stackElem(macroname, 1)
+		self.__callStackLen += 1
 		mRet = self.__expandRecStmts(macrodata, 0, "")
 		macrodata = mRet.data
-		self.callStack.pop()
+		self.__callStackLen -= 1
 
 		return resolverRet(a.cons, macrodata)
 
@@ -773,7 +795,6 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef _ResolverRet macroRet
 #@cy		cdef _ResolverRet handlerRet
 #@cy		cdef _ResolverRet retObj
-#@cy		cdef _StackElem se
 #@cy		cdef Py_UCS4 c
 #@cy		cdef str res
 
@@ -792,8 +813,7 @@ class CMSStatementResolver(object): #+cdef
 					res = d[i:i+2]
 					i += 1
 			elif c == '\n':
-				se = self.callStack[-1]
-				se.lineno += 1
+				self.__callStack[self.__callStackLen - 1].lineno += 1
 			elif c == '<' and d.startswith('<!---', i): # Comment
 				end = d.find('--->', i)
 				if end > i:

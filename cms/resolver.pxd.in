@@ -1,8 +1,12 @@
 from cms.cython_support cimport *
 
-cdef class _StackElem(object):
-	cdef str name
-	cdef int64_t lineno
+cdef enum:
+	MACRO_STACK_SIZE	= 64
+	MACRO_STACK_NAME_SIZE	= 16
+
+cdef struct _StackElem:
+	Py_UCS4 name[MACRO_STACK_NAME_SIZE]
+	int64_t lineno
 
 cdef class _IndexRef(object):
 	cdef int64_t charOffset
@@ -27,10 +31,12 @@ cdef class CMSStatementResolver(object):
 	cdef public object cms
 	cdef public dict variables
 	cdef public object pageIdent
-	cdef public list callStack
 	cdef public uint64_t charCount
 	cdef public list indexRefs
 	cdef public list anchors
+
+	cdef _StackElem __callStack[MACRO_STACK_SIZE]
+	cdef int32_t __callStackLen
 
 	cdef object __macro_arg_re
 	cdef dict __handlers
