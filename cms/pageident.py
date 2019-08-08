@@ -24,7 +24,6 @@ from cms.util import * #+cimport
 
 import re
 import os
-from functools import reduce
 
 __all__ = [
 	"CMSPageIdent",
@@ -196,8 +195,15 @@ class CMSPageIdent(object):
 		       self.__elements[ : len(other.__elements)] == other.__elements
 
 	def __hash__(self):
-		return reduce(lambda x, y: x ^ hash(y),
-			      self.__elements, 0)
+#@cy		cdef Py_ssize_t h
+#@cy		cdef list elements
+#@cy		cdef str element
+
+		h = 0
+		elements = self.__elements
+		for element in elements:
+			h ^= hash(element)
+		return h
 
 	def __eq__(self, other):
 		return (isinstance(other, self.__class__) and
