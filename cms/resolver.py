@@ -46,7 +46,7 @@ class _StackElem(object):		#@nocy
 		self.name = StrCArray()	#@nocy
 
 def stackElem(name, lineno): #@nocy
-#cdef _StackElem stackElem(str name, int64_t lineno): #@cy
+#cdef inline _StackElem stackElem(str name, int64_t lineno): #@cy
 #@cy	cdef _StackElem se
 #@cy	cdef int64_t nlen
 #@cy	cdef int64_t i
@@ -88,8 +88,9 @@ class _ResolverRet(object):	#@nocy
 	)			#@nocy
 
 def resolverRet(cons, data): #@nocy
-#cdef _ResolverRet resolverRet(int64_t cons, str data): #@cy
+#cdef inline _ResolverRet resolverRet(int64_t cons, str data): #@cy
 #@cy	cdef _ResolverRet r
+
 	r = _ResolverRet()
 	r.cons = cons
 	r.data = data
