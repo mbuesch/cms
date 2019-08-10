@@ -2,11 +2,11 @@ from cms.cython_support cimport *
 
 cdef enum:
 	MACRO_STACK_SIZE	= 64
-	MACRO_STACK_NAME_SIZE	= 16
+	MACRO_STACK_NAME_SIZE	= 32
 
 cdef struct _StackElem:
-	Py_UCS4 name[MACRO_STACK_NAME_SIZE]
 	int64_t lineno
+	Py_UCS4 name[MACRO_STACK_NAME_SIZE]
 
 cdef class _IndexRef(object):
 	cdef int64_t charOffset
@@ -36,9 +36,9 @@ cdef class CMSStatementResolver(object):
 	cdef public list anchors
 
 	cdef _StackElem __callStack[MACRO_STACK_SIZE]
-	cdef int32_t __callStackLen
+	cdef uint16_t __callStackLen
+	cdef list __macroArgs
 
-	cdef object __macro_arg_re
 	cdef dict __handlers
 	cdef str __escapedChars
 	cdef str VARNAME_CHARS

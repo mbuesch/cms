@@ -45,15 +45,13 @@ class _StackElem(object):		#@nocy
 	def __init__(self):		#@nocy
 		self.name = StrCArray()	#@nocy
 
-def stackElem(name, lineno): #@nocy
-#cdef inline _StackElem stackElem(str name, int64_t lineno): #@cy
+def stackElem(lineno, name): #@nocy
+#cdef inline _StackElem stackElem(int64_t lineno, str name): #@cy
 #@cy	cdef _StackElem se
-#@cy	cdef int64_t nlen
-#@cy	cdef int64_t i
 
 	se = _StackElem() #@nocy
-	str2carray(se.name, name, MACRO_STACK_NAME_SIZE)
 	se.lineno = lineno
+	str2carray(se.name, name, MACRO_STACK_NAME_SIZE)
 	return se
 
 class _IndexRef(object): #+cdef
@@ -97,10 +95,6 @@ def resolverRet(cons, data): #@nocy
 	return r
 
 class CMSStatementResolver(object): #+cdef
-
-	# Macro argument expansion: $1, $2, $3...
-	macro_arg_re = re.compile(r'\$(\d+)', re.DOTALL)
-
 	__genericVars = {
 		"BR"		: "<br />",
 		"DOMAIN"	: lambda self, n: self.cms.domain,
@@ -112,7 +106,6 @@ class CMSStatementResolver(object): #+cdef
 	}
 
 	def __init__(self, cms):
-		self.__macro_arg_re = self.macro_arg_re
 		self.__handlers = self._handlers
 		self.__escapedChars = self._escapedChars
 		# Valid characters for variable names (without the leading $)
@@ -130,7 +123,8 @@ class CMSStatementResolver(object): #+cdef
 		self.anchors = []
 
 		self.__callStack = [ None ] * MACRO_STACK_SIZE #@nocy
-		self.__callStack[0] = stackElem("content.html", 1)
+		self.__macroArgs = [ None ] * MACRO_STACK_SIZE
+		self.__callStack[0] = stackElem(1, "content.html")
 		self.__callStackLen = 1
 
 	def __stmtError(self, msg):
@@ -745,45 +739,41 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef _ArgParserRet a
 #@cy		cdef _ResolverRet mRet
 #@cy		cdef str macrodata
-#@cy		cdef int64_t nrArguments
+#@cy		cdef uint16_t callStackIdx
+
+		if len(macroname) > MACRO_STACK_NAME_SIZE - 1:
+			raise CMSException(500, "Macro name '%s' is too long." % macroname)
 
 		if self.__callStackLen >= MACRO_STACK_SIZE:
 			raise CMSException(500, "Exceed macro call stack depth")
 		a = self.__parseArguments(d, dOffs, True)
-		nrArguments = len(a.arguments)
+
 		# Fetch the macro data from the database
-		macrodata = None
 		try:
 			macrodata = self.cms.db.getMacro(macroname[1:],
 							 self.pageIdent)
 		except (CMSException) as e:
+			macrodata = ""
 			if e.httpStatusCode == 404:
+				# Name validation failed.
 				raise CMSException(500,
 					"Macro name '%s' contains "
 					"invalid characters" % macroname)
 		if not macrodata:
 			return a.cons, ""  # Macro does not exist.
-		# Expand the macro arguments ($1, $2, $3, ...)
-		def expandArg(match):
-#@cy			cdef int64_t nr
-			nr = int(match.group(1))
-			if nr >= 0:
-				if nr >= 1 and nr <= nrArguments:
-					return a.arguments[nr - 1]
-				if nr == 0:
-					return macroname
-			return ""
-		macrodata = self.__macro_arg_re.sub(expandArg, macrodata)
 
 		# Resolve statements and recursive macro calls
-		self.__callStack[self.__callStackLen] = stackElem(macroname, 1)
-		self.__callStackLen += 1
+		callStackIdx = self.__callStackLen
+		self.__callStack[callStackIdx] = stackElem(1, macroname)
+		self.__macroArgs[callStackIdx] = a.arguments
+		self.__callStackLen = callStackIdx + 1
 		mRet = self.__expandRecStmts(macrodata, 0, "")
 		macrodata = mRet.data
 		self.__callStackLen -= 1
 
 		return resolverRet(a.cons, macrodata)
 
+	# Recursively expand statements and macro calls.
 	def __expandRecStmts(self, d, dOffs, stopchars): #@nocy
 #@cy	cdef _ResolverRet __expandRecStmts(self, str d, int64_t dOffs, str stopchars):
 #@cy		cdef int64_t i
@@ -798,8 +788,15 @@ class CMSStatementResolver(object): #+cdef
 #@cy		cdef _ResolverRet retObj
 #@cy		cdef Py_UCS4 c
 #@cy		cdef str res
+#@cy		cdef uint16_t callStackIdx
+#@cy		cdef uint16_t argIdx
+#@cy		cdef list macroArgs
+#@cy		cdef str macroArg
+#@cy		cdef str macroName
 
-		# Recursively expand statements and macro calls
+		callStackIdx = self.__callStackLen - 1
+		macroArgs = self.__macroArgs[callStackIdx]
+
 		ret = []
 		dEnd = len(d)
 		i = dOffs
@@ -807,15 +804,17 @@ class CMSStatementResolver(object): #+cdef
 			c = d[i]
 			res = None
 			cons = 1
-			if c == '\\': # Escaped characters
+			if c == '\\':
+				# Escaped characters
 				# Keep escapes. They are removed later.
 				if i + 1 < dEnd and\
 				   d[i + 1] in self.__escapedChars:
 					res = d[i:i+2]
 					i += 1
 			elif c == '\n':
-				self.__callStack[self.__callStackLen - 1].lineno += 1
-			elif c == '<' and d.startswith('<!---', i): # Comment
+				self.__callStack[callStackIdx].lineno += 1
+			elif c == '<' and d.startswith('<!---', i):
+				# Comment
 				end = d.find('--->', i)
 				if end > i:
 					strip_nl = 0
@@ -825,16 +824,34 @@ class CMSStatementResolver(object): #+cdef
 					   (end + 4 < dEnd and d[end + 4] == '\n'):
 						strip_nl = 1
 					cons, res = end - i + 4 + strip_nl, ""
-			elif c in stopchars: # Stop character
+			elif c in stopchars:
+				# Stop character
 				i += 1
 				break
-			elif c == '@': # Macro call
+			elif c == '@':
+				# Macro call
 				end = d.find('(', i)
 				if end > i:
 					macroRet = self.__doMacro(d[i:end], d, end+1)
 					cons, res = macroRet.cons, macroRet.data
 					i = end + 1
-			elif c == '$' and i + 1 < dEnd and d[i + 1] == '(': # Statement
+			elif (c == '$' and
+			      i + 1 < dEnd and d[i + 1] in "0123456789"):
+				# Macro argument.
+				end = findNot(d, "0123456789", i + 1)
+				if macroArgs is not None and end > i + 1:
+					argIdx = int(d[i+1:end]) # this int conversion can't fail.
+					if argIdx == 0:
+						macroName = carray2str(self.__callStack[callStackIdx].name,
+								       MACRO_STACK_NAME_SIZE)
+						cons, res = end - i, macroName
+					elif argIdx > 0 and argIdx <= len(macroArgs):
+						macroArg = macroArgs[argIdx - 1] #+suffix-u
+						cons, res = end - i, macroArg
+					else:
+						cons, res = end - i, ""
+			elif c == '$' and i + 1 < dEnd and d[i + 1] == '(':
+				# Statement
 				end = findAny(d, ' )', i)
 				if end > i:
 					stmtName = d[i:end]
@@ -845,7 +862,8 @@ class CMSStatementResolver(object): #+cdef
 						h = lambda _a, _b, _c: resolverRet(cons, res) # nop
 				handlerRet = h(self, d, i)
 				cons, res = handlerRet.cons, handlerRet.data
-			elif c == '$': # Variable
+			elif c == '$':
+				# Variable
 				end = findNot(d, self.VARNAME_CHARS, i + 1)
 				if end > i + 1:
 					res = self.expandVariable(d[i+1:end])
