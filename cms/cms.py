@@ -103,7 +103,7 @@ class CMS(object):
 """
 		return footer
 
-	def __genNavElem(self, body, basePageIdent, activePageIdent, indent = 0):
+	def _genNavElem(self, body, basePageIdent, activePageIdent, indent=0):
 		if self.db.getNavStop(basePageIdent):
 			return
 		subPages = self.db.getSubPages(basePageIdent)
@@ -112,37 +112,38 @@ class CMS(object):
 		tabs = '\t' + '\t' * indent
 		if indent > 0:
 			body.append('%s<div class="navelems">' % tabs)
-		for pageElement in subPages:
-			pagename, pagelabel, pageprio = pageElement
-			if pagelabel:
-				body.append('%s\t<div class="%s"> '
-					    '<!-- %d -->' % (
-					    tabs,
-					    "navelem" if indent > 0 else "navgroup",
-					    pageprio))
-				if indent <= 0:
-					body.append('%s\t\t<div class="navhead">' %\
-						    tabs)
-				subPageIdent = CMSPageIdent(basePageIdent + [pagename])
-				isActive = activePageIdent.startswith(subPageIdent)
-				if isActive:
-					body.append('%s\t\t<div class="navactive">' %\
-						    tabs)
-				body.append('%s\t\t<a href="%s">%s</a>' %\
-					    (tabs,
-					     subPageIdent.getUrl(urlBase = self.urlBase),
-					     pagelabel))
-				if isActive:
-					body.append('%s\t\t</div> '
-						    '<!-- class="navactive" -->' %\
-						    tabs)
-				if indent <= 0:
-					body.append('%s\t\t</div>' % tabs)
+		for pagename, pagelabel, pageprio in subPages:
+			if not pagelabel:
+				continue
+			body.append('%s\t<div class="%s"> '
+				    '<!-- %d -->' % (
+				    tabs,
+				    "navelem" if indent > 0 else "navgroup",
+				    pageprio))
+			if indent <= 0:
+				body.append('%s\t\t<div class="navhead">' %\
+					    tabs)
+			subPageIdent = CMSPageIdent(basePageIdent + [pagename])
+			isActive = (activePageIdent is not None and
+				    activePageIdent.startswith(subPageIdent))
+			if isActive:
+				body.append('%s\t\t<div class="navactive">' %\
+					    tabs)
+			body.append('%s\t\t<a href="%s">%s</a>' %\
+				    (tabs,
+				     subPageIdent.getUrl(urlBase = self.urlBase),
+				     pagelabel))
+			if isActive:
+				body.append('%s\t\t</div> '
+					    '<!-- class="navactive" -->' %\
+					    tabs)
+			if indent <= 0:
+				body.append('%s\t\t</div>' % tabs)
 
-				self.__genNavElem(body, subPageIdent,
-						  activePageIdent, indent + 2)
+			self._genNavElem(body, subPageIdent,
+					 activePageIdent, indent + 2)
 
-				body.append('%s\t</div>' % tabs)
+			body.append('%s\t</div>' % tabs)
 		if indent > 0:
 			body.append('%s</div>' % tabs)
 
@@ -174,7 +175,7 @@ class CMS(object):
 		if rootActive:
 			body.append('\t\t</div> <!-- class="navactive" -->')
 		body.append('\t\t</div>')
-		self.__genNavElem(body, self.__rootPageIdent, pageIdent)
+		self._genNavElem(body, self.__rootPageIdent, pageIdent)
 		body.append('\t</div>')
 		body.append('</div>\n')
 

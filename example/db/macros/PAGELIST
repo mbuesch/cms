@@ -1,8 +1,8 @@
-<!--- @PAGELIST((group), (title)) --->
+<!--- @PAGELIST((pageident), (title)) --->
 
 <!-- Begin: Automatic page listing -->
 <div class="page-listing">
 	<h2>$(if $2,$2,$TITLE)</h2>
-	$(pagelist $(if $1,$1,$GROUP))
+$(pagelist $(if $1,$1,$PAGEIDENT))
 </div>
 <!-- End: Automatic page listing -->

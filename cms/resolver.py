@@ -484,8 +484,8 @@ class CMSStatementResolver(object): #+cdef
 		return resolverRet(cons, '<a id="%s" href="%s">%s</a>' %\
 					 (name, anchor.makeUrl(self), text))
 
-	# Statement: $(pagelist BASEPAGE, ...)
-	# Returns an <ul>-list of all sub-page names in the page.
+	# Statement: $(pagelist BASEPAGE)
+	# Returns the navigation elements of all sub-page names in the page.
 	def __stmt_pagelist(self, d, dOffs):
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
@@ -493,20 +493,15 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
+		if len(args) < 1:
+			self.__stmtError("PAGELIST: no base page argument")
 		try:
-			basePageIdent = CMSPageIdent(args)
-			subPages = self.cms.db.getSubPages(basePageIdent)
+			basePageIdent = CMSPageIdent.parse(args[0])
 		except CMSException as e:
 			self.__stmtError("PAGELIST: invalid base page name")
-		html = [ '<ul>\n' ]
-		for pagename, navlabel, prio in subPages:
-			pageIdent = CMSPageIdent(basePageIdent + [pagename])
-			pagetitle = self.cms.db.getPageTitle(pageIdent)
-			html.append('\t<li><a href="%s">%s</a></li>\n' %\
-				    (pageIdent.getUrl(urlBase = self.cms.urlBase),
-				     pagetitle))
-		html.append('</ul>')
-		return resolverRet(cons, ''.join(html))
+		html = []
+		self.cms._genNavElem(html, basePageIdent, None, 1)
+		return resolverRet(cons, '\n'.join(html))
 
 	# Statement: $(random)
 	# Statement: $(random BEGIN)

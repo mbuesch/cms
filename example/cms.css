@@ -1,3 +1,7 @@
+/******************************************************************************/
+/* BASE */
+/******************************************************************************/
+
 html {
 	background: #202020;
 }
@@ -51,6 +55,10 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	text-decoration: underline;
 }
 
+/******************************************************************************/
+/* TITLE bar */
+/******************************************************************************/
+
 .titlebar {
 	display: block;
 	padding: 50px 164px 15px 100px;
@@ -71,6 +79,10 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	text-align: center;
 	vertical-align: bottom;
 }
+
+/******************************************************************************/
+/* NAVIGATION bar/groups */
+/******************************************************************************/
 
 .navbar {
 	display: block;
@@ -136,6 +148,10 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 .navbar .navgroups .navgroup:hover .navhead a {
 	color: #F8F8F8;
 }
+
+/******************************************************************************/
+/* NAVIGATION elements */
+/******************************************************************************/
 
 .navbar .navgroups .navgroup .navelems {
 	display: none;
@@ -227,6 +243,48 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	background: #5050A0;
 }
 
+/******************************************************************************/
+/* PAGE LISTING */
+/******************************************************************************/
+
+.page-listing .navelems {
+	background: #ebebff;
+	padding: 3px 5px;
+	margin: 0px;
+	font-size: 11pt;
+
+	border-radius: 15px;
+	border: solid #cbcbff;
+	border-width: 1px;
+
+	box-shadow: 0px 0px 25px rgba(0, 0, 0, 0.25);
+	list-style-type: none;
+}
+
+.page-listing .navelems .navelem {
+	padding: 7px 0px;
+	margin: 2px 0px 2px 0px;
+}
+
+.page-listing .navelems .navelem a {
+	padding: 7px 30px;
+	color: #000000;
+	overflow: visible;
+	white-space: nowrap;
+	margin: 2px 0px 2px 0px;
+
+	border-radius: 10px;
+}
+
+.page-listing .navelems .navelem a:hover {
+	color: #FFFFFF;
+	background: #5050A0;
+}
+
+/******************************************************************************/
+/* MAIN content */
+/******************************************************************************/
+
 .main {
 	border: none;
 	margin-top: 120px;
@@ -278,6 +336,10 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	margin-bottom: 40px;
 }
 
+/******************************************************************************/
+/* MISC */
+/******************************************************************************/
+
 .footer {
 	font-size: x-small;
 	margin-top: 20px;
@@ -310,6 +372,10 @@ pre {
 	margin: 0;
 	display: inline-block;
 }
+
+/******************************************************************************/
+/* PRINT media */
+/******************************************************************************/
 
 @media print {
 	html {
