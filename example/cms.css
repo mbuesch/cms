@@ -386,7 +386,73 @@ pre {
 	font-size: xx-small;
 }
 
+/******************************************************************************/
+/* MEDIA: Small screen */
+/******************************************************************************/
 
+@media screen and (max-width: 1024px) {
+	body {
+		width: 100%;
+		font-size: 1.25rem;
+	}
+
+	.titlebar {
+		padding: 25px;
+	}
+
+	.navbar {
+		float: left;
+	}
+
+	.navbar .navgroups {
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+
+		width: auto;
+		margin: 10px 75px 25px 25px;
+		padding: 5px;
+	}
+
+	.navbar .navgroups .navgroup:hover {
+		border-radius: 15px;
+	}
+
+	.navbar .navgroups .navgroup:hover .navelems {
+		display: none;
+	}
+
+	.navbar .navgroups .navhome a {
+		padding: 20px;
+		margin: 0px;
+	}
+
+	.navbar .navgroups .navgroup .navhead a {
+		font-size: 1.75rem;
+		padding: 20px;
+	}
+
+	.page-listing .navelems .navelem {
+		padding: 20px;
+	}
+
+	.page-listing .navelems .navelem a {
+		font-size: 1.75rem;
+		padding: 20px;
+	}
+
+	.main {
+		margin: 0px 25px 0px 25px;
+		padding-bottom: 25px;
+	}
+
+	.ssl {
+		display: none;
+	}
+
+	.checker {
+		display: none;
+	}
 }
 
 /******************************************************************************/
