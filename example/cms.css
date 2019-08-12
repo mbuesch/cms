@@ -60,24 +60,28 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 /******************************************************************************/
 
 .titlebar {
-	display: block;
+	display: flex;
+	flex-direction: row;
+
 	padding: 50px 164px 15px 100px;
 }
 
 .titlebar .logo {
-	display: block;
 	border: none;
 	float: left;
 }
 
 .titlebar .title {
-	display: block;
-	height: 64px;
-	line-height: 64px;
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+
+	width: 100%;
+	margin: 0px 20px 0px 20px;
+
 	font-size: 21pt;
 	font-weight: bold;
-	text-align: center;
-	vertical-align: bottom;
 }
 
 /******************************************************************************/
@@ -85,13 +89,17 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 /******************************************************************************/
 
 .navbar {
-	display: block;
+	display: flex;
+	flex-direction: row;
+
 	font-size: 13pt;
 	text-align: left;
 }
 
 .navbar .navgroups {
-	position: absolute;
+	display: flex;
+	flex-direction: row;
+	z-index: 200;
 
 	background: #FAFAFA;
 	background-image: url(images/background_hatching.png);
@@ -158,10 +166,9 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	background: #ebebff;
 	float: none;
 	position: absolute;
-	z-index: 200;
+	z-index: 210;
 	padding: 3px 5px;
 	margin: 0px;
-	top: 100%;
 	font-size: 11pt;
 
 	border-top-right-radius: 15px;
@@ -247,7 +254,12 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 /* PAGE LISTING */
 /******************************************************************************/
 
+.before-page-listing {
+}
+
 .page-listing .navelems {
+	float: left;
+
 	background: #ebebff;
 	padding: 3px 5px;
 	margin: 0px;
@@ -281,15 +293,17 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	background: #5050A0;
 }
 
+.after-page-listing {
+	clear: left;
+}
+
 /******************************************************************************/
 /* MAIN content */
 /******************************************************************************/
 
 .main {
 	border: none;
-	margin-top: 120px;
-	margin-left: 100px;
-	margin-right: 100px;
+	margin: 60px 100px 0px 100px;
 	padding-bottom: 75px;
 }
 
@@ -300,7 +314,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .main img.float {
 	float: left;
-	margin-left: 0;
+	margin-left: 0px;
 	margin-right: 30px;
 	margin-bottom: 15px;
 }
