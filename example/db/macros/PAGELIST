@@ -1,8 +1,10 @@
 <!--- @PAGELIST((pageident), (title)) --->
 
 <!-- Begin: Automatic page listing -->
+<div class="before-page-listing"></div>
 <div class="page-listing">
 	<h2>$(if $2,$2,$TITLE)</h2>
 $(pagelist $(if $1,$1,$PAGEIDENT))
 </div>
+<div class="after-page-listing"></div>
 <!-- End: Automatic page listing -->
