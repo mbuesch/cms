@@ -1,2 +1,2 @@
-<!--- @INPUT(type, name, value, (checked)) --->
-<input type="$1" name="$2" value="$3"$(if $4, checked="checked") />
+<!--- @INPUT(type, name, value, (checked), (extra_attributes)) --->
+<input type="$1" name="$2" value="$3"$(if $4, checked="checked")$(if $5, $5) />
