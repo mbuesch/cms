@@ -36,9 +36,9 @@ class CMSFormFields(object):
 		"__fields",
 	)
 
-	defaultCharset		= LOWERCASE + UPPERCASE + NUMBERS + "-_. "
-	defaultCharsetBool	= LOWERCASE + UPPERCASE + NUMBERS + " "
-	defaultCharsetInt	= NUMBERS + " xXabcdefABCDEF-"
+	defaultCharset		= LOWERCASE + UPPERCASE + NUMBERS + "-_. \t"
+	defaultCharsetBool	= LOWERCASE + UPPERCASE + NUMBERS + " \t"
+	defaultCharsetInt	= NUMBERS + "xXabcdefABCDEF- \t"
 
 	def __init__(self, body, bodyType):
 		try:
