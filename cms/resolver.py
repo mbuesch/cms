@@ -350,7 +350,7 @@ class CMSStatementResolver(object): #+cdef
 
 	# Statement:  $(contains HAYSTACK, NEEDLE)
 	# Statement:  $(contains HAYSTACK, NEEDLE, SEPARATOR)
-	# Returns a non-empty string, is HAYSTACK contains the stripped NEEDLE.
+	# Returns NEEDLE, if HAYSTACK contains the stripped NEEDLE.
 	# HAYSTACK is a list separated by SEPARATOR.
 	# SEPARATOR defaults to whitespace.
 	def __stmt_contains(self, d, dOffs):
@@ -362,9 +362,9 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) not in (2, 3):
 			self.__stmtError("CONTAINS: invalid args")
-		haystack, needle, sep = args[0], args[1].strip(), args[2].strip() if len(args) == 3 else ""
+		haystack, needle, sep = args[0], args[1].strip(), args[2] if len(args) == 3 else ""
 		tokens = haystack.split(sep) if sep else haystack.split()
-		return resolverRet(cons, "1" if needle in tokens else "")
+		return resolverRet(cons, needle if needle.strip() in tokens else "")
 
 	# Statement:  $(substr STRING, START)
 	# Statement:  $(substr STRING, START, END)
