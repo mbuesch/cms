@@ -2,7 +2,7 @@
 #
 #   cms.py - simple WSGI/Python based CMS script
 #
-#   Copyright (C) 2011-2019 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2020 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -336,7 +336,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
-		if len(args) not in {2, 3}:
+		if len(args) not in (2, 3):
 			self.__stmtError("ITEM: invalid args")
 		string, n, sep = args[0], args[1], args[2].strip() if len(args) == 3 else ""
 		tokens = string.split(sep) if sep else string.split()
@@ -348,6 +348,24 @@ class CMSStatementResolver(object): #+cdef
 			token = ""
 		return resolverRet(cons, token)
 
+	# Statement:  $(contains HAYSTACK, NEEDLE)
+	# Statement:  $(contains HAYSTACK, NEEDLE, SEPARATOR)
+	# Returns a non-empty string, is HAYSTACK contains the stripped NEEDLE.
+	# HAYSTACK is a list separated by SEPARATOR.
+	# SEPARATOR defaults to whitespace.
+	def __stmt_contains(self, d, dOffs):
+#@cy		cdef _ArgParserRet a
+#@cy		cdef int64_t cons
+#@cy		cdef list args
+
+		a = self.__parseArguments(d, dOffs, False)
+		cons, args = a.cons, a.arguments
+		if len(args) not in (2, 3):
+			self.__stmtError("CONTAINS: invalid args")
+		haystack, needle, sep = args[0], args[1].strip(), args[2].strip() if len(args) == 3 else ""
+		tokens = haystack.split(sep) if sep else haystack.split()
+		return resolverRet(cons, "1" if needle in tokens else "")
+
 	# Statement:  $(substr STRING, START)
 	# Statement:  $(substr STRING, START, END)
 	# Returns a sub-string of STRING.
@@ -358,7 +376,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
-		if len(args) not in {2, 3}:
+		if len(args) not in (2, 3):
 			self.__stmtError("SUBSTR: invalid args")
 		string, start, end = args[0], args[1], args[2] if len(args) == 3 else ""
 		try:
@@ -424,7 +442,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
-		if len(args) not in {1, 2, 3}:
+		if len(args) not in (1, 2, 3):
 			self.__stmtError("FILE_MDATET: invalid args")
 		relpath, enoent, fmtstr =\
 			args[0],\
@@ -516,7 +534,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, True)
 		cons, args = a.cons, a.arguments
-		if len(args) not in {0, 1, 2}:
+		if len(args) not in (0, 1, 2):
 			self.__stmtError("RANDOM: invalid args")
 		begin, end = 0, 65535
 		try:
@@ -639,7 +657,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
-		if len(args) not in {1, 2}:
+		if len(args) not in (1, 2):
 			self.__stmtError("ROUND: invalid args")
 		try:
 			a = float(args[0])
@@ -701,6 +719,7 @@ class CMSStatementResolver(object): #+cdef
 		# string processing
 		"$(strip"	: __stmt_strip,
 		"$(item"	: __stmt_item,
+		"$(contains"	: __stmt_contains,
 		"$(substr"	: __stmt_substr,
 		"$(sanitize"	: __stmt_sanitize,
 
