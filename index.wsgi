@@ -1,4 +1,4 @@
-#!/usr/bin/python 3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #   CMS WSGI wrapper
