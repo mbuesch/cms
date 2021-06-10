@@ -3,7 +3,7 @@
 #
 #   CMS WSGI wrapper
 #
-#   Copyright (C) 2011-2019 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2021 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 try:
 	from cms_cython.wsgi_app import *
 except ImportError as e:
+	import sys
+	print("Failed to import cms_cython:", e, file=sys.stderr)
 	try:
 		from cms.wsgi_app import *
 	except ImportError as e:

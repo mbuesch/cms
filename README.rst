@@ -1,7 +1,7 @@
 cms.py - simple WSGI/Python based CMS script
 ============================================
 
-Copyright (c) 2011-2019 Michael Buesch <m@bues.ch>
+Copyright (c) 2011-2021 Michael Buesch <m@bues.ch>
 
 
 Installing
@@ -27,6 +27,7 @@ the following Debian based example:
 
     # Adjust "user" and "group" to your system.
     WSGIDaemonProcess wsgi processes=10 threads=1 display-name=apache-wsgi user=www-data group=www-data python-path=/var/cms
+    WSGIApplicationGroup %{GLOBAL}
     WSGIPythonOptimize 1
     # /cms is the base URL path to the CMS.
     # /var/cms is where index.wsgi and the db directory live.
