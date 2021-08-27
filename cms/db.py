@@ -75,6 +75,10 @@ class CMSDatabase(object):
 		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		return self.__getPageTitle(path)
 
+	def getPageStamp(self, pageIdent):
+		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
+		return fs.mtime_nofail(path, "content.html")
+
 	# Get a list of sub-pages.
 	# Returns list of (pagename, navlabel, prio)
 	def getSubPages(self, pageIdent, sortByPrio = True):
