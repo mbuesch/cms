@@ -2,7 +2,7 @@
 #
 #   cms.py - simple WSGI/Python based CMS script
 #
-#   Copyright (C) 2011-2020 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2021 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -560,8 +560,6 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("RANDITEM: too few args")
 		return resolverRet(cons, random.choice(args))
 
-	__validDomainChars = LOWERCASE + UPPERCASE + NUMBERS + "."
-
 	def __do_arith(self, oper, args): #@nocy
 #@cy	cdef str __do_arith(self, object oper, list args):
 #@cy		cdef float res
@@ -676,33 +674,6 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("ROUND: invalid value")
 		return resolverRet(cons, res)
 
-	# Statement: $(whois DOMAIN)
-	# Executes whois and returns the text.
-	def __stmt_whois(self, d, dOffs):
-#@cy		cdef _ArgParserRet a
-#@cy		cdef int64_t cons
-#@cy		cdef list args
-
-		a = self.__parseArguments(d, dOffs, False)
-		cons, args = a.cons, a.arguments
-		if len(args) != 1:
-			self.__stmtError("WHOIS: invalid args")
-		domain = args[0]
-		if [ c for c in domain if c not in self.__validDomainChars ]:
-			self.__stmtError("WHOIS: invalid domain")
-		try:
-			import subprocess
-			whois = subprocess.Popen([ "whois", domain ],
-						 shell = False,
-						 stdout = subprocess.PIPE)
-			out, err = whois.communicate()
-			out = out.decode("UTF-8", "strict")
-		except UnicodeError as e:
-			self.__stmtError("WHOIS: unicode error")
-		except (OSError, ValueError) as e:
-			self.__stmtError("WHOIS: execution error")
-		return resolverRet(cons, out)
-
 	# statement handlers
 	_handlers = {
 		# conditional / string compare / boolean
@@ -743,9 +714,6 @@ class CMSStatementResolver(object): #+cdef
 		"$(div"		: __stmt_div,
 		"$(mod"		: __stmt_mod,
 		"$(round"	: __stmt_round,
-
-		# external programs
-		"$(whois"	: __stmt_whois,
 	}
 
 	def __doMacro(self, macroname, d, dOffs): #@nocy
