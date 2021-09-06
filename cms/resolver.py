@@ -387,9 +387,9 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) not in (2, 3):
 			self.__stmtError("CONTAINS: invalid args")
-		haystack, needle, sep = args[0], args[1].strip(), args[2] if len(args) == 3 else ""
+		haystack, needle, sep = args[0], args[1], args[2] if len(args) == 3 else ""
 		tokens = haystack.split(sep) if sep else haystack.split()
-		return resolverRet(cons, needle if needle.strip() in tokens else "")
+		return resolverRet(cons, needle if needle in tokens else "")
 
 	# Statement:  $(substr STRING, START)
 	# Statement:  $(substr STRING, START, END)
@@ -425,6 +425,8 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
+		if len(args) < 1:
+			self.__stmtError("SANITIZE: invalid args")
 		string = "_".join(args)
 		validChars = LOWERCASE + NUMBERS
 		string = string.lower()
