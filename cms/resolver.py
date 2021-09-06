@@ -387,7 +387,7 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		if len(args) not in (2, 3):
 			self.__stmtError("CONTAINS: invalid args")
-		haystack, needle, sep = args[0], args[1], args[2] if len(args) == 3 else ""
+		haystack, needle, sep = args[0], args[1].strip(), args[2] if len(args) == 3 else ""
 		tokens = haystack.split(sep) if sep else haystack.split()
 		return resolverRet(cons, needle if needle in tokens else "")
 
@@ -513,12 +513,13 @@ class CMSStatementResolver(object): #+cdef
 		name, text = args[0:2]
 		indent, noIndex = -1, False
 		if len(args) >= 3:
-			indent = args[2].strip()
-			try:
-				indent = int(indent) if indent else -1
-			except ValueError:
-				self.__stmtError("ANCHOR: indent level "
-					"is not an integer")
+			indentStr = args[2].strip()
+			if indentStr:
+				try:
+					indent = int(indentStr)
+				except ValueError:
+					self.__stmtError("ANCHOR: indent level "
+							 "is not an integer")
 		if len(args) >= 4:
 			noIndex = bool(args[3].strip())
 		name, text = name.strip(), text.strip()
@@ -696,6 +697,7 @@ class CMSStatementResolver(object): #+cdef
 					n = int(args[1])
 				except ValueError as e:
 					n = 0
+				n = max(min(n, 64), 0)
 				res = ("%." + str(n) + "f") % int(round(a, n))
 		except (ValueError, TypeError) as e:
 			self.__stmtError("ROUND: invalid value")
