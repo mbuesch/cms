@@ -247,6 +247,8 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, True)
 		cons, args = a.cons, a.arguments
+		if len(args) < 2:
+			self.__stmtError("EQ/NE: invalid args")
 		result = True
 		firstArg = args[0]
 		for arg in args[1:]:
@@ -287,6 +289,8 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, True)
 		cons, args = a.cons, a.arguments
+		if len(args) < 2:
+			self.__stmtError("AND: invalid args")
 		return resolverRet(cons, (args[0] if all(args) else ""))
 
 	# Statement:  $(or A, B, ...)
@@ -299,6 +303,8 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, True)
 		cons, args = a.cons, a.arguments
+		if len(args) < 2:
+			self.__stmtError("OR: invalid args")
 		nonempty = [ a for a in args if a ]
 		return resolverRet(cons, (nonempty[0] if nonempty else ""))
 
@@ -327,6 +333,8 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, True)
 		cons, args = a.cons, a.arguments
+		if len(args) < 1:
+			self.__stmtError("ASSERT: missing argument")
 		if not all(args):
 			self.__stmtError("ASSERT: failed")
 		return resolverRet(cons, "")
@@ -436,7 +444,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
-		if len(args) != 1 and len(args) != 2:
+		if len(args) not in (1, 2):
 			self.__stmtError("FILE_EXISTS: invalid args")
 		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
 		try:
@@ -498,7 +506,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
-		if len(args) < 2 or len(args) > 4:
+		if len(args) not in (2, 3, 4):
 			self.__stmtError("ANCHOR: invalid args")
 		name, text = args[0:2]
 		indent, noIndex = -1, False
@@ -528,7 +536,7 @@ class CMSStatementResolver(object): #+cdef
 
 		a = self.__parseArguments(d, dOffs, False)
 		cons, args = a.cons, a.arguments
-		if len(args) < 1:
+		if len(args) != 1:
 			self.__stmtError("PAGELIST: no base page argument")
 		try:
 			basePageIdent = CMSPageIdent.parse(args[0])
