@@ -218,7 +218,6 @@ class CMSStatementResolver(object): #+cdef
 		Returns: THEN if CONDITION is not empty after stripping whitespace.
 		Returns: ELSE otherwise.
 		"""
-
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -261,7 +260,7 @@ class CMSStatementResolver(object): #+cdef
 		"""
 		Compares two or more strings for equality.
 
-		Statement:  $(eq A, B, ...)
+		Statement: $(eq A, B, ...)
 
 		Returns: 1, if all stripped arguments are equal.
 		Returns: An empty string otherwise.
@@ -272,17 +271,22 @@ class CMSStatementResolver(object): #+cdef
 		"""
 		Compares two or more strings for inequality.
 
-		Statement:  $(ne A, B, ...)
+		Statement: $(ne A, B, ...)
 
 		Returns: 1, if not all stripped arguments are equal.
 		Returns: An empty string otherwise.
 		"""
 		return self.__do_compare(d, dOffs, True)
 
-	# Statement:  $(and A, B, ...)
-	# Returns A, if all stripped arguments are non-empty strings.
-	# Returns an empty string otherwise.
 	def __stmt_and(self, d, dOffs):
+		"""
+		Compares all arguments with logical AND operation.
+
+		Statement: $(and A, B, ...)
+
+		Returns: The first stripped argument (A), if all stripped arguments are non-empty strings.
+		Returns: An empty string otherwise.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -293,10 +297,15 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("AND: invalid args")
 		return resolverRet(cons, (args[0] if all(args) else ""))
 
-	# Statement:  $(or A, B, ...)
-	# Returns the first stripped non-empty argument.
-	# Returns an empty string, if there is no non-empty argument.
 	def __stmt_or(self, d, dOffs):
+		"""
+		Compares all arguments with logical OR operation.
+
+		Statement: $(or A, B, ...)
+
+		Returns: The first stripped non-empty argument.
+		Returns: An empty string, if there is no non-empty argument.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -308,10 +317,15 @@ class CMSStatementResolver(object): #+cdef
 		nonempty = [ a for a in args if a ]
 		return resolverRet(cons, (nonempty[0] if nonempty else ""))
 
-	# Statement:  $(not A)
-	# Returns 1, if A is an empty string after stripping.
-	# Returns an empty string, if A is a non-empty stripped string.
 	def __stmt_not(self, d, dOffs):
+		"""
+		Logically invert the boolean argument.
+
+		Statement: $(not A)
+
+		Returns: 1, if the stripped argument A is an empty string.
+		Returns: An empty string otherwise.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -322,11 +336,16 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("NOT: invalid args")
 		return resolverRet(cons, ("" if args[0] else "1"))
 
-	# Statement:  $(assert A, ...)
-	# Raises a 500-assertion-failed exception, if any argument
-	# is empty after stripping.
-	# Returns an empty string, otherwise.
 	def __stmt_assert(self, d, dOffs):
+		"""
+		Debug assertion.
+		Aborts the program, if any argument is an empty string.
+
+		Statement: $(assert A, ...)
+
+		Raises: A 500-assertion-failed exception, if any argument is empty after stripping.
+		Returns: An empty string, otherwise.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -339,9 +358,15 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("ASSERT: failed")
 		return resolverRet(cons, "")
 
-	# Statement:  $(strip STRING)
-	# Strip whitespace at the start and at the end of the string.
 	def __stmt_strip(self, d, dOffs):
+		"""
+		Strip whitespace at the start and at the end of all arguments.
+		Concatenate all arguments.
+
+		Statement: $(strip A, ...)
+
+		Returns: All arguments stripped and concatenated.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -350,11 +375,17 @@ class CMSStatementResolver(object): #+cdef
 		cons, args = a.cons, a.arguments
 		return resolverRet(cons, "".join(args))
 
-	# Statement:  $(item STRING, N)
-	# Statement:  $(item STRING, N, SEPARATOR)
-	# Split a string into tokens and return the N'th token.
-	# SEPARATOR defaults to whitespace.
 	def __stmt_item(self, d, dOffs):
+		"""
+		Select an item from a list.
+		Splits the STRING argument into tokens and return the N'th token.
+		The token SEPARATOR defaults to whitespace.
+
+		Statement: $(item STRING, N)
+		Statement: $(item STRING, N, SEPARATOR)
+
+		Returns: The N'th token.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -373,12 +404,17 @@ class CMSStatementResolver(object): #+cdef
 			token = ""
 		return resolverRet(cons, token)
 
-	# Statement:  $(contains HAYSTACK, NEEDLE)
-	# Statement:  $(contains HAYSTACK, NEEDLE, SEPARATOR)
-	# Returns NEEDLE, if HAYSTACK contains the stripped NEEDLE.
-	# HAYSTACK is a list separated by SEPARATOR.
-	# SEPARATOR defaults to whitespace.
 	def __stmt_contains(self, d, dOffs):
+		"""
+		Check if a list contains an item.
+		HAYSTACK is a list separated by SEPARATOR.
+		SEPARATOR defaults to whitespace.
+
+		Statement: $(contains HAYSTACK, NEEDLE)
+		Statement: $(contains HAYSTACK, NEEDLE, SEPARATOR)
+
+		Returns: NEEDLE, if HAYSTACK contains the stripped NEEDLE.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -391,10 +427,18 @@ class CMSStatementResolver(object): #+cdef
 		tokens = haystack.split(sep) if sep else haystack.split()
 		return resolverRet(cons, needle if needle in tokens else "")
 
-	# Statement:  $(substr STRING, START)
-	# Statement:  $(substr STRING, START, END)
-	# Returns a sub-string of STRING.
 	def __stmt_substr(self, d, dOffs):
+		"""
+		Cut a sub string out of the STRING argument.
+		START is the first character index of the sub string.
+		END is the last character index of the sub string plus 1.
+		END defaults to START + 1.
+
+		Statement: $(substr STRING, START)
+		Statement: $(substr STRING, START, END)
+
+		Returns: The sub string of STRING starting at START index up to (but not including) END index.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -415,10 +459,16 @@ class CMSStatementResolver(object): #+cdef
 			substr = ""
 		return resolverRet(cons, substr)
 
-	# Statement:  $(sanitize STRING)
-	# Sanitize a string.
-	# Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
 	def __stmt_sanitize(self, d, dOffs):
+		"""
+		Sanitize a string.
+		Concatenates all arguments with an underscore as separator.
+		Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
+
+		Statement: $(sanitize STRING, ...)
+
+		Returns: The sanitized string.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -434,12 +484,17 @@ class CMSStatementResolver(object): #+cdef
 		string = re.sub(r'_+', '_', string).strip('_')
 		return resolverRet(cons, string)
 
-	# Statement:  $(file_exists RELATIVE_PATH)
-	# Statement:  $(file_exists RELATIVE_PATH, DOES_NOT_EXIST)
-	# Checks if a file exists relative to the wwwPath base.
-	# Returns the path, if the file exists or an empty string if it doesn't.
-	# If DOES_NOT_EXIST is specified, it returns this if the file doesn't exist.
 	def __stmt_fileExists(self, d, dOffs):
+		"""
+		Checks if a file exists relative to the wwwPath base.
+
+		Statement: $(file_exists RELATIVE_PATH)
+		Statement: $(file_exists RELATIVE_PATH, DOES_NOT_EXIST)
+
+		Returns: The path, if the file exists.
+		Returns: An empty string, if the file does not exist and DOES_NOT_EXIST is not specified.
+		Returns: The DOES_NOT_EXIST argument, if the file does not exist.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -456,13 +511,19 @@ class CMSStatementResolver(object): #+cdef
 			exists = False
 		return resolverRet(cons, (relpath if exists else enoent))
 
-	# Statement:  $(file_mdatet RELATIVE_PATH)
-	# Statement:  $(file_mdatet RELATIVE_PATH, DOES_NOT_EXIST, FORMAT_STRING)
-	# Returns the file modification time.
-	# If the file does not exist, it returns DOES_NOT_EXIST or an empty string.
-	# RELATIVE_PATH is relative to wwwPath.
-	# FORMAT_STRING is an optional strftime format string.
 	def __stmt_fileModDateTime(self, d, dOffs):
+		"""
+		Get the file modification time of the file at RELATIVE_PATH.
+		RELATIVE_PATH is relative to wwwPath.
+		FORMAT_STRING is an optional strftime format string.
+
+		Statement: $(file_mdatet RELATIVE_PATH)
+		Statement: $(file_mdatet RELATIVE_PATH, DOES_NOT_EXIST, FORMAT_STRING)
+
+		Returns: The file modification time, if the file exists.
+		Returns: An empty string, if the file does not exist and DOES_NOT_EXIST is not specified.
+		Returns: The DOES_NOT_EXIST argument, if the file does not exist.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -482,9 +543,14 @@ class CMSStatementResolver(object): #+cdef
 			return resolverRet(cons, enoent)
 		return resolverRet(cons, stamp.strftime(fmtstr.strip()))
 
-	# Statement: $(index)
-	# Returns the site index.
 	def __stmt_index(self, d, dOffs):
+		"""
+		Generate the site index.
+
+		Statement: $(index)
+
+		Returns: The site index.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -496,11 +562,18 @@ class CMSStatementResolver(object): #+cdef
 		self.indexRefs.append(_IndexRef(self.charCount))
 		return resolverRet(cons, "")
 
-	# Statement: $(anchor NAME, TEXT)
-	# Statement: $(anchor NAME, TEXT, INDENT_LEVEL)
-	# Statement: $(anchor NAME, TEXT, INDENT_LEVEL, NO_INDEX)
-	# Sets an index-anchor
 	def __stmt_anchor(self, d, dOffs):
+		"""
+		Set an new site index anchor.
+		NAME is the html-id of the new anchor.
+		TEXT is the html-text of the new anchor.
+
+		Statement: $(anchor NAME, TEXT)
+		Statement: $(anchor NAME, TEXT, INDENT_LEVEL)
+		Statement: $(anchor NAME, TEXT, INDENT_LEVEL, NO_INDEX)
+
+		Returns: The site index anchor HTML code.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -530,9 +603,14 @@ class CMSStatementResolver(object): #+cdef
 		return resolverRet(cons, '<a id="%s" href="%s">%s</a>' %\
 					 (name, anchor.makeUrl(self), text))
 
-	# Statement: $(pagelist BASEPAGE)
-	# Returns the navigation elements of all sub-page names in the page.
 	def __stmt_pagelist(self, d, dOffs):
+		"""
+		Get the navigation elements html code of all sub-page names in the page.
+
+		Statement: $(pagelist BASEPAGE)
+
+		Returns: The navigation elements html code.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -549,13 +627,18 @@ class CMSStatementResolver(object): #+cdef
 		self.cms._genNavElem(html, basePageIdent, None, 1)
 		return resolverRet(cons, '\n'.join(html))
 
-	# Statement: $(random)
-	# Statement: $(random BEGIN)
-	# Statement: $(random BEGIN, END)
-	# Returns a random integer in the range from BEGIN to END
-	# (including both end points)
-	# BEGIN defaults to 0. END defaults to 65535.
 	def __stmt_random(self, d, dOffs):
+		"""
+		Generate a random number.
+		BEGIN defaults to 0.
+		END defaults to 65535.
+
+		Statement: $(random)
+		Statement: $(random BEGIN)
+		Statement: $(random BEGIN, END)
+
+		Returns: A random integer in the range from BEGIN to END (including both end points).
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -575,9 +658,14 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("RANDOM: invalid range")
 		return resolverRet(cons, '%d' % rnd)
 
-	# Statement: $(randitem ITEM0, ITEM1, ...)
-	# Returns one random item of its arguments.
 	def __stmt_randitem(self, d, dOffs):
+		"""
+		Select a random item.
+
+		Statement: $(randitem ITEM0, ...)
+
+		Returns: One random item of its arguments.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -608,9 +696,16 @@ class CMSStatementResolver(object): #+cdef
 		return ("%f" % res) if (abs(res - rounded) >= 0.000001)\
 		       else str(rounded)
 
-	# Statement: $(add A, B)
-	# Returns A + B
 	def __stmt_add(self, d, dOffs):
+		"""
+		Add two numbers (integer or float).
+		Returns the result as an integer, if it is representable as an integer.
+		Otherwise returns the result as a floating point number.
+
+		Statement: $(add A, B)
+
+		Returns: The result of A + B
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -621,9 +716,16 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("ADD: invalid args")
 		return resolverRet(cons, self.__do_arith(lambda a, b: a + b, args))
 
-	# Statement: $(sub A, B)
-	# Returns A - B
 	def __stmt_sub(self, d, dOffs):
+		"""
+		Subtract two numbers (integer or float).
+		Returns the result as an integer, if it is representable as an integer.
+		Otherwise returns the result as a floating point number.
+
+		Statement: $(sub A, B)
+
+		Returns: The result of A - B
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -634,9 +736,16 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("SUB: invalid args")
 		return resolverRet(cons, self.__do_arith(lambda a, b: a - b, args))
 
-	# Statement: $(mul A, B)
-	# Returns A * B
 	def __stmt_mul(self, d, dOffs):
+		"""
+		Multiply two numbers (integer or float).
+		Returns the result as an integer, if it is representable as an integer.
+		Otherwise returns the result as a floating point number.
+
+		Statement: $(mul A, B)
+
+		Returns: The result of A * B
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -647,9 +756,16 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("MUL: invalid args")
 		return resolverRet(cons, self.__do_arith(lambda a, b: a * b, args))
 
-	# Statement: $(div A, B)
-	# Returns A / B
 	def __stmt_div(self, d, dOffs):
+		"""
+		Divide two numbers (integer or float).
+		Returns the result as an integer, if it is representable as an integer.
+		Otherwise returns the result as a floating point number.
+
+		Statement: $(div A, B)
+
+		Returns: The result of A / B
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -660,9 +776,16 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("DIV: invalid args")
 		return resolverRet(cons, self.__do_arith(lambda a, b: a / b, args))
 
-	# Statement: $(mod A, B)
-	# Returns A % B
 	def __stmt_mod(self, d, dOffs):
+		"""
+		Divide two numbers (integer or float) and get the remainder.
+		Returns the result as an integer, if it is representable as an integer.
+		Otherwise returns the result as a floating point number.
+
+		Statement: $(mod A, B)
+
+		Returns: The result of remainder(A / B)
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -673,10 +796,16 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("MOD: invalid args")
 		return resolverRet(cons, self.__do_arith(lambda a, b: a % b, args))
 
-	# Statement: $(round A)
-	# Statement: $(round A, NDIGITS)
-	# Returns A rounded
 	def __stmt_round(self, d, dOffs):
+		"""
+		Round a floating point number to the next integer.
+		If NDIGITS is specified, then round to this number of decimal digits.
+
+		Statement: $(round A)
+		Statement: $(round A, NDIGITS)
+
+		Returns: Argument A rounded.
+		"""
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
