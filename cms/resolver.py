@@ -207,11 +207,18 @@ class CMSStatementResolver(object): #+cdef
 				break
 		return ret
 
-	# Statement:  $(if CONDITION, THEN, ELSE)
-	# Statement:  $(if CONDITION, THEN)
-	# Returns THEN if CONDITION is nonempty after stripping whitespace.
-	# Returns ELSE otherwise.
 	def __stmt_if(self, d, dOffs):
+		"""
+		Evaluate a CONDITION and return THEN or ELSE based on the CONDITION.
+		If ELSE is not specified, then this statement uses an empty string instead of ELSE.
+
+		Statement: $(if CONDITION, THEN, ELSE)
+		Statement: $(if CONDITION, THEN)
+
+		Returns: THEN if CONDITION is not empty after stripping whitespace.
+		Returns: ELSE otherwise.
+		"""
+
 #@cy		cdef _ArgParserRet a
 #@cy		cdef int64_t cons
 #@cy		cdef list args
@@ -246,18 +253,28 @@ class CMSStatementResolver(object): #+cdef
 			result = result and arg == firstArg
 		if invert:
 			result = not result
-		return resolverRet(cons, (args[-1] if result else ""))
+		return resolverRet(cons, ("1" if result else ""))
 
-	# Statement:  $(eq A, B, ...)
-	# Returns the last argument, if all stripped arguments are equal.
-	# Returns an empty string otherwise.
 	def __stmt_eq(self, d, dOffs):
+		"""
+		Compares two or more strings for equality.
+
+		Statement:  $(eq A, B, ...)
+
+		Returns: 1, if all stripped arguments are equal.
+		Returns: An empty string otherwise.
+		"""
 		return self.__do_compare(d, dOffs, False)
 
-	# Statement:  $(ne A, B, ...)
-	# Returns the last argument, if not all stripped arguments are equal.
-	# Returns an empty string otherwise.
 	def __stmt_ne(self, d, dOffs):
+		"""
+		Compares two or more strings for inequality.
+
+		Statement:  $(ne A, B, ...)
+
+		Returns: 1, if not all stripped arguments are equal.
+		Returns: An empty string otherwise.
+		"""
 		return self.__do_compare(d, dOffs, True)
 
 	# Statement:  $(and A, B, ...)
