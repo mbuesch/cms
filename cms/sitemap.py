@@ -81,14 +81,20 @@ class CMSSiteMap(object):
 				       domain=self.__domain,
 				       urlBase=self.__urlBase,
 				       pageSuffix=pageSuffix)
-		lastmod = self.__db.getPageStamp(pageIdent).strftime("%Y-%m-%dT%H:%M:%SZ")
 		if indent == self.BASE_INDENT + 1:
-			prio = "0.3" # Main groups.
+			# Main groups.
+			lastmod = None
+			changefreq = "monthly"
+			prio = "0.3"
 		else:
-			prio = "0.7" # Pages, main page and sub groups.
+			# Pages, main page and sub groups.
+			lastmod = self.__db.getPageStamp(pageIdent).strftime("%Y-%m-%dT%H:%M:%SZ")
+			changefreq = None
+			prio = "0.7"
 		yield self.__oneElem(ind=ind,
 				     url=url,
 				     lastmod=lastmod,
+				     changefreq=changefreq,
 				     prio=prio)
 
 		subPages = self.__db.getSubPages(pageIdent)
