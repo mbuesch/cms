@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import os, re
-from distutils.core import setup
+from setuptools import setup
 
 import setup_cython
 
