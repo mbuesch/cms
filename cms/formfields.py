@@ -2,7 +2,7 @@
 #
 #   cms.py - simple WSGI/Python based CMS script
 #
-#   Copyright (C) 2011-2019 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2022 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 from cms.exception import *
 from cms.util import * #+cimport
 
-import cgi
+import cms.multipart as multipart
 
 __all__ = [
 	"CMSFormFields",
@@ -33,7 +33,7 @@ class CMSFormFields(object):
 	"""
 
 	__slots__ = (
-		"__fields",
+		"__forms",
 	)
 
 	defaultCharset		= LOWERCASE + UPPERCASE + NUMBERS + "-_. \t"
@@ -42,16 +42,15 @@ class CMSFormFields(object):
 
 	def __init__(self, body, bodyType):
 		try:
-			self.__fields = cgi.FieldStorage(
-				fp=BytesIO(body),
+			forms, files = multipart.parse_form_data(
 				environ={
+					"wsgi.input"		: BytesIO(body),
 					"CONTENT_LENGTH"	: str(len(body)),
 					"CONTENT_TYPE"		: bodyType,
 					"REQUEST_METHOD"	: "POST",
-				},
-				encoding="UTF-8",
-				errors="strict",
+				}
 			)
+			self.__forms = forms
 		except Exception as e:
 			raise CMSException(400, "Cannot parse form data.")
 
@@ -59,7 +58,7 @@ class CMSFormFields(object):
 		"""Get a form field.
 		Returns a str.
 		"""
-		field = self.__fields.getfirst(name, default)
+		field = self.__forms.get(name, default)
 		if field is None:
 			return None
 		if maxlen is not None and len(field) > maxlen:
