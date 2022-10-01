@@ -62,9 +62,9 @@ class CMSFormFields(object):
 		if field is None:
 			return None
 		if maxlen is not None and len(field) > maxlen:
-			raise CMSException(400, "%s is too long." % name)
+			raise CMSException(400, "Form data is too long.")
 		if charset is not None and [ c for c in field if c not in charset ]:
-			raise CMSException(400, "Invalid character in %s" % name)
+			raise CMSException(400, "Invalid character in form data")
 		return field
 
 	def getBool(self, name, default=False, maxlen=32, charset=defaultCharsetBool):
