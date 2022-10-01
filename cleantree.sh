@@ -19,5 +19,6 @@ find . \( \
 	\( -name '*$py.class' \) \
        \) -delete
 
+rm -f cms_cython
 rm -rf build dist .pybuild
 rm -f MANIFEST

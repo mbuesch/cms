@@ -16,4 +16,4 @@ rm -rf build
 rm -f cms_cython
 export CFLAGS="$CFLAGS -O3"
 python3 ./setup.py build
-ln -s build/lib.*-3.*/cms_cython .
+ln -s build/lib.*-3*/cms_cython .
