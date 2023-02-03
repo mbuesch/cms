@@ -179,7 +179,7 @@ class CMSPageIdent(object):
 	def getFilesystemPath(self, rstrip=0):
 		self.__validateAll()
 		if self.__elements:
-			if rstrip:
+			if rstrip > 0:
 				pcomps = self.__elements[ : 0 - rstrip]
 				if pcomps:
 					return fs.mkpath(*pcomps)
