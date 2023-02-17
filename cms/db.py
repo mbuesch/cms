@@ -57,9 +57,18 @@ class CMSDatabase(object):
 		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		return bool(fs.read_int(path, "nav_stop"))
 
-	def getHeader(self, pageIdent):
-		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		return fs.read(path, "header.html")
+	def getHeaders(self, pageIdent):
+		ret = []
+		rstrip = 0
+		while True:
+			path = pageIdent.getFilesystemPath(rstrip)
+			data = fs.read(self.pageBase, path, "header.html").rstrip("\r\n")
+			if data:
+				ret.append(data)
+			if not path:
+				break
+			rstrip += 1
+		return "\n".join(ret)
 
 	def getPage(self, pageIdent):
 		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())

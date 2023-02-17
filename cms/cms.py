@@ -75,6 +75,7 @@ class CMS(object):
 		interpreter = "Python" #@nocy
 #		interpreter = "Cython" #@cy
 		sitemap = self.urlBase + "/__sitemap.xml"
+		additional = "\n\t".join(additional.splitlines())
 
 		return f"""<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -286,10 +287,10 @@ class CMS(object):
 		pageTitle = resolve(pageTitle, resolverVariables, pageIdent)
 		resolverVariables["TITLE"] = lambda r, n: pageTitle
 		pageData = resolve(pageData, resolverVariables, pageIdent)
-		extraHeader = resolve(self.db.getHeader(pageIdent),
-				      resolverVariables, pageIdent)
+		extraHeaders = resolve(self.db.getHeaders(pageIdent),
+				       resolverVariables, pageIdent)
 
-		data = [self.__genHtmlHeader(pageTitle, extraHeader)]
+		data = [self.__genHtmlHeader(pageTitle, extraHeaders)]
 		data.append(self.__genHtmlBody(pageIdent,
 					       pageTitle, pageData,
 					       protocol, stamp))
