@@ -112,7 +112,7 @@ def application(environ, start_response):
 	except (CMSException) as e:
 		status = e.httpStatus
 		response_body, response_mime, additional_headers = cms.getErrorPage(e, protocol)
-	if cms.debug and response_mime.startswith("text/html"):
+	if cms.debug and "html" in response_mime:
 		delta = datetime.now() - startStamp
 		ms = (float(delta.seconds) * 1e3) + (float(delta.microseconds) * 1e-3)
 		response_body += ("\n<!-- generated in %.3f ms -->" % ms).encode("UTF-8", "ignore")

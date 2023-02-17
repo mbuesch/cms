@@ -133,9 +133,9 @@ def main():
 		if cms:
 			data, mime, headers = cms.getErrorPage(e)
 		else:
-			data, mime = "CMSException", "text/html"
+			data, mime = "CMSException", "application/xhtml+xml"
 		retval = 1
-	if mime.startswith("text/html"):
+	if "html" in mime:
 		result = data + b"\n"
 	else:
 		result = data

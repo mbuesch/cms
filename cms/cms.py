@@ -77,10 +77,12 @@ class CMS(object):
 		sitemap = self.urlBase + "/__sitemap.xml"
 		additional = "\n\t".join(additional.splitlines())
 
-		return f"""<!DOCTYPE html>
+		return f"""\
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<meta http-equiv="content-type" content="application/xhtml+xml; charset=utf-8" />
 	<meta name="robots" content="all" />
 	<meta name="date" content="{date}" />
 	<meta name="generator" content="WSGI/{interpreter} CMS" />
@@ -90,7 +92,7 @@ class CMS(object):
 	-->
 	<title>{title}</title>
 	<link rel="stylesheet" href="{self.cssUrlPath}" type="text/css" />
-	<link rel="sitemap" type="application/xml" title="Sitemap" href="{sitemap}">
+	<link rel="sitemap" type="application/xml" title="Sitemap" href="{sitemap}" />
 	{additional or ''}
 </head>
 <body>
@@ -297,7 +299,7 @@ class CMS(object):
 		data.append(self.__genHtmlFooter())
 		try:
 			return ("".join(data).encode("UTF-8", "strict"),
-				"text/html; charset=UTF-8")
+				"application/xhtml+xml; charset=UTF-8")
 		except UnicodeError as e:
 			raise CMSException(500, "Unicode encode error")
 
@@ -369,7 +371,7 @@ class CMS(object):
 					       protocol,
 					       genCheckerLinks=False))
 		data.append(self.__genHtmlFooter())
-		return "".join(data), "text/html; charset=UTF-8", httpHeaders
+		return "".join(data), "application/xhtml+xml; charset=UTF-8", httpHeaders
 
 	def getErrorPage(self, cmsExcept, protocol="http"):
 		try:
