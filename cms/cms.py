@@ -77,8 +77,7 @@ class CMS(object):
 		sitemap = self.urlBase + "/__sitemap.xml"
 		additional = "\n\t".join(additional.splitlines())
 
-		return f"""\
-<?xml version="1.0" encoding="UTF-8" ?>
+		return f"""<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
