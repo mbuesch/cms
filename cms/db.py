@@ -22,6 +22,7 @@
 from cms.exception import *
 from cms.pageident import *
 from cms.util import * #+cimport
+from cms.db_blog import *
 
 import re
 import sys
@@ -39,10 +40,12 @@ class CMSDatabase(object):
 		self.pageBase = fs.mkpath(basePath, "pages")
 		self.macroBase = fs.mkpath(basePath, "macros")
 		self.stringBase = fs.mkpath(basePath, "strings")
+		self.blogdb = BlogDatabase(fs.mkpath(basePath, "blogs"))
 
 	def beginSession(self):
 		# Clear all lru_cache.
 		self.getMacro.cache_clear()
+		self.blogdb.beginSession()
 
 	def __redirect(self, redirectString):
 		raise CMSException301(redirectString)

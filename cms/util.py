@@ -221,6 +221,19 @@ class FSHelpers(object): #+cdef
 	def mtime_nofail(self, *path_elements):
 		return self.__mtime_nofail(path_elements)
 
+	def __mode(self, path_elements): #@nocy
+#@cy	cdef object __mode(self, tuple path_elements):
+		try:
+			path = self.__mkpath(path_elements).encode("UTF-8", "strict")
+			return self.__os_stat(path).st_mode
+		except OSError:
+			raise CMSException(404)
+		except UnicodeError:
+			raise CMSException(500, "Unicode decode error")
+
+	def mode(self, *path_elements):
+		return self.__mode(path_elements)
+
 	def __subdirList(self, path_elements): #@nocy
 #@cy	cdef list __subdirList(self, tuple path_elements):
 #@cy		cdef str path
