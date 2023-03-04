@@ -7,11 +7,10 @@ html {
 }
 
 body {
-	background-image: url(images/background_paper.png);
-	background-repeat: repeat;
+	background: #F0F0F0;
 	font-family: sans-serif;
 
-	border-radius: 1px;
+	border-radius: 15px;
 
 	border: solid #A0A0A0;
 	border-width: 0px;
@@ -101,19 +100,16 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	flex-direction: row;
 	z-index: 200;
 
-	background: #FAFAFA;
-	background-image: url(images/background_hatching.png);
+	background: #F0F0F0;
 
 	width: 815px;
 	margin: 10px 100px;
 	padding: 0px 15px;
 
-	border-radius: 10px;
+	border-radius: 15px;
 
 	border: solid #808080;
-	border-width: 1px;
-
-	box-shadow: 1px 1px 5px 2px rgba(0,0,0,0.4);
+	border-width: 2px;
 }
 
 .navbar .navgroups:after {
@@ -127,7 +123,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 }
 
 .navbar .navgroups .navgroup:hover {
-	background: #5050A0;
+	background: #505050;
 
 	border-top-left-radius: 15px;
 	border-top-right-radius: 15px;
@@ -163,7 +159,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .navbar .navgroups .navgroup .navelems {
 	display: none;
-	background: #ebebff;
+	background: #C0C0C0;
 	float: none;
 	position: absolute;
 	z-index: 210;
@@ -175,7 +171,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 	border-bottom-right-radius: 15px;
 	border-bottom-left-radius: 15px;
 
-	border: solid #cbcbff;
+	border: solid #cbcbcb;
 	border-width: 1px;
 
 	box-shadow: 0px 0px 25px rgba(0, 0, 0, 0.25);
@@ -204,7 +200,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .navbar .navgroups .navgroup .navelems .navelem a:hover {
 	color: #FFFFFF;
-	background: #5050A0;
+	background: #A05050;
 }
 
 .navbar .navgroups .navhome {
@@ -242,12 +238,12 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 .navbar .navgroups .navgroup .navelems .navelem .navactive a {
 	font-weight: bold;
 	color: #FFFFC0;
-	background: #5050A0;
+	background: #A05050;
 }
 
 .navbar .navgroups .navgroup .navelems .navelem .navactive a:hover {
 	color: #FFFFC0;
-	background: #5050A0;
+	background: #A05050;
 }
 
 /******************************************************************************/
@@ -260,17 +256,14 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 .page-listing .navelems {
 	float: left;
 
-	background: #ebebff;
+	background: #F0F0F0;
 	padding: 3px 5px;
 	margin: 0px;
 	font-size: 1.0rem;
 
 	border-radius: 15px;
-	border: solid #cbcbff;
+	border: solid #cbcbcb;
 	border-width: 1px;
-
-	box-shadow: 0px 0px 25px rgba(0, 0, 0, 0.25);
-	list-style-type: none;
 }
 
 .page-listing .navelems .navelem {
@@ -290,7 +283,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 
 .page-listing .navelems .navelem a:hover {
 	color: #FFFFFF;
-	background: #5050A0;
+	background: #A05050;
 }
 
 .after-page-listing {
