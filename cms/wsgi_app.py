@@ -2,7 +2,7 @@
 #
 #   CMS WSGI wrapper
 #
-#   Copyright (C) 2011-2019 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2023 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -77,7 +77,8 @@ def application(environ, start_response):
 	if cms is None:
 		__initCMS(environ)
 	if cms.debug:
-		startStamp = datetime.now()
+		import time
+		startStamp = time.monotonic()
 
 	status = "200 OK"
 	additional_headers = []
@@ -113,8 +114,8 @@ def application(environ, start_response):
 		status = e.httpStatus
 		response_body, response_mime, additional_headers = cms.getErrorPage(e, protocol)
 	if cms.debug and "html" in response_mime:
-		delta = datetime.now() - startStamp
-		ms = (float(delta.seconds) * 1e3) + (float(delta.microseconds) * 1e-3)
+		delta = time.monotonic() - startStamp
+		ms = delta * 1e3
 		response_body += ("\n<!-- generated in %.3f ms -->" % ms).encode("UTF-8", "ignore")
 	response_headers = [ ('Content-Type', response_mime),
 			     ('Content-Length', str(len(response_body))) ]

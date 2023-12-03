@@ -2,6 +2,7 @@
 
 cdef public object BytesIO
 cdef public object datetime
+cdef public object dt_timezone
 
 cdef public str UPPERCASE
 cdef public str LOWERCASE

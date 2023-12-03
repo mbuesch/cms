@@ -2,7 +2,7 @@
 #
 #   cms.py - simple WSGI/Python based CMS script
 #
-#   Copyright (C) 2011-2019 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2023 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -29,10 +29,12 @@ import stat
 
 BytesIO = io.BytesIO				#+cdef-public-object
 datetime = datetime_mod.datetime		#+cdef-public-object
+dt_timezone = datetime_mod.timezone		#+cdef-public-object
 
 __all__ = [
 	"BytesIO",
 	"datetime",
+	"dt_timezone",
 	"UPPERCASE",
 	"LOWERCASE",
 	"NUMBERS",
@@ -214,7 +216,7 @@ class FSHelpers(object): #+cdef
 		try:
 			return self.__mtime(path_elements)
 		except CMSException:
-			return datetime.utcnow()
+			return datetime.now(dt_timezone.utc)
 
 	def mtime_nofail(self, *path_elements):
 		return self.__mtime_nofail(path_elements)

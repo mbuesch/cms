@@ -71,7 +71,7 @@ class CMS(object):
 		pass
 
 	def __genHtmlHeader(self, title, additional = ""):
-		date = datetime.now().isoformat()
+		date = datetime.now(dt_timezone.utc).isoformat()
 		interpreter = "Python" #@nocy
 #		interpreter = "Cython" #@cy
 		sitemap = self.urlBase + "/__sitemap.xml"
