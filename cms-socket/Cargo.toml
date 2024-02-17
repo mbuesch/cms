@@ -1,0 +1,16 @@
+# -*- coding: utf-8 -*-
+
+[package]
+name = "cms-socket"
+version = "1.0.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+authors = [ "Michael Büsch <m@bues.ch>" ]
+publish = false
+
+[dependencies]
+anyhow = "1"
+libc = "0.2"
+tokio = { version = "1", features = [ "net" ] }
+
+# vim: ts=4 sw=4 expandtab

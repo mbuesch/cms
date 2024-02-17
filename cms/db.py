@@ -2,7 +2,7 @@
 #
 #   cms.py - simple WSGI/Python based CMS script
 #
-#   Copyright (C) 2011-2019 Michael Buesch <m@bues.ch>
+#   Copyright (C) 2011-2024 Michael Buesch <m@bues.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -21,12 +21,12 @@
 
 from cms.exception import *
 from cms.pageident import *
-from cms.util import * #+cimport
+from cms.util import fs, datetime #+cimport
+from cms.db_socket import *
 
 import re
 import sys
 import importlib.machinery
-import functools
 
 __all__ = [
 	"CMSDatabase",
@@ -37,105 +37,138 @@ class CMSDatabase(object):
 
 	def __init__(self, basePath):
 		self.pageBase = fs.mkpath(basePath, "pages")
-		self.macroBase = fs.mkpath(basePath, "macros")
-		self.stringBase = fs.mkpath(basePath, "strings")
+		try:
+			self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+			self.sock.connect("/run/cms-fsd.sock")
+		except Exception:
+			raise CMSException(500, "cms-fsd communication error")
 
-	def beginSession(self):
-		# Clear all lru_cache.
-		self.getMacro.cache_clear()
+	def __communicate(self, msg):
+		try:
+			self.sock.sendall(msg.pack())
+			return recv_message(self.sock)
+		except Exception:
+			raise CMSException(500, "cms-fsd communication error")
+
+	@staticmethod
+	def __encode(s):
+		try:
+			if s is not None:
+				return s.encode("UTF-8", "strict")
+		except UnicodeError:
+			pass
+		return b""
+
+	@staticmethod
+	def __decode(b):
+		try:
+			if b is not None:
+				return b.decode("UTF-8", "strict")
+		except UnicodeError:
+			pass
+		return ""
 
 	def __redirect(self, redirectString):
 		raise CMSException301(redirectString)
 
-	def __getPageTitle(self, pagePath):
-		title = fs.read(pagePath, "title").strip()
-		if not title:
-			title = fs.read(pagePath, "nav_label").strip()
-		return title
-
 	def getNavStop(self, pageIdent):
-		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		return bool(fs.read_int(path, "nav_stop"))
+		reply = self.__communicate(MsgGetPage(
+			path=pageIdent.getFilesystemPath(),
+			get_title=False,
+			get_data=False,
+			get_stamp=False,
+			get_prio=False,
+			get_redirect=False,
+			get_nav_stop=True,
+			get_nav_label=False,
+		))
+		nav_stop = bool(reply.nav_stop)
+		return nav_stop
 
 	def getHeaders(self, pageIdent):
-		ret = []
-		rstrip = 0
-		while True:
-			path = pageIdent.getFilesystemPath(rstrip)
-			data = fs.read(self.pageBase, path, "header.html").rstrip("\r\n")
-			if data:
-				ret.append(data)
-			if not path:
-				break
-			rstrip += 1
-		return "\n".join(ret)
+		reply = self.__communicate(MsgGetHeaders(
+			path=pageIdent.getFilesystemPath(),
+		))
+		data = self.__decode(reply.data)
+		return data
 
 	def getPage(self, pageIdent):
-		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		redirect = fs.read(path, "redirect").strip()
+		reply = self.__communicate(MsgGetPage(
+			path=pageIdent.getFilesystemPath(),
+			get_title=True,
+			get_data=True,
+			get_stamp=True,
+			get_prio=False,
+			get_redirect=True,
+			get_nav_stop=False,
+			get_nav_label=False,
+		))
+		redirect = self.__decode(reply.redirect).strip()
 		if redirect:
 			return self.__redirect(redirect)
-		title = self.__getPageTitle(path)
-		data = fs.read(path, "content.html")
-		stamp = fs.mtime_nofail(path, "content.html")
+		title = self.__decode(reply.title)
+		data = self.__decode(reply.data)
+		stamp = datetime.utcfromtimestamp(reply.stamp or 0)
 		return (title, data, stamp)
 
 	def getPageTitle(self, pageIdent):
-		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		return self.__getPageTitle(path)
+		reply = self.__communicate(MsgGetPage(
+			path=pageIdent.getFilesystemPath(),
+			get_title=True,
+			get_data=False,
+			get_stamp=False,
+			get_prio=False,
+			get_redirect=False,
+			get_nav_stop=False,
+			get_nav_label=False,
+		))
+		title = self.__decode(reply.title)
+		return title
 
 	def getPageStamp(self, pageIdent):
-		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		return fs.mtime_nofail(path, "content.html")
+		reply = self.__communicate(MsgGetPage(
+			path=pageIdent.getFilesystemPath(),
+			get_title=False,
+			get_data=False,
+			get_stamp=True,
+			get_prio=False,
+			get_redirect=False,
+			get_nav_stop=False,
+			get_nav_label=False,
+		))
+		stamp = datetime.utcfromtimestamp(reply.stamp or 0)
+		return stamp
 
 	# Get a list of sub-pages.
 	# Returns list of (pagename, navlabel, prio)
-	def getSubPages(self, pageIdent, sortByPrio = True):
+	def getSubPages(self, pageIdent, sortByPrio=True):
+		reply = self.__communicate(MsgGetSubPages(
+			path=pageIdent.getFilesystemPath(),
+		))
 		res = []
-		gpath = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		for pagename in fs.subdirList(gpath):
-			path = fs.mkpath(gpath, pagename)
-			if fs.exists(path, "hidden") or \
-			   fs.exists_nonempty(path, "redirect"):
-				continue
-			navlabel = fs.read(path, "nav_label").strip()
-			prio = fs.read_int(path, "priority")
-			if prio is None:
-				prio = 500
+		for i in range(len(reply.pages)):
+			pagename = self.__decode(reply.pages[i])
+			navlabel = self.__decode(reply.nav_labels[i]).strip()
+			prio = reply.prios[i]
 			res.append( (pagename, navlabel, prio) )
 		if sortByPrio:
 			res.sort(key = lambda e: "%010d_%s" % (e[2], e[1]))
 		return res
 
 	# Get the contents of a @MACRO().
-	# This method is cached for this db session.
-	# So one page using one macro multiple times is cheap.
-	@functools.lru_cache(maxsize=2**6)
 	def getMacro(self, macroname, pageIdent=None):
-		data = None
-		macroname = self.validate(macroname)
-		if pageIdent:
-			rstrip = 0
-			while not data:
-				path = pageIdent.getFilesystemPath(rstrip)
-				if not path:
-					break
-				data = fs.read(self.pageBase,
-					      path,
-					      "__macros",
-					      macroname)
-				rstrip += 1
-		if not data:
-			data = fs.read(self.pageBase,
-				      "__macros",
-				      macroname)
-		if not data:
-			data = fs.read(self.macroBase, macroname)
+		reply = self.__communicate(MsgGetMacro(
+			parent=pageIdent.getFilesystemPath() if pageIdent is not None else "",
+			name=macroname,
+		))
+		data = self.__decode(reply.data)
 		return '\n'.join( l for l in data.splitlines() if l )
 
 	def getString(self, name, default=None):
-		name = self.validate(name)
-		string = fs.read(self.stringBase, name).strip()
+		reply = self.__communicate(MsgGetString(
+			name=name,
+		))
+		string = self.__decode(reply.data).strip()
 		if string:
 			return string
 		return default or ""

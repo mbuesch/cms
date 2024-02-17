@@ -22,7 +22,7 @@
 from cms.db import *
 from cms.exception import *
 from cms.pageident import *
-from cms.util import * #+cimport
+#from cms.util import * #+cimport
 
 from xml.sax import saxutils
 

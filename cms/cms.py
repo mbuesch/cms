@@ -303,7 +303,6 @@ class CMS(object):
 
 	def __get(self, path, query, protocol):
 		pageIdent = CMSPageIdent.parse(path)
-		self.db.beginSession()
 		firstIdent = pageIdent.get(0, allowSysNames=True)
 		if firstIdent == "__thumbs":
 			return self.__getImageThumbnail(pageIdent.get(1), query, protocol)
@@ -317,7 +316,6 @@ class CMS(object):
 
 	def __post(self, path, query, body, bodyType, protocol):
 		pageIdent = CMSPageIdent.parse(path)
-		self.db.beginSession()
 		postHandler = self.db.getPostHandler(pageIdent)
 		if postHandler is None:
 			raise CMSException(405)

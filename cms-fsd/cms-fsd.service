@@ -1,0 +1,15 @@
+[Unit]
+Description=CMS fs daemon
+PartOf=cms-fsd.socket
+
+[Service]
+Type=notify
+ExecStart=/opt/cms/bin/cms-fsd /opt/cms/etc/cms/db
+ExecReload=/bin/kill -HUP $MAINPID
+StandardOutput=journal
+StandardError=journal
+User=cms-fsd
+Group=cms-fsd
+
+[Install]
+WantedBy=multi-user.target

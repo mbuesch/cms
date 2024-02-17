@@ -3,7 +3,9 @@
 *.pyo
 *.pyc
 __pycache__/
+/Cargo.lock
 /db
 /www-data
 /build
 /cms_cython
+/target/

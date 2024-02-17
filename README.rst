@@ -1,19 +1,24 @@
 cms.py - simple WSGI/Python based CMS script
 ============================================
 
-Copyright (c) 2011-2021 Michael Buesch <m@bues.ch>
+Copyright (c) 2011-2024 Michael Buesch <m@bues.ch>
 
 
 Installing
 ==========
 
-Just clone the cms.git repository to some directory where apache has access to.
-In the configuration example below the directory will be ``/var/cms``
+Run the `build.sh` script to build the CMS system.
 
-Then create the database directory named ``db`` inside of the cloned directory.
+After building, run the `install-users.sh` script to create the user/group structure for CMS in the operating system.
+
+After that, run the `install.sh` script.
+It will install the CMS system into `/opt/cms/`.
+
+Then create the database inside of `/opt/cms/etc/cms/db/`.
 You may start with the example db:
 
-``cp -r /var/cms/example/db /var/cms/``
+.. code:: sh
+    cp -r ./example/db/* /opt/cms/etc/cms/db/
 
 
 Configuring Apache httpd
@@ -26,20 +31,21 @@ the following Debian based example:
 .. code::
 
     # Adjust "user" and "group" to your system.
-    WSGIDaemonProcess wsgi processes=10 threads=1 display-name=apache-wsgi user=www-data group=www-data python-path=/var/cms
+    WSGIDaemonProcess wsgi processes=10 threads=1 display-name=apache-wsgi user=www-data group=www-data python-path=/opt/cms/lib/python3/site-packages
     WSGIApplicationGroup %{GLOBAL}
     WSGIPythonOptimize 1
     # /cms is the base URL path to the CMS.
-    # /var/cms is where index.wsgi and the db directory live.
-    # /var/www is the path to the static files.
+    # /opt/cms/share/cms-wsgi is where the index.wsgi script lives.
+    # /opt/cms/etc/cms/db is where the database directory lives.
+    # /var/www/html is the path to the static files.
     # Adjust these paths to your setup.
-    WSGIScriptAlias                    /cms        /var/cms/index.wsgi
+    WSGIScriptAlias                    /cms        /opt/cms/share/cms-wsgi/index.wsgi
     SetEnv cms.domain                  example.com
-    SetEnv cms.cmsBase                 /var/cms
-    SetEnv cms.wwwBase                 /var/www
+    SetEnv cms.db                      /opt/cms/etc/cms/db
+    SetEnv cms.wwwBase                 /var/www/html
     SetEnv cms.maxPostContentLength    1048576
     SetEnv cms.debug                   1
-    <Directory /var/cms>
+    <Directory /opt/cms/share/cms-wsgi>
         WSGIProcessGroup wsgi
         AllowOverride None
         Options -ExecCGI -MultiViews +SymLinksIfOwnerMatch -Indexes

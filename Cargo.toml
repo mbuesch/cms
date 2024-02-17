@@ -1,0 +1,20 @@
+# -*- coding: utf-8 -*-
+
+[workspace]
+members = [
+    "cms-fsd",
+    "cms-ident",
+    "cms-socket",
+    "cms-socket-db",
+    "cms-systemd",
+]
+resolver = "2"
+
+[profile.release]
+lto = true
+panic = "abort"
+strip = "symbols"
+overflow-checks = true
+codegen-units = 1
+
+# vim: ts=4 sw=4 expandtab

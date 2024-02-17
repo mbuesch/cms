@@ -1,0 +1,14 @@
+[Unit]
+Description=CMS fs daemon socket
+Requires=cms-fsd.service
+AssertPathExists=/run
+
+[Socket]
+ListenStream=/run/cms-fsd.sock
+Accept=no
+SocketUser=cms-fsd
+SocketGroup=cms-sock-db
+SocketMode=0660
+
+[Install]
+WantedBy=multi-user.target
