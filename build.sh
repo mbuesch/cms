@@ -12,7 +12,6 @@ fi
 
 cd "$basedir"
 
-rm -rf build
 rm -f cms_cython
 export CFLAGS="$CFLAGS -O3"
 python3 ./setup.py build
