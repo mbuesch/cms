@@ -130,7 +130,7 @@ impl CmsSocketConn {
         let mut txcount = 0;
         loop {
             self.stream
-                .readable()
+                .writable()
                 .await
                 .context("Socket polling (tx)")?;
 
