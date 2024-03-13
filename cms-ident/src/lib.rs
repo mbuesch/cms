@@ -89,14 +89,27 @@ impl FromStr for Ident {
 impl Ident {
     /// Returns a reference to the raw string.
     #[inline]
-    pub fn as_str(&self) -> &str {
+    fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Get an iterator over all ident path elements.
+    ///
+    /// Note that this returns an iterator that yields one empty element
+    /// for the special case of the empty identifier path `""`.
     #[inline]
-    pub fn elements(&self) -> Split<'_, char> {
+    fn elements(&self) -> Split<'_, char> {
         self.0.split(ELEMSEP)
+    }
+
+    /// Get the number of path elements.
+    #[inline]
+    fn element_count(&self) -> usize {
+        if self.0.is_empty() {
+            0
+        } else {
+            self.elements().count()
+        }
     }
 
     /// Clone self and append one element.
@@ -266,7 +279,7 @@ macro_rules! impl_checked_ident {
                 let elem_count = match strip {
                     Strip::No => usize::MAX,
                     Strip::Right(n) => {
-                        let count = self.elements().count();
+                        let count = self.element_count();
                         if n > count {
                             return Err(ah::format_err!("Fs path stripping underflow."));
                         }
