@@ -900,7 +900,7 @@ class CMSStatementResolver(object): #+cdef
 					"Macro name '%s' contains "
 					"invalid characters" % macroname)
 		if not macrodata:
-			return a.cons, ""  # Macro does not exist.
+			return resolverRet(a.cons, "")  # Macro does not exist.
 
 		# Resolve statements and recursive macro calls
 		callStackIdx = self.__callStackLen
