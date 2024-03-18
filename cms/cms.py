@@ -316,12 +316,9 @@ class CMS(object):
 
 	def __post(self, path, query, body, bodyType, protocol):
 		pageIdent = CMSPageIdent.parse(path)
-		postHandler = self.db.getPostHandler(pageIdent)
-		if postHandler is None:
-			raise CMSException(405)
 		formFields = CMSFormFields(body, bodyType)
 		try:
-			ret = postHandler(formFields, query, body, bodyType, protocol)
+			ret = self.db.runPostHandler(pageIdent, formFields, query)
 		except CMSException as e:
 			raise e
 		except Exception as e:

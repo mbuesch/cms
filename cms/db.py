@@ -173,12 +173,12 @@ class CMSDatabase(object):
 			return string
 		return default or ""
 
-	def getPostHandler(self, pageIdent):
+	def runPostHandler(self, pageIdent, formFields, query):
 		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		handlerModFile = fs.mkpath(path, "post.py")
 
 		if not fs.exists(handlerModFile):
-			return None
+			raise CMSException(405)
 
 		# Add the path to sys.path, so that post.py can easily import
 		# more files from its directory.
@@ -191,9 +191,13 @@ class CMSDatabase(object):
 				handlerModFile)
 			mod = loader.load_module()
 		except OSError:
-			return None
+			raise CMSException(405)
 
 		mod.CMSException = CMSException
 		mod.CMSPostException = CMSPostException
 
-		return getattr(mod, "post", None)
+		postHandler = getattr(mod, "post", None)
+		if postHandler is None:
+			raise CMSException(405)
+
+		return postHandler(formFields, query, b"", "", "")
