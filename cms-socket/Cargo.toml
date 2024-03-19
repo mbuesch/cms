@@ -10,7 +10,9 @@ publish = false
 
 [dependencies]
 anyhow = "1"
+bincode = "1"
 libc = "0.2"
+serde = { version = "1", features = [ "derive" ] }
 tokio = { version = "1", features = [ "net" ] }
 
 # vim: ts=4 sw=4 expandtab

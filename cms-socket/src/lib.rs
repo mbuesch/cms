@@ -20,7 +20,9 @@
 #![forbid(unsafe_code)]
 
 use anyhow::{self as ah, Context as _};
+use bincode::Options as _;
 use libc::{S_IFMT, S_IFSOCK};
+use serde::{Deserialize, Serialize};
 use std::{
     fs::{metadata, remove_file},
     io::ErrorKind,
@@ -147,6 +149,63 @@ impl CmsSocketConn {
                 }
             }
         }
+    }
+}
+
+const MSG_HDR_LEN: usize = 8;
+const SERDE_LIMIT: u64 = 1024 * 1024;
+
+#[inline]
+pub fn bincode_config() -> impl bincode::Options {
+    bincode::DefaultOptions::new()
+        .with_limit(SERDE_LIMIT)
+        .with_native_endian()
+        .with_fixint_encoding()
+        .reject_trailing_bytes()
+}
+
+/// Generic message header.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MsgHdr {
+    magic: u32,
+    payload_len: u32,
+}
+
+impl MsgHdr {
+    #[inline]
+    pub fn new(magic: u32, payload_len: usize) -> Self {
+        Self {
+            magic,
+            payload_len: payload_len
+                .try_into()
+                .expect("MsgHdr: Payload length too long"),
+        }
+    }
+
+    #[inline]
+    pub fn magic(&self) -> u32 {
+        self.magic
+    }
+
+    #[inline]
+    pub fn len() -> usize {
+        debug_assert_eq!(
+            MSG_HDR_LEN,
+            bincode_config()
+                .serialized_size(&MsgHdr {
+                    magic: 0,
+                    payload_len: 0,
+                })
+                .unwrap()
+                .try_into()
+                .unwrap()
+        );
+        MSG_HDR_LEN
+    }
+
+    #[inline]
+    pub fn payload_len(&self) -> usize {
+        self.payload_len.try_into().unwrap()
     }
 }
 

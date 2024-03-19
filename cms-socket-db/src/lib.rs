@@ -22,46 +22,11 @@
 use anyhow::{self as ah, Context as _};
 use bincode::Options;
 use cms_ident::Ident;
-use cms_socket::{DeserializeResult, MsgSerde};
+use cms_socket::{bincode_config, DeserializeResult, MsgHdr, MsgSerde};
 use serde::{Deserialize, Serialize};
 
 pub const SOCK_FILE: &str = "cms-fsd.sock";
-const SERDE_LIMIT: u64 = 1024 * 1024;
 const MAGIC: u32 = 0x8F5755D6;
-const MSG_HDR_LEN: usize = 8;
-
-#[inline]
-fn bincode_config() -> impl Options {
-    bincode::DefaultOptions::new()
-        .with_limit(SERDE_LIMIT)
-        .with_native_endian()
-        .with_fixint_encoding()
-        .reject_trailing_bytes()
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct MsgHdr {
-    magic: u32,
-    payload_len: u32,
-}
-
-impl MsgHdr {
-    #[inline]
-    fn len() -> usize {
-        debug_assert_eq!(
-            MSG_HDR_LEN,
-            bincode_config()
-                .serialized_size(&MsgHdr {
-                    magic: MAGIC,
-                    payload_len: u32::MAX,
-                })
-                .unwrap()
-                .try_into()
-                .unwrap()
-        );
-        MSG_HDR_LEN
-    }
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Msg {
@@ -119,10 +84,7 @@ pub enum Msg {
 impl MsgSerde<Msg> for Msg {
     fn msg_serialize(&self) -> ah::Result<Vec<u8>> {
         let mut payload = bincode_config().serialize(self)?;
-        let mut ret = bincode_config().serialize(&MsgHdr {
-            magic: MAGIC,
-            payload_len: payload.len().try_into().unwrap(),
-        })?;
+        let mut ret = bincode_config().serialize(&MsgHdr::new(MAGIC, payload.len()))?;
         ret.append(&mut payload);
         Ok(ret)
     }
@@ -135,11 +97,11 @@ impl MsgSerde<Msg> for Msg {
             let hdr: MsgHdr = bincode_config()
                 .deserialize(&buf[0..hdr_len])
                 .context("Deserialize MsgHdr")?;
-            if hdr.magic != MAGIC {
+            if hdr.magic() != MAGIC {
                 return Err(ah::format_err!("Deserialize: Invalid MAGIC code."));
             }
             let full_len = hdr_len
-                .checked_add(hdr.payload_len.try_into().unwrap())
+                .checked_add(hdr.payload_len())
                 .context("Msg length overflow")?;
             if buf.len() < full_len {
                 Ok(DeserializeResult::Pending(full_len - buf.len()))
