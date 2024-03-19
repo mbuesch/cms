@@ -47,11 +47,14 @@ stop_services()
     try_systemctl stop apache2
     try_systemctl stop cms-fsd.socket
     try_systemctl stop cms-fsd.service
+    try_systemctl stop cms-postd.socket
+    try_systemctl stop cms-postd.service
 }
 
 start_services()
 {
     do_systemctl start cms-fsd.socket
+    do_systemctl start cms-postd.socket
     do_systemctl start apache2
 }
 
@@ -99,6 +102,27 @@ install_fsd()
     do_systemctl enable cms-fsd.socket
 }
 
+install_postd()
+{
+    do_install \
+        -o root -g root -m 0755 \
+        "$basedir/target/release/cms-postd" \
+        /opt/cms/bin/
+
+    do_install \
+        -o root -g root -m 0644 \
+        "$basedir/cms-postd/cms-postd.service" \
+        /etc/systemd/system/
+
+    do_install \
+        -o root -g root -m 0644 \
+        "$basedir/cms-postd/cms-postd.socket" \
+        /etc/systemd/system/
+
+    do_systemctl enable cms-postd.service
+    do_systemctl enable cms-postd.socket
+}
+
 install_py()
 {
     do_install \
@@ -120,6 +144,7 @@ install_py()
 stop_services
 install_dirs
 install_fsd
+install_postd
 install_py
 start_services
 

@@ -1,0 +1,15 @@
+[Unit]
+Description=CMS post daemon
+PartOf=cms-postd.socket
+
+[Service]
+Type=notify
+ExecStart=/opt/cms/bin/cms-postd /opt/cms/etc/cms/db
+ExecReload=/bin/kill -HUP $MAINPID
+StandardOutput=journal
+StandardError=journal
+User=cms-postd
+Group=cms-postd
+
+[Install]
+WantedBy=multi-user.target

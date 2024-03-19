@@ -1,0 +1,14 @@
+[Unit]
+Description=CMS post daemon socket
+Requires=cms-postd.service
+AssertPathExists=/run
+
+[Socket]
+ListenStream=/run/cms-postd.sock
+Accept=no
+SocketUser=cms-postd
+SocketGroup=cms-sock-post
+SocketMode=0660
+
+[Install]
+WantedBy=multi-user.target
