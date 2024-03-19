@@ -1,0 +1,19 @@
+# -*- coding: utf-8 -*-
+
+[package]
+name = "cms-postd"
+version = "1.0.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+authors = [ "Michael Büsch <m@bues.ch>" ]
+publish = false
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+cms-ident = { path = "../cms-ident" }
+cms-socket = { path = "../cms-socket" }
+cms-socket-post = { path = "../cms-socket-post" }
+tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros", "fs", "io-util", "time" ] }
+
+# vim: ts=4 sw=4 expandtab

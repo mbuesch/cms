@@ -173,6 +173,8 @@ class CMSDatabase(object):
 			return string
 		return default or ""
 
+	# formFields: CMSFormData: Basically a dict
+	# query: CMSQuery: Basically a dict
 	def runPostHandler(self, pageIdent, formFields, query):
 		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
 		handlerModFile = fs.mkpath(path, "post.py")
