@@ -17,6 +17,7 @@ export CFLAGS="$CFLAGS -O3"
 python3 ./setup.py build
 ln -s build/lib.*-3*/cms_cython .
 cargo update
+cargo audit --deny warnings
 cargo build --release
 
 # vim: ts=4 sw=4 expandtab
