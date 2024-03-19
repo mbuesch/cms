@@ -27,7 +27,6 @@ use anyhow as ah;
 use clap::Parser;
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
 use cms_socket_db::{Msg, SOCK_FILE};
-use cms_systemd::{have_systemd, systemd_notify_ready, unix_from_systemd};
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     signal::unix::{signal, SignalKind},
@@ -188,16 +187,7 @@ async fn main() -> ah::Result<()> {
 
     let db = Arc::new(DbCache::new(DbFsIntf::new(&opts.db_path)?, opts.cache_size));
 
-    let mut sock = if !opts.no_systemd && have_systemd() {
-        println!("Using socket from systemd.");
-        let sock = CmsSocket::from_std_listener(unix_from_systemd(true)?)?;
-        systemd_notify_ready(true)?;
-        sock
-    } else {
-        let sock_path = opts.rundir.join(SOCK_FILE);
-        println!("Creating socket {sock_path:?}.");
-        CmsSocket::new(&sock_path)?
-    };
+    let mut sock = CmsSocket::from_systemd_or_path(opts.no_systemd, &opts.rundir.join(SOCK_FILE))?;
 
     // Task: Socket handler.
     let db_clone = Arc::clone(&db);

@@ -21,6 +21,7 @@
 
 use anyhow::{self as ah, Context as _};
 use bincode::Options as _;
+use cms_systemd::{have_systemd, systemd_notify_ready, unix_from_systemd};
 use libc::{S_IFMT, S_IFSOCK};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -50,7 +51,7 @@ pub struct CmsSocket {
 
 impl CmsSocket {
     /// Create a new [CmsSocket] with the specified path.
-    pub fn new(sock_path: &Path) -> ah::Result<Self> {
+    fn new(sock_path: &Path) -> ah::Result<Self> {
         if let Ok(meta) = metadata(sock_path) {
             if meta.mode() & S_IFMT == S_IFSOCK {
                 remove_file(sock_path).context("Remove existing socket")?;
@@ -61,14 +62,29 @@ impl CmsSocket {
     }
 
     /// Create a new [CmsSocket] instance from the given [tokio] socket.
-    pub fn from_listener(sock: UnixListener) -> Self {
+    fn from_listener(sock: UnixListener) -> Self {
         Self { sock }
     }
 
-    pub fn from_std_listener(sock: StdUnixListener) -> ah::Result<Self> {
+    /// Create a new [CmsSocket] instance from the given [std] socket.
+    fn from_std_listener(sock: StdUnixListener) -> ah::Result<Self> {
         sock.set_nonblocking(true)
             .context("Set socket non-blocking")?;
         Ok(Self::from_listener(UnixListener::from_std(sock)?))
+    }
+
+    /// Create a new [CmsSocket] from Systemd environment
+    /// or from the specified path, if there is no Systemd.
+    pub fn from_systemd_or_path(no_systemd: bool, sock_path: &Path) -> ah::Result<Self> {
+        if !no_systemd && have_systemd() {
+            println!("Using socket from systemd.");
+            let sock = Self::from_std_listener(unix_from_systemd(true)?)?;
+            systemd_notify_ready(true)?;
+            Ok(sock)
+        } else {
+            println!("Creating socket {sock_path:?}.");
+            Self::new(sock_path)
+        }
     }
 
     pub async fn accept(&mut self) -> ah::Result<CmsSocketConn> {

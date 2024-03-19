@@ -14,7 +14,6 @@ clap = { version = "4", features = ["derive"] }
 cms-ident = { path = "../cms-ident" }
 cms-socket = { path = "../cms-socket" }
 cms-socket-db = { path = "../cms-socket-db" }
-cms-systemd = { path = "../cms-systemd" }
 inotify = "0.10"
 lazy_static = "1"
 lru = "0.12"
