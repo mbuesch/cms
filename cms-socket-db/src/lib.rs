@@ -19,14 +19,11 @@
 
 #![forbid(unsafe_code)]
 
-use anyhow::{self as ah, Context as _};
-use bincode::Options;
 use cms_ident::Ident;
-use cms_socket::{bincode_config, DeserializeResult, MsgHdr, MsgSerde};
+use cms_socket::impl_msg_serde;
 use serde::{Deserialize, Serialize};
 
 pub const SOCK_FILE: &str = "cms-fsd.sock";
-const MAGIC: u32 = 0x8F5755D6;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Msg {
@@ -81,38 +78,6 @@ pub enum Msg {
     },
 }
 
-impl MsgSerde<Msg> for Msg {
-    fn msg_serialize(&self) -> ah::Result<Vec<u8>> {
-        let mut payload = bincode_config().serialize(self)?;
-        let mut ret = bincode_config().serialize(&MsgHdr::new(MAGIC, payload.len()))?;
-        ret.append(&mut payload);
-        Ok(ret)
-    }
-
-    fn try_msg_deserialize(buf: &[u8]) -> ah::Result<DeserializeResult<Msg>> {
-        let hdr_len = MsgHdr::len();
-        if buf.len() < hdr_len {
-            Ok(DeserializeResult::Pending(hdr_len - buf.len()))
-        } else {
-            let hdr: MsgHdr = bincode_config()
-                .deserialize(&buf[0..hdr_len])
-                .context("Deserialize MsgHdr")?;
-            if hdr.magic() != MAGIC {
-                return Err(ah::format_err!("Deserialize: Invalid MAGIC code."));
-            }
-            let full_len = hdr_len
-                .checked_add(hdr.payload_len())
-                .context("Msg length overflow")?;
-            if buf.len() < full_len {
-                Ok(DeserializeResult::Pending(full_len - buf.len()))
-            } else {
-                let msg = bincode_config()
-                    .deserialize(&buf[hdr_len..full_len])
-                    .context("Deserialize Msg")?;
-                Ok(DeserializeResult::Ok(msg))
-            }
-        }
-    }
-}
+impl_msg_serde!(Msg, 0x8F5755D6);
 
 // vim: ts=4 sw=4 expandtab

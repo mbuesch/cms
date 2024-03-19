@@ -209,4 +209,51 @@ impl MsgHdr {
     }
 }
 
+#[macro_export]
+macro_rules! impl_msg_serde {
+    ($struct:ty, $magic:literal) => {
+        impl $crate::MsgSerde<$struct> for $struct {
+            fn msg_serialize(&self) -> anyhow::Result<Vec<u8>> {
+                use anyhow::Context as _;
+                use bincode::Options as _;
+                use $crate::{bincode_config, MsgHdr};
+
+                let mut payload = bincode_config().serialize(self)?;
+                let mut ret = bincode_config().serialize(&MsgHdr::new($magic, payload.len()))?;
+                ret.append(&mut payload);
+                Ok(ret)
+            }
+
+            fn try_msg_deserialize(buf: &[u8]) -> anyhow::Result<$crate::DeserializeResult<Msg>> {
+                use anyhow::Context as _;
+                use bincode::Options as _;
+                use $crate::{bincode_config, MsgHdr};
+
+                let hdr_len = MsgHdr::len();
+                if buf.len() < hdr_len {
+                    Ok($crate::DeserializeResult::Pending(hdr_len - buf.len()))
+                } else {
+                    let hdr: MsgHdr = bincode_config()
+                        .deserialize(&buf[0..hdr_len])
+                        .context("Deserialize MsgHdr")?;
+                    if hdr.magic() != $magic {
+                        return Err(anyhow::format_err!("Deserialize: Invalid magic code."));
+                    }
+                    let full_len = hdr_len
+                        .checked_add(hdr.payload_len())
+                        .context("Msg length overflow")?;
+                    if buf.len() < full_len {
+                        Ok($crate::DeserializeResult::Pending(full_len - buf.len()))
+                    } else {
+                        let msg = bincode_config()
+                            .deserialize(&buf[hdr_len..full_len])
+                            .context("Deserialize Msg")?;
+                        Ok($crate::DeserializeResult::Ok(msg))
+                    }
+                }
+            }
+        }
+    };
+}
+
 // vim: ts=4 sw=4 expandtab
