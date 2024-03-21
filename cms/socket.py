@@ -25,17 +25,22 @@ import socket
 import sys
 
 MSG_HDR_LEN = 8
-MAGIC = 0x8F5755D6
-ID_GETPAGE = 0
-ID_GETHEADERS = 1
-ID_GETSUBPAGES = 2
-ID_GETMACRO = 3
-ID_GETSTRING = 4
-ID_PAGE = 5
-ID_HEADERS = 6
-ID_SUBPAGES = 7
-ID_MACRO = 8
-ID_STRING = 9
+
+MAGIC_DB = 0x8F5755D6
+ID_DB_GETPAGE = 0
+ID_DB_GETHEADERS = 1
+ID_DB_GETSUBPAGES = 2
+ID_DB_GETMACRO = 3
+ID_DB_GETSTRING = 4
+ID_DB_PAGE = 5
+ID_DB_HEADERS = 6
+ID_DB_SUBPAGES = 7
+ID_DB_MACRO = 8
+ID_DB_STRING = 9
+
+MAGIC_POST = 0x6ADCB73F
+ID_POST_RUNPOSTHANDLER = 0
+ID_POST_POSTHANDLERRESULT = 1
 
 def pack_u8(value):
 	return (value & 0xFF).to_bytes(1, sys.byteorder)
@@ -60,8 +65,15 @@ def pack_str(string):
 	except UnicodeError:
 		raise ValueError("pack_str: Invalid string encoding.")
 
+def pack_hashmap_str_bytes(items):
+	ret = bytearray(pack_u64(len(items)))
+	for item in items:
+		ret += pack_str(items[0])
+		ret += pack_bytes(items[1])
+	return ret
+
 def pack_message(payload):
-	ret = bytearray(pack_u32(MAGIC))
+	ret = bytearray(pack_u32(MAGIC_DB))
 	ret += pack_u32(len(payload))
 	ret += payload
 	return ret
@@ -90,12 +102,15 @@ def unpack_str(buf, i):
 	except UnicodeError:
 		raise ValueError("unpack_str: Invalid string encoding.")
 
-def unpack_header(buf):
+def unpack_hashmap_str_bytes(buf, i):
+	pass#TODO
+
+def unpack_header(buf, magic_expected):
 	if len(buf) < MSG_HDR_LEN:
 		raise ValueError("unpack_header: Too short.")
 	magic, i = unpack_u32(buf, 0)
-	if magic != MAGIC:
-		raise ValueError("unpack_header: Invalid MAGIC.")
+	if magic != magic_expected:
+		raise ValueError("unpack_header: Invalid magic.")
 	plLen, i = unpack_u32(buf, i)
 	return plLen
 
@@ -121,7 +136,7 @@ class MsgGetPage:
 		self.get_nav_label = get_nav_label
 
 	def pack(self):
-		payload = bytearray(pack_u32(ID_GETPAGE))
+		payload = bytearray(pack_u32(ID_DB_GETPAGE))
 		payload += pack_str(self.path)
 		payload += pack_bool(self.get_title)
 		payload += pack_bool(self.get_data)
@@ -137,7 +152,7 @@ class MsgGetHeaders:
 		self.path = path
 
 	def pack(self):
-		payload = bytearray(pack_u32(ID_GETHEADERS))
+		payload = bytearray(pack_u32(ID_DB_GETHEADERS))
 		payload += pack_str(self.path)
 		return pack_message(payload)
 
@@ -146,7 +161,7 @@ class MsgGetSubPages:
 		self.path = path
 
 	def pack(self):
-		payload = bytearray(pack_u32(ID_GETSUBPAGES))
+		payload = bytearray(pack_u32(ID_DB_GETSUBPAGES))
 		payload += pack_str(self.path)
 		return pack_message(payload)
 
@@ -156,7 +171,7 @@ class MsgGetMacro:
 		self.name = name
 
 	def pack(self):
-		payload = bytearray(pack_u32(ID_GETMACRO))
+		payload = bytearray(pack_u32(ID_DB_GETMACRO))
 		payload += pack_str(self.parent)
 		payload += pack_str(self.name)
 		return pack_message(payload)
@@ -166,7 +181,7 @@ class MsgGetString:
 		self.name = name
 
 	def pack(self):
-		payload = bytearray(pack_u32(ID_GETSTRING))
+		payload = bytearray(pack_u32(ID_DB_GETSTRING))
 		payload += pack_str(self.name)
 		return pack_message(payload)
 
@@ -279,22 +294,33 @@ class MsgString:
 		self = cls(data=data)
 		return self
 
-def unpack_message(buf):
-	variant, i = unpack_u32(buf, MSG_HDR_LEN)
-	if variant == ID_PAGE:
-		return MsgPage.unpack(buf, i)
-	elif variant == ID_HEADERS:
-		return MsgHeaders.unpack(buf, i)
-	elif variant == ID_SUBPAGES:
-		return MsgSubPages.unpack(buf, i)
-	elif variant == ID_MACRO:
-		return MsgMacro.unpack(buf, i)
-	elif variant == ID_STRING:
-		return MsgString.unpack(buf, i)
-	else:
-		raise ValueError("unpack_message: Unknown variant ID.")
+class MsgRunPostHandler:
+	pass#TODO
 
-def recv_message(sock):
+class MsgPostHandlerResult:
+	pass#TODO
+
+def unpack_message(buf, magic):
+	variant, i = unpack_u32(buf, MSG_HDR_LEN)
+	if magic == MAGIC_DB:
+		if variant == ID_DB_PAGE:
+			return MsgPage.unpack(buf, i)
+		elif variant == ID_DB_HEADERS:
+			return MsgHeaders.unpack(buf, i)
+		elif variant == ID_DB_SUBPAGES:
+			return MsgSubPages.unpack(buf, i)
+		elif variant == ID_DB_MACRO:
+			return MsgMacro.unpack(buf, i)
+		elif variant == ID_DB_STRING:
+			return MsgString.unpack(buf, i)
+	elif magic == MAGIC_POST:
+		if variant == ID_POST_RUNPOSTHANDLER:
+			pass#TODO
+		elif variant == ID_POST_POSTHANDLERRESULT:
+			pass#TODO
+	raise ValueError("unpack_message: Unknown variant ID.")
+
+def recv_message(sock, magic):
 	buf = bytearray()
 	recvLen = MSG_HDR_LEN
 	while True:
@@ -304,9 +330,9 @@ def recv_message(sock):
 		buf += data
 		if len(buf) >= MSG_HDR_LEN:
 			try:
-				plLen = unpack_header(buf)
+				plLen = unpack_header(buf, magic)
 				if len(buf) - MSG_HDR_LEN >= plLen:
-					return unpack_message(buf)
+					return unpack_message(buf, magic)
 				recvLen = MSG_HDR_LEN + plLen - len(buf)
 			except IndexError:
 				raise ValueError("recv_message: Buffer out of bounds access.")

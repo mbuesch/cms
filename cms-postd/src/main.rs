@@ -51,7 +51,7 @@ async fn process_conn(mut conn: CmsSocketConn) -> ah::Result<()> {
                 query,
                 form_fields,
             }) => {}
-            Some(Msg::PostHandlerReply { body, mime }) => {}
+            Some(Msg::PostHandlerResult { body, mime }) => {}
             None => {
                 #[cfg(debug_assertions)]
                 eprintln!("Client disconnected.");

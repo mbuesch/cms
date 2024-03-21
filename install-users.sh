@@ -45,6 +45,8 @@ do_usermod()
 # Stop the daemons.
 systemctl stop cms-fsd.socket >/dev/null 2>&1
 systemctl stop cms-fsd.service >/dev/null 2>&1
+systemctl stop cms-postd.socket >/dev/null 2>&1
+systemctl stop cms-postd.service >/dev/null 2>&1
 
 # Delete all existing users, if any.
 userdel cms-fsd >/dev/null 2>&1
@@ -78,6 +80,7 @@ sys_useradd -G cms-sock-back,cms-sock-db,cms-sock-post -g cms-backd cms-backd
 
 # Add the communication socket to the web server process user.
 do_usermod -a -G cms-sock-db www-data #TODO: cms-sock-db shall be removed eventually.
+do_usermod -a -G cms-sock-post www-data #TODO: cms-sock-post shall be removed eventually.
 do_usermod -a -G cms-sock-back www-data
 
 # vim: ts=4 sw=4 expandtab

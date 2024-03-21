@@ -36,12 +36,12 @@ pub enum Msg {
     },
 
     // Values
-    PostHandlerReply {
+    PostHandlerResult {
         body: Vec<u8>,
         mime: String,
     },
 }
 
-impl_msg_serde!(Msg, 0x6adcb73f);
+impl_msg_serde!(Msg, 0x6ADCB73F);
 
 // vim: ts=4 sw=4 expandtab

@@ -22,7 +22,7 @@
 from cms.exception import *
 from cms.pageident import *
 from cms.util import fs, datetime #+cimport
-from cms.db_socket import *
+from cms.socket import *
 
 import re
 import sys
@@ -38,17 +38,29 @@ class CMSDatabase(object):
 	def __init__(self, basePath):
 		self.pageBase = fs.mkpath(basePath, "pages")
 		try:
-			self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-			self.sock.connect("/run/cms-fsd.sock")
+			self.dbsock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+			self.dbsock.connect("/run/cms-fsd.sock")
+		except Exception:
+			raise CMSException(500, "cms-fsd communication error")
+		try:
+			self.postsock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+			self.postsock.connect("/run/cms-postd.sock")
+		except Exception:
+			raise CMSException(500, "cms-postd communication error")
+
+	def __communicateDb(self, msg):
+		try:
+			self.dbsock.sendall(msg.pack())
+			return recv_message(self.dbsock, MAGIC_DB)
 		except Exception:
 			raise CMSException(500, "cms-fsd communication error")
 
-	def __communicate(self, msg):
+	def __communicatePost(self, msg):
 		try:
-			self.sock.sendall(msg.pack())
-			return recv_message(self.sock)
+			self.postsock.sendall(msg.pack())
+			return recv_message(self.postsock, MAGIC_POST)
 		except Exception:
-			raise CMSException(500, "cms-fsd communication error")
+			raise CMSException(500, "cms-postd communication error")
 
 	@staticmethod
 	def __encode(s):
@@ -68,11 +80,8 @@ class CMSDatabase(object):
 			pass
 		return ""
 
-	def __redirect(self, redirectString):
-		raise CMSException301(redirectString)
-
 	def getNavStop(self, pageIdent):
-		reply = self.__communicate(MsgGetPage(
+		reply = self.__communicateDb(MsgGetPage(
 			path=pageIdent.getFilesystemPath(),
 			get_title=False,
 			get_data=False,
@@ -86,14 +95,14 @@ class CMSDatabase(object):
 		return nav_stop
 
 	def getHeaders(self, pageIdent):
-		reply = self.__communicate(MsgGetHeaders(
+		reply = self.__communicateDb(MsgGetHeaders(
 			path=pageIdent.getFilesystemPath(),
 		))
 		data = self.__decode(reply.data)
 		return data
 
 	def getPage(self, pageIdent):
-		reply = self.__communicate(MsgGetPage(
+		reply = self.__communicateDb(MsgGetPage(
 			path=pageIdent.getFilesystemPath(),
 			get_title=True,
 			get_data=True,
@@ -105,14 +114,14 @@ class CMSDatabase(object):
 		))
 		redirect = self.__decode(reply.redirect).strip()
 		if redirect:
-			return self.__redirect(redirect)
+			raise CMSException301(redirect)
 		title = self.__decode(reply.title)
 		data = self.__decode(reply.data)
 		stamp = datetime.utcfromtimestamp(reply.stamp or 0)
 		return (title, data, stamp)
 
 	def getPageTitle(self, pageIdent):
-		reply = self.__communicate(MsgGetPage(
+		reply = self.__communicateDb(MsgGetPage(
 			path=pageIdent.getFilesystemPath(),
 			get_title=True,
 			get_data=False,
@@ -126,7 +135,7 @@ class CMSDatabase(object):
 		return title
 
 	def getPageStamp(self, pageIdent):
-		reply = self.__communicate(MsgGetPage(
+		reply = self.__communicateDb(MsgGetPage(
 			path=pageIdent.getFilesystemPath(),
 			get_title=False,
 			get_data=False,
@@ -142,7 +151,7 @@ class CMSDatabase(object):
 	# Get a list of sub-pages.
 	# Returns list of (pagename, navlabel, prio)
 	def getSubPages(self, pageIdent, sortByPrio=True):
-		reply = self.__communicate(MsgGetSubPages(
+		reply = self.__communicateDb(MsgGetSubPages(
 			path=pageIdent.getFilesystemPath(),
 		))
 		res = []
@@ -157,7 +166,7 @@ class CMSDatabase(object):
 
 	# Get the contents of a @MACRO().
 	def getMacro(self, macroname, pageIdent=None):
-		reply = self.__communicate(MsgGetMacro(
+		reply = self.__communicateDb(MsgGetMacro(
 			parent=pageIdent.getFilesystemPath() if pageIdent is not None else "",
 			name=macroname,
 		))
@@ -165,7 +174,7 @@ class CMSDatabase(object):
 		return '\n'.join( l for l in data.splitlines() if l )
 
 	def getString(self, name, default=None):
-		reply = self.__communicate(MsgGetString(
+		reply = self.__communicateDb(MsgGetString(
 			name=name,
 		))
 		string = self.__decode(reply.data).strip()
