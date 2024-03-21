@@ -68,13 +68,19 @@ install_dirs()
         -o root -g root -m 0755 \
         -d /opt/cms/etc/cms
 
+    rm -rf /opt/cms/share/cms-wsgi
+
     do_install \
         -o root -g root -m 0755 \
         -d /opt/cms/share/cms-wsgi
 
+    rm -rf /opt/cms/lib/python3/site-packages/cms
+
     do_install \
         -o root -g root -m 0755 \
         -d /opt/cms/lib/python3/site-packages/cms
+
+    rm -rf /opt/cms/lib/python3/site-packages/cms_cython
 
     do_install \
         -o root -g root -m 0755 \
