@@ -145,6 +145,16 @@ impl Ident {
         self
     }
 
+    /// Check if the identifier ends with the specified [tail].
+    #[inline]
+    pub fn ends_with(&self, tail: &str) -> bool {
+        if check_ident_elem(tail, ElemFmt::User).is_ok() {
+            self.as_str().ends_with(tail)
+        } else {
+            false
+        }
+    }
+
     fn check(&self, max_ident_depth: usize, elem_fmt: ElemFmt) -> ah::Result<()> {
         // Check string size limit.
         if self.0.len() > MAX_IDENTSTR_LEN {

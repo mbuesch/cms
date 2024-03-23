@@ -14,6 +14,7 @@ clap = { version = "4", features = ["derive"] }
 cms-ident = { path = "../cms-ident" }
 cms-socket = { path = "../cms-socket" }
 cms-socket-post = { path = "../cms-socket-post" }
+pyo3 = { version = "0.20", features = [ "abi3", "auto-initialize", "anyhow" ] }
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros", "fs", "io-util", "time" ] }
 
 # vim: ts=4 sw=4 expandtab

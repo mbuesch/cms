@@ -19,6 +19,11 @@
 
 #![forbid(unsafe_code)]
 
+mod reply;
+mod request;
+mod runner;
+
+use crate::{request::Request, runner::python::PyRunner};
 use anyhow as ah;
 use clap::Parser;
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
@@ -50,8 +55,31 @@ async fn process_conn(mut conn: CmsSocketConn) -> ah::Result<()> {
                 path,
                 query,
                 form_fields,
-            }) => {}
-            Some(Msg::PostHandlerResult { body, mime }) => {}
+            }) => {
+                let request = Request {
+                    path: path.into_cleaned_path().into_checked()?,
+                    query,
+                    form_fields,
+                };
+
+                let post_task = task::spawn_blocking(move || {
+                    if request.path.ends_with(".py") {
+                        Ok(PyRunner::new().run(&request)?)
+                    } else {
+                        Err(ah::format_err!("RunPostHandler: Unknown handler type."))
+                    }
+                });
+                let reply_data = post_task.await??;
+
+                let reply = Msg::PostHandlerResult {
+                    body: reply_data.body,
+                    mime: reply_data.mime,
+                };
+                conn.send_msg(&reply).await?;
+            }
+            Some(Msg::PostHandlerResult { .. }) => {
+                eprintln!("Received unsupported message.");
+            }
             None => {
                 #[cfg(debug_assertions)]
                 eprintln!("Client disconnected.");
@@ -61,7 +89,7 @@ async fn process_conn(mut conn: CmsSocketConn) -> ah::Result<()> {
     }
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 3)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 1)]
 async fn main() -> ah::Result<()> {
     let opts = Opts::parse();
 
