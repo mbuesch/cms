@@ -31,7 +31,7 @@ use anyhow::{self as ah, Context as _};
 use clap::Parser;
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
 use cms_socket_post::{Msg, SOCK_FILE};
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{num::NonZeroUsize, path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     runtime,
     signal::unix::{signal, SignalKind},
@@ -47,8 +47,13 @@ struct Opts {
     #[arg(long, default_value = "/run")]
     rundir: PathBuf,
 
+    /// Always run in non-systemd mode.
     #[arg(long, default_value = "false")]
     no_systemd: bool,
+
+    /// Set the number async worker threads.
+    #[arg(long, default_value = "1")]
+    worker_threads: NonZeroUsize,
 }
 
 async fn process_conn(mut conn: CmsSocketConn, opts: Arc<Opts>) -> ah::Result<()> {
@@ -95,9 +100,7 @@ async fn process_conn(mut conn: CmsSocketConn, opts: Arc<Opts>) -> ah::Result<()
     }
 }
 
-async fn async_main() -> ah::Result<()> {
-    let opts = Arc::new(Opts::parse());
-
+async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
     let (main_exit_tx, mut main_exit_rx) = sync::mpsc::channel(1);
 
     let mut sigterm = signal(SignalKind::terminate()).unwrap();
@@ -159,13 +162,15 @@ async fn async_main() -> ah::Result<()> {
 }
 
 fn main() -> ah::Result<()> {
+    let opts = Arc::new(Opts::parse());
+
     runtime::Builder::new_multi_thread()
         .thread_keep_alive(Duration::from_millis(0))
-        .worker_threads(1)
+        .worker_threads(opts.worker_threads.into())
         .enable_all()
         .build()
         .context("Tokio runtime builder")?
-        .block_on(async_main())
+        .block_on(async_main(opts))
 }
 
 // vim: ts=4 sw=4 expandtab
