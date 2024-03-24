@@ -144,12 +144,12 @@ impl Ident {
         }
 
         // Special case: Index is the root page.
-        if ["index.html", "index.py", "index.php"].contains(&s.as_str()) {
+        if ["index.html", "index.php"].contains(&s.as_str()) {
             s.clear();
         }
 
         // Remove virtual page file extensions.
-        if s.ends_with(".html") || s.ends_with(".py") || s.ends_with(".php") {
+        if s.ends_with(".html") || s.ends_with(".php") {
             s.drain(s.rfind('.').unwrap()..);
         }
 
@@ -157,14 +157,10 @@ impl Ident {
         self
     }
 
-    /// Check if the identifier ends with the specified [tail].
+    /// Check if the identifier ends with the specified [tail] str.
     #[inline]
     pub fn ends_with(&self, tail: &str) -> bool {
-        if check_ident_elem(tail, ElemFmt::User).is_ok() {
-            self.as_str().ends_with(tail)
-        } else {
-            false
-        }
+        self.as_str().ends_with(tail)
     }
 
     fn check(&self, max_ident_depth: usize, elem_fmt: ElemFmt) -> ah::Result<()> {
