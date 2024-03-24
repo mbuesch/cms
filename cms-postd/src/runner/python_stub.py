@@ -31,7 +31,15 @@ class CMSFormFields:
         field = self.getStr(name, '', maxlen, charset)
         if not field:
             return default
-        return stringBool(field, default)
+        s = field.lower()
+        if s in ("true", "yes", "on", "1"):
+            return True
+        if s in ("false", "no", "off", "0"):
+            return False
+        try:
+            return bool(int(s))
+        except ValueError:
+            return default
 
     def getInt(self, name, default=0, maxlen=32, charset=defaultCharsetInt):
         field = self.getStr(name, '', maxlen, charset)
