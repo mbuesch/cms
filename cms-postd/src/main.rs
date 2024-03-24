@@ -23,13 +23,17 @@ mod reply;
 mod request;
 mod runner;
 
-use crate::{request::Request, runner::python::PyRunner};
-use anyhow as ah;
+use crate::{
+    request::Request,
+    runner::{python::PyRunner, Runner},
+};
+use anyhow::{self as ah, Context as _};
 use clap::Parser;
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
 use cms_socket_post::{Msg, SOCK_FILE};
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
+    runtime,
     signal::unix::{signal, SignalKind},
     sync, task,
 };
@@ -47,8 +51,9 @@ struct Opts {
     no_systemd: bool,
 }
 
-async fn process_conn(mut conn: CmsSocketConn) -> ah::Result<()> {
+async fn process_conn(mut conn: CmsSocketConn, opts: Arc<Opts>) -> ah::Result<()> {
     loop {
+        let opts = Arc::clone(&opts);
         let msg = conn.recv_msg(Msg::try_msg_deserialize).await?;
         match msg {
             Some(Msg::RunPostHandler {
@@ -64,7 +69,8 @@ async fn process_conn(mut conn: CmsSocketConn) -> ah::Result<()> {
 
                 let post_task = task::spawn_blocking(move || {
                     if request.path.ends_with(".py") {
-                        Ok(PyRunner::new().run(&request)?)
+                        let mut runner = PyRunner::new(&opts.db_path);
+                        Ok(runner.run(&request)?)
                     } else {
                         Err(ah::format_err!("RunPostHandler: Unknown handler type."))
                     }
@@ -89,9 +95,8 @@ async fn process_conn(mut conn: CmsSocketConn) -> ah::Result<()> {
     }
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 1)]
-async fn main() -> ah::Result<()> {
-    let opts = Opts::parse();
+async fn async_main() -> ah::Result<()> {
+    let opts = Arc::new(Opts::parse());
 
     let (main_exit_tx, mut main_exit_rx) = sync::mpsc::channel(1);
 
@@ -102,13 +107,15 @@ async fn main() -> ah::Result<()> {
     let mut sock = CmsSocket::from_systemd_or_path(opts.no_systemd, &opts.rundir.join(SOCK_FILE))?;
 
     // Task: Socket handler.
+    let opts_clone = Arc::clone(&opts);
     task::spawn(async move {
         loop {
+            let opts_clone = Arc::clone(&opts_clone);
             match sock.accept().await {
                 Ok(conn) => {
                     // Socket connection handler.
                     task::spawn(async move {
-                        if let Err(e) = process_conn(conn).await {
+                        if let Err(e) = process_conn(conn, opts_clone).await {
                             eprintln!("Client error: {e}");
                         }
                     });
@@ -149,6 +156,16 @@ async fn main() -> ah::Result<()> {
         }
     }
     exitcode
+}
+
+fn main() -> ah::Result<()> {
+    runtime::Builder::new_multi_thread()
+        .thread_keep_alive(Duration::from_millis(0))
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .context("Tokio runtime builder")?
+        .block_on(async_main())
 }
 
 // vim: ts=4 sw=4 expandtab

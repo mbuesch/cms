@@ -103,7 +103,7 @@ impl Ident {
     }
 
     /// Get the last path element as a &str.
-    /// 
+    ///
     /// Returns None, if this identifier has zero elements.
     #[inline]
     pub fn last_element_str(&self) -> Option<&str> {
