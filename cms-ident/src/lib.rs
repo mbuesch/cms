@@ -102,6 +102,18 @@ impl Ident {
         self.0.split(ELEMSEP)
     }
 
+    /// Get the last path element as a &str.
+    /// 
+    /// Returns None, if this identifier has zero elements.
+    #[inline]
+    pub fn last_element_str(&self) -> Option<&str> {
+        if self.0.is_empty() {
+            None
+        } else {
+            self.elements().last()
+        }
+    }
+
     /// Get the number of path elements.
     #[inline]
     fn element_count(&self) -> usize {
