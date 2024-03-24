@@ -307,15 +307,17 @@ class MsgRunPostHandler:
 		return pack_message(payload, MAGIC_POST)
 
 class MsgPostHandlerResult:
-	def __init__(self, body, mime):
+	def __init__(self, error, body, mime):
+		self.error = error
 		self.body = body
 		self.mime = mime
 
 	@classmethod
 	def unpack(cls, buf, i):
+		error, i = unpack_str(buf, i)
 		body, i = unpack_bytes(buf, i)
 		mime, i = unpack_str(buf, i)
-		self = cls(body=body, mime=mime)
+		self = cls(error=error, body=body, mime=mime)
 		return self
 
 def unpack_message(buf, magic):

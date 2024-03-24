@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-def CMSException(httpStatusCode=500, message=''):
-    raise Exception(f'{httpStatusCode}: {message}')
-
 class CMSFormFields:
     UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'
@@ -22,9 +19,9 @@ class CMSFormFields:
         assert isinstance(field, bytes)
         field = field.decode('UTF-8', 'strict')
         if maxlen is not None and len(field) > maxlen:
-            raise CMSException(400, 'Form data is too long.')
+            raise self.CMSPostException('Form data is too long.')
         if charset is not None and [ c for c in field if c not in charset ]:
-            raise CMSException(400, 'Invalid character in form data')
+            raise self.CMSPostException('Invalid character in form data')
         return field
 
     def getBool(self, name, default=False, maxlen=32, charset=defaultCharsetBool):
@@ -53,36 +50,30 @@ class CMSFormFields:
         except ValueError:
             return default
 
-try:
-    # Import the post handler module file.
-    import importlib
-    import importlib.machinery
-    loader = importlib.machinery.SourceFileLoader(handler_mod_name, handler_mod_path)
-    module = loader.load_module()
+# Import the post handler module file.
+import importlib
+import importlib.machinery
+loader = importlib.machinery.SourceFileLoader(handler_mod_name, handler_mod_path)
+module = loader.load_module()
 
-    module.CMSException = CMSException
-    module.CMSPostException = CMSException
+module.CMSPostException = CMSPostException
+CMSFormFields.CMSPostException = CMSPostException
 
-    # Get the post() handler function from the module.
-    post_handler = getattr(module, 'post', None)
-    if post_handler is None:
-        raise Exception('No post() handler function found in module.')
-except Exception as e:
-    raise Exception(f'Load post handler module [{type(e)}]: {e}')
+# Get the post() handler function from the module.
+post_handler = getattr(module, 'post', None)
+if post_handler is None:
+    raise CMSPostException('No post() handler function found in module.')
 
-try:
-    # Add post.py directory to include search path so that
-    # the post handler can import from it.
-    import sys
-    if handler_mod_dir not in sys.path:
-        sys.path.insert(0, handler_mod_dir)
+# Add post.py directory to include search path so that
+# the post handler can import from it.
+import sys
+if handler_mod_dir not in sys.path:
+    sys.path.insert(0, handler_mod_dir)
 
-    # Run the post handler.
-    reply_body, reply_mime = post_handler(
-        CMSFormFields(request_form_fields),
-        request_query,
-    )
-except Exception as e:
-    raise Exception(f'Run post handler [{type(e)}]: {e}')
+# Run the post handler.
+reply_body, reply_mime = post_handler(
+    CMSFormFields(request_form_fields),
+    request_query,
+)
 
 # vim: ts=4 sw=4 expandtab

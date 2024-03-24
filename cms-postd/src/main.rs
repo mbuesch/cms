@@ -83,6 +83,7 @@ async fn process_conn(mut conn: CmsSocketConn, opts: Arc<Opts>) -> ah::Result<()
                 let reply_data = post_task.await??;
 
                 let reply = Msg::PostHandlerResult {
+                    error: reply_data.error,
                     body: reply_data.body,
                     mime: reply_data.mime,
                 };

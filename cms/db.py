@@ -188,4 +188,6 @@ class CMSDatabase(object):
 			query=query.items(),
 			form_fields=formFields.items(),
 		))
+		if reply.error:
+			raise CMSException(400, reply.error)
 		return bytes(reply.body), reply.mime

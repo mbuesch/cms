@@ -18,6 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 pub struct Reply {
+    pub error: String,
     pub body: Vec<u8>,
     pub mime: String,
 }

@@ -21,6 +21,8 @@ use crate::{reply::Reply, request::Request, runner::Runner};
 use anyhow::{self as ah, Context as _};
 use cms_ident::{Strip, Tail};
 use pyo3::{
+    create_exception,
+    exceptions::PyException,
     prelude::*,
     types::{PyBytes, PyDict, PyString},
 };
@@ -39,6 +41,13 @@ fn sanitize_python_module_name_char(c: char) -> char {
         '_'
     }
 }
+
+create_exception!(
+    cms_exceptions,
+    CMSPostException,
+    PyException,
+    "CMS POST handler error"
+);
 
 pub struct PyRunner {
     db_path: PathBuf,
@@ -125,6 +134,9 @@ impl Runner for PyRunner {
             // Prepare Python locals context dict.
             let locals = PyDict::new(py);
             locals
+                .set_item("CMSPostException", py.get_type::<CMSPostException>())
+                .context("Construct Python locals")?;
+            locals
                 .set_item("handler_mod_name", handler_mod_name)
                 .context("Construct Python locals")?;
             locals
@@ -149,8 +161,24 @@ impl Runner for PyRunner {
             //TODO pyo3 can't do subinterpreters. As workaround run the handler with multiprocessing and poll the result with the gil released.
 
             // Run the Python post handler.
-            py.run(include_str!("python_stub.py"), None, Some(locals))
-                .context("Python run")?;
+            let runner_result = py.run(include_str!("python_stub.py"), None, Some(locals));
+
+            // Handle post handler exception.
+            match runner_result {
+                Ok(_) => (),
+                Err(e) if e.is_instance_of::<CMSPostException>(py) => {
+                    // This is a CMSPostException.
+                    // Send the message to the postd client.
+                    return Ok(Reply {
+                        error: format!("POST handler failed: {e}"),
+                        body: b"".to_vec(),
+                        mime: "".to_string(),
+                    });
+                }
+                Err(e) => {
+                    return Err(e).context("PyRunner: Execution failed")?;
+                }
+            }
 
             // Extract the reply body from locals.
             let Some(reply_body) = locals.get_item("reply_body").context("reply_body")? else {
@@ -180,6 +208,7 @@ impl Runner for PyRunner {
             }
 
             Ok(Reply {
+                error: "".to_string(),
                 body: reply_body,
                 mime: reply_mime,
             })

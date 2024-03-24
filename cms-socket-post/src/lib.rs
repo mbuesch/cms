@@ -37,6 +37,7 @@ pub enum Msg {
 
     // Values
     PostHandlerResult {
+        error: String,
         body: Vec<u8>,
         mime: String,
     },
