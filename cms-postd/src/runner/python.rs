@@ -24,7 +24,11 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyDict, PyString},
 };
-use std::path::{Path, PathBuf};
+use std::{
+    fs::File,
+    os::unix::fs::PermissionsExt as _,
+    path::{Path, PathBuf},
+};
 
 fn sanitize_python_module_name_char(c: char) -> char {
     const UPPERCASE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -58,7 +62,6 @@ impl Runner for PyRunner {
             if path.last_element_str().unwrap_or("") != "post.py" {
                 return Err(ah::format_err!("PyRunner: Handler file not supported.").into());
             }
-            //TODO check if the file exists, here in Rust code.
 
             // Path to the directory containing the post.py.
             let mod_dir = path
@@ -80,6 +83,27 @@ impl Runner for PyRunner {
                 .chars()
                 .map(sanitize_python_module_name_char)
                 .collect();
+
+            // Check post.py file mode:
+            // group: rx, not w
+            // other: not w
+            {
+                let mod_fd = File::open(&mod_path).context("post.py not readable")?;
+                let meta = mod_fd.metadata().context("post.py metadata read")?;
+                let mode = meta.permissions().mode();
+                if mode & 0o070 != 0o050 {
+                    return Err(ah::format_err!(
+                        "PyRunner: post.py is not group-read-execute file mode"
+                    )
+                    .into());
+                }
+                if mode & 0o002 != 0o000 {
+                    return Err(ah::format_err!(
+                        "PyRunner: post.py must not have other-write file mode."
+                    )
+                    .into());
+                }
+            }
 
             // Create Python objects for locals context.
             let request_query = PyDict::new(py);
