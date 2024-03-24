@@ -56,6 +56,7 @@ class CMSFormFields:
 try:
     # Import the post handler module file.
     import importlib
+    import importlib.machinery
     loader = importlib.machinery.SourceFileLoader(handler_mod_name, handler_mod_path)
     module = loader.load_module()
 
