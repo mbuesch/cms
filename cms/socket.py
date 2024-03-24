@@ -67,13 +67,15 @@ def pack_str(string):
 
 def pack_hashmap_str_bytes(items):
 	ret = bytearray(pack_u64(len(items)))
-	for item in items:
-		ret += pack_str(items[0])
-		ret += pack_bytes(items[1])
+	for k, v in items:
+		assert isinstance(k, str)
+		ret += pack_str(k)
+		assert isinstance(v, (bytes, bytearray))
+		ret += pack_bytes(v)
 	return ret
 
-def pack_message(payload):
-	ret = bytearray(pack_u32(MAGIC_DB))
+def pack_message(payload, magic):
+	ret = bytearray(pack_u32(magic))
 	ret += pack_u32(len(payload))
 	ret += payload
 	return ret
@@ -101,9 +103,6 @@ def unpack_str(buf, i):
 		return v.decode("UTF-8", "strict"), i
 	except UnicodeError:
 		raise ValueError("unpack_str: Invalid string encoding.")
-
-def unpack_hashmap_str_bytes(buf, i):
-	pass#TODO
 
 def unpack_header(buf, magic_expected):
 	if len(buf) < MSG_HDR_LEN:
@@ -145,7 +144,7 @@ class MsgGetPage:
 		payload += pack_bool(self.get_redirect)
 		payload += pack_bool(self.get_nav_stop)
 		payload += pack_bool(self.get_nav_label)
-		return pack_message(payload)
+		return pack_message(payload, MAGIC_DB)
 
 class MsgGetHeaders:
 	def __init__(self, path):
@@ -154,7 +153,7 @@ class MsgGetHeaders:
 	def pack(self):
 		payload = bytearray(pack_u32(ID_DB_GETHEADERS))
 		payload += pack_str(self.path)
-		return pack_message(payload)
+		return pack_message(payload, MAGIC_DB)
 
 class MsgGetSubPages:
 	def __init__(self, path):
@@ -163,7 +162,7 @@ class MsgGetSubPages:
 	def pack(self):
 		payload = bytearray(pack_u32(ID_DB_GETSUBPAGES))
 		payload += pack_str(self.path)
-		return pack_message(payload)
+		return pack_message(payload, MAGIC_DB)
 
 class MsgGetMacro:
 	def __init__(self, parent, name):
@@ -174,7 +173,7 @@ class MsgGetMacro:
 		payload = bytearray(pack_u32(ID_DB_GETMACRO))
 		payload += pack_str(self.parent)
 		payload += pack_str(self.name)
-		return pack_message(payload)
+		return pack_message(payload, MAGIC_DB)
 
 class MsgGetString:
 	def __init__(self, name):
@@ -183,7 +182,7 @@ class MsgGetString:
 	def pack(self):
 		payload = bytearray(pack_u32(ID_DB_GETSTRING))
 		payload += pack_str(self.name)
-		return pack_message(payload)
+		return pack_message(payload, MAGIC_DB)
 
 class MsgPage:
 	def __init__(
@@ -295,10 +294,29 @@ class MsgString:
 		return self
 
 class MsgRunPostHandler:
-	pass#TODO
+	def __init__(self, path, query, form_fields):
+		self.path = path
+		self.query = query
+		self.form_fields = form_fields
+
+	def pack(self):
+		payload = bytearray(pack_u32(ID_POST_RUNPOSTHANDLER))
+		payload += pack_str(self.path)
+		payload += pack_hashmap_str_bytes(self.query)
+		payload += pack_hashmap_str_bytes(self.form_fields)
+		return pack_message(payload, MAGIC_POST)
 
 class MsgPostHandlerResult:
-	pass#TODO
+	def __init__(self, body, mime):
+		self.body = body
+		self.mime = mime
+
+	@classmethod
+	def unpack(cls, buf, i):
+		body, i = unpack_bytes(buf, i)
+		mime, i = unpack_str(buf, i)
+		self = cls(body=body, mime=mime)
+		return self
 
 def unpack_message(buf, magic):
 	variant, i = unpack_u32(buf, MSG_HDR_LEN)
@@ -314,10 +332,8 @@ def unpack_message(buf, magic):
 		elif variant == ID_DB_STRING:
 			return MsgString.unpack(buf, i)
 	elif magic == MAGIC_POST:
-		if variant == ID_POST_RUNPOSTHANDLER:
-			pass#TODO
-		elif variant == ID_POST_POSTHANDLERRESULT:
-			pass#TODO
+		if variant == ID_POST_POSTHANDLERRESULT:
+			return MsgPostHandlerResult.unpack(buf, i)
 	raise ValueError("unpack_message: Unknown variant ID.")
 
 def recv_message(sock, magic):

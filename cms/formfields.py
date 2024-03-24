@@ -54,6 +54,12 @@ class CMSFormFields(object):
 		except Exception as e:
 			raise CMSException(400, "Cannot parse form data.")
 
+	def items(self):
+		return {
+			k: v.encode("UTF-8", "strict")
+			for k, v in self.__forms.iterallitems()
+		}.items()
+
 	def getStr(self, name, default="", maxlen=32, charset=defaultCharset):
 		"""Get a form field.
 		Returns a str.

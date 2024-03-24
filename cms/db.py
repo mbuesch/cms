@@ -182,33 +182,10 @@ class CMSDatabase(object):
 			return string
 		return default or ""
 
-	# formFields: CMSFormData: Basically a dict
-	# query: CMSQuery: Basically a dict
 	def runPostHandler(self, pageIdent, formFields, query):
-		path = fs.mkpath(self.pageBase, pageIdent.getFilesystemPath())
-		handlerModFile = fs.mkpath(path, "post.py")
-
-		if not fs.exists(handlerModFile):
-			raise CMSException(405)
-
-		# Add the path to sys.path, so that post.py can easily import
-		# more files from its directory.
-		if path not in sys.path:
-			sys.path.insert(0, path)
-
-		try:
-			loader = importlib.machinery.SourceFileLoader(
-				re.sub(r"[^A-Za-z]", "_", handlerModFile),
-				handlerModFile)
-			mod = loader.load_module()
-		except OSError:
-			raise CMSException(405)
-
-		mod.CMSException = CMSException
-		mod.CMSPostException = CMSPostException
-
-		postHandler = getattr(mod, "post", None)
-		if postHandler is None:
-			raise CMSException(405)
-
-		return postHandler(formFields, query, b"", "", "")
+		reply = self.__communicatePost(MsgRunPostHandler(
+			path=pageIdent.getFilesystemPath() + "/post.py",
+			query=query.items(),
+			form_fields=formFields.items(),
+		))
+		return bytes(reply.body), reply.mime
