@@ -17,7 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use anyhow::{self as ah, Context as _};
+use anyhow::{self as ah, format_err as err, Context as _};
 use std::os::{
     fd::{FromRawFd as _, RawFd},
     unix::net::UnixListener,
@@ -56,7 +56,7 @@ pub fn unix_from_systemd(unset_environment: bool) -> ah::Result<UnixListener> {
             return Ok(unsafe { UnixListener::from_raw_fd(fd) });
         }
     }
-    Err(ah::format_err!("No systemd unix socket fd found"))
+    Err(err!("No systemd unix socket fd found"))
 }
 
 /// Notify ready-status to systemd.

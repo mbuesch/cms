@@ -19,7 +19,7 @@
 
 #![forbid(unsafe_code)]
 
-use anyhow::{self as ah, Context as _};
+use anyhow::{self as ah, format_err as err, Context as _};
 use bincode::Options as _;
 use cms_systemd::{have_systemd, systemd_notify_ready, unix_from_systemd};
 use libc::{S_IFMT, S_IFSOCK};
@@ -130,14 +130,14 @@ impl CmsSocketConn {
                     }
                     if rxcount >= rxbuf.len() {
                         if rxbuf.len() >= MAX_RX_BUF {
-                            return Err(ah::format_err!("RX buffer overrun."));
+                            return Err(err!("RX buffer overrun."));
                         }
                         rxbuf.resize(rxbuf.len() + SIZE_STEP, 0);
                     }
                 }
                 Err(ref e) if e.kind() == ErrorKind::WouldBlock => (),
                 Err(e) => {
-                    return Err(ah::format_err!("Socket read: {e}"));
+                    return Err(err!("Socket read: {e}"));
                 }
             }
         }
@@ -161,7 +161,7 @@ impl CmsSocketConn {
                 }
                 Err(ref e) if e.kind() == ErrorKind::WouldBlock => (),
                 Err(e) => {
-                    return Err(ah::format_err!("Socket write: {e}"));
+                    return Err(err!("Socket write: {e}"));
                 }
             }
         }

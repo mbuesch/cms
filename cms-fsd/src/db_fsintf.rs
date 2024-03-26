@@ -17,7 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use anyhow::{self as ah, Context as _};
+use anyhow::{self as ah, format_err as err, Context as _};
 use cms_ident::{CheckedIdent, CheckedIdentElem, Ident, Strip, Tail};
 use inotify::{WatchMask, Watches};
 use std::path::{Path, PathBuf};
@@ -157,19 +157,19 @@ impl DbFsIntf {
 
     pub fn new(path: &Path) -> ah::Result<Self> {
         if !path.is_dir() {
-            return Err(ah::format_err!("DB: {:?} is not a directory.", path));
+            return Err(err!("DB: {:?} is not a directory.", path));
         }
         let db_pages = path.join("pages");
         if !db_pages.is_dir() {
-            return Err(ah::format_err!("DB: {:?} is not a directory.", db_pages));
+            return Err(err!("DB: {:?} is not a directory.", db_pages));
         }
         let db_macros = path.join("macros");
         if !db_macros.is_dir() {
-            return Err(ah::format_err!("DB: {:?} is not a directory.", db_macros));
+            return Err(err!("DB: {:?} is not a directory.", db_macros));
         }
         let db_strings = path.join("strings");
         if !db_strings.is_dir() {
-            return Err(ah::format_err!("DB: {:?} is not a directory.", db_strings));
+            return Err(err!("DB: {:?} is not a directory.", db_strings));
         }
         Ok(Self {
             db_pages,

@@ -19,7 +19,7 @@
 
 #![forbid(unsafe_code)]
 
-use anyhow as ah;
+use anyhow::{self as ah, format_err as err};
 use serde::{Deserialize, Serialize};
 use std::{
     convert::Infallible,
@@ -60,14 +60,14 @@ fn check_ident_elem(elem: &str, fmt: ElemFmt) -> ah::Result<()> {
 
     if elem.starts_with('.') {
         // No ".", ".." and hidden files.
-        return Err(ah::format_err!("Invalid identifier: Starts with dot."));
+        return Err(err!("Invalid identifier: Starts with dot."));
     }
     if fmt != ElemFmt::System && elem.starts_with("__") {
         // System files/dirs (starting with "__") not allowed.
-        return Err(ah::format_err!("Invalid identifier: 'Dunder' not allowed."));
+        return Err(err!("Invalid identifier: 'Dunder' not allowed."));
     }
     if !elem.chars().all(is_valid_ident_char) {
-        return Err(ah::format_err!("Invalid identifier: Invalid character."));
+        return Err(err!("Invalid identifier: Invalid character."));
     }
     Ok(())
 }
@@ -166,14 +166,14 @@ impl Ident {
     fn check(&self, max_ident_depth: usize, elem_fmt: ElemFmt) -> ah::Result<()> {
         // Check string size limit.
         if self.0.len() > MAX_IDENTSTR_LEN {
-            return Err(ah::format_err!("Invalid identifier: String too long."));
+            return Err(err!("Invalid identifier: String too long."));
         }
 
         // Check if each ident path element contains only valid characters.
         for (i, elem) in self.elements().enumerate() {
             // Path depth too deep?
             if i >= max_ident_depth {
-                return Err(ah::format_err!("Invalid identifier: Ident path too deep."));
+                return Err(err!("Invalid identifier: Ident path too deep."));
             }
             // Path element contains invalid characters?
             check_ident_elem(elem, elem_fmt)?;
@@ -299,7 +299,7 @@ macro_rules! impl_checked_ident {
                     Strip::Right(n) => {
                         let count = self.element_count();
                         if n > count {
-                            return Err(ah::format_err!("Fs path stripping underflow."));
+                            return Err(err!("Fs path stripping underflow."));
                         }
                         count.saturating_sub(n)
                     }

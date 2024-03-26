@@ -27,7 +27,7 @@ use crate::{
     request::Request,
     runner::{python::PyRunner, Runner},
 };
-use anyhow::{self as ah, Context as _};
+use anyhow::{self as ah, format_err as err, Context as _};
 use clap::Parser;
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
 use cms_socket_post::{Msg, SOCK_FILE};
@@ -76,7 +76,7 @@ async fn process_conn(mut conn: CmsSocketConn, opts: Arc<Opts>) -> ah::Result<()
                     let mut runner = PyRunner::new(&opts.db_path);
                     runner.run(request).await?
                 } else {
-                    return Err(ah::format_err!("RunPostHandler: Unknown handler type."));
+                    return Err(err!("RunPostHandler: Unknown handler type."));
                 };
 
                 let reply = Msg::PostHandlerResult {
@@ -139,7 +139,7 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
                 break;
             }
             _ = sigint.recv() => {
-                exitcode = Err(ah::format_err!("Interrupted by SIGINT."));
+                exitcode = Err(err!("Interrupted by SIGINT."));
                 break;
             }
             _ = sighup.recv() => {
@@ -150,7 +150,7 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
                 if let Some(code) = code {
                     exitcode = code;
                 } else {
-                    exitcode = Err(ah::format_err!("Unknown error code."));
+                    exitcode = Err(err!("Unknown error code."));
                 }
                 break;
             }

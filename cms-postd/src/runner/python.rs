@@ -18,7 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{reply::Reply, request::Request, runner::Runner};
-use anyhow::{self as ah, Context as _};
+use anyhow::{self as ah, format_err as err, Context as _};
 use cms_ident::{Strip, Tail};
 use pyo3::{
     create_exception,
@@ -66,7 +66,7 @@ impl Runner for PyRunner {
     async fn run(&mut self, request: Request) -> ah::Result<Reply> {
         // We only support execution of post.py.
         if request.path.last_element_str().unwrap_or("") != "post.py" {
-            return Err(ah::format_err!("PyRunner: Handler file not supported."));
+            return Err(err!("PyRunner: Handler file not supported."));
         }
 
         // Path to the directory containing the post.py.
@@ -103,12 +103,12 @@ impl Runner for PyRunner {
             let meta = mod_fd.metadata().await.context("post.py metadata read")?;
             let mode = meta.permissions().mode();
             if mode & 0o070 != 0o050 {
-                return Err(ah::format_err!(
+                return Err(err!(
                     "PyRunner: post.py is not group-read-execute file mode"
                 ));
             }
             if mode & 0o002 != 0o000 {
-                return Err(ah::format_err!(
+                return Err(err!(
                     "PyRunner: post.py must not have other-write file mode."
                 ));
             }
@@ -185,33 +185,29 @@ impl Runner for PyRunner {
 
                 // Extract the reply body from locals.
                 let Some(reply_body) = locals.get_item("reply_body").context("reply_body")? else {
-                    return Err(
-                        ah::format_err!("PyRunner: reply_body not in Python locals.").into(),
-                    );
+                    return Err(err!("PyRunner: reply_body not in Python locals.").into());
                 };
                 let Ok(reply_body): Result<&PyBytes, _> = reply_body.downcast() else {
-                    return Err(ah::format_err!("PyRunner: reply_body not Python 'bytes'.").into());
+                    return Err(err!("PyRunner: reply_body not Python 'bytes'.").into());
                 };
                 let reply_body = reply_body.as_bytes().to_vec();
                 if reply_body.is_empty() {
-                    return Err(ah::format_err!("PyRunner: reply_body is empty.").into());
+                    return Err(err!("PyRunner: reply_body is empty.").into());
                 }
 
                 // Extract the reply mime from locals.
                 let Some(reply_mime) = locals.get_item("reply_mime").context("reply_mime")? else {
-                    return Err(
-                        ah::format_err!("PyRunner: reply_mime not in Python locals.").into(),
-                    );
+                    return Err(err!("PyRunner: reply_mime not in Python locals.").into());
                 };
                 let Ok(reply_mime): Result<&PyString, _> = reply_mime.downcast() else {
-                    return Err(ah::format_err!("PyRunner: reply_mime not Python 'str'.").into());
+                    return Err(err!("PyRunner: reply_mime not Python 'str'.").into());
                 };
                 let reply_mime = reply_mime
                     .to_str()
                     .context("PyRunner: Invalid reply_mime 'str' encoding")?
                     .to_string();
                 if reply_mime.is_empty() {
-                    return Err(ah::format_err!("PyRunner: reply_mime is empty.").into());
+                    return Err(err!("PyRunner: reply_mime is empty.").into());
                 }
 
                 Ok(Reply {
