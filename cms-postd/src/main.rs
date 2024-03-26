@@ -72,15 +72,12 @@ async fn process_conn(mut conn: CmsSocketConn, opts: Arc<Opts>) -> ah::Result<()
                     form_fields,
                 };
 
-                let post_task = task::spawn_blocking(move || {
-                    if request.path.ends_with(".py") {
-                        let mut runner = PyRunner::new(&opts.db_path);
-                        Ok(runner.run(&request)?)
-                    } else {
-                        Err(ah::format_err!("RunPostHandler: Unknown handler type."))
-                    }
-                });
-                let reply_data = post_task.await??;
+                let reply_data = if request.path.ends_with(".py") {
+                    let mut runner = PyRunner::new(&opts.db_path);
+                    runner.run(request).await?
+                } else {
+                    return Err(ah::format_err!("RunPostHandler: Unknown handler type."));
+                };
 
                 let reply = Msg::PostHandlerResult {
                     error: reply_data.error,
@@ -166,7 +163,7 @@ fn main() -> ah::Result<()> {
     let opts = Arc::new(Opts::parse());
 
     runtime::Builder::new_multi_thread()
-        .thread_keep_alive(Duration::from_millis(0))
+        .thread_keep_alive(Duration::from_millis(1000))
         .worker_threads(opts.worker_threads.into())
         .enable_all()
         .build()

@@ -23,7 +23,7 @@ use crate::{reply::Reply, request::Request};
 use anyhow as ah;
 
 pub trait Runner {
-    fn run(&mut self, request: &Request) -> ah::Result<Reply>;
+    async fn run(&mut self, request: Request) -> ah::Result<Reply>;
 }
 
 // vim: ts=4 sw=4 expandtab
