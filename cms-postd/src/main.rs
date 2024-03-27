@@ -57,8 +57,9 @@ struct Opts {
 }
 
 async fn process_conn(mut conn: CmsSocketConn, opts: Arc<Opts>) -> ah::Result<()> {
+    let db_post_path = opts.db_path.join("pages-post");
+
     loop {
-        let opts = Arc::clone(&opts);
         let msg = conn.recv_msg(Msg::try_msg_deserialize).await?;
         match msg {
             Some(Msg::RunPostHandler {
@@ -73,7 +74,7 @@ async fn process_conn(mut conn: CmsSocketConn, opts: Arc<Opts>) -> ah::Result<()
                 };
 
                 let reply_data = if request.path.ends_with(".py") {
-                    let mut runner = PyRunner::new(&opts.db_path);
+                    let mut runner = PyRunner::new(&db_post_path);
                     runner.run(request).await?
                 } else {
                     return Err(err!("RunPostHandler: Unknown handler type."));

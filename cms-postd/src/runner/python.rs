@@ -26,10 +26,7 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyDict, PyString},
 };
-use std::{
-    os::unix::fs::PermissionsExt as _,
-    path::{Path, PathBuf},
-};
+use std::{os::unix::fs::PermissionsExt as _, path::Path};
 use tokio::{fs, task};
 
 fn sanitize_python_module_name_char(c: char) -> char {
@@ -49,20 +46,17 @@ create_exception!(
     "CMS POST handler error"
 );
 
-pub struct PyRunner {
-    db_path: PathBuf,
+pub struct PyRunner<'a> {
+    db_post_path: &'a Path,
 }
 
-impl PyRunner {
-    pub fn new(db_path: &Path) -> Self {
-        Self {
-            //TODO: We should store the post handlers in a separate hierarchy.
-            db_path: db_path.join("pages"),
-        }
+impl<'a> PyRunner<'a> {
+    pub fn new(db_post_path: &'a Path) -> Self {
+        Self { db_post_path }
     }
 }
 
-impl Runner for PyRunner {
+impl<'a> Runner for PyRunner<'a> {
     async fn run(&mut self, request: Request) -> ah::Result<Reply> {
         // We only support execution of post.py.
         if request.path.last_element_str().unwrap_or("") != "post.py" {
@@ -72,7 +66,7 @@ impl Runner for PyRunner {
         // Path to the directory containing the post.py.
         let mod_dir = request
             .path
-            .to_stripped_fs_path(&self.db_path, Strip::Right(1), &Tail::None)
+            .to_stripped_fs_path(self.db_post_path, Strip::Right(1), &Tail::None)
             .context("Get module directory")?;
         let mod_dir_string = mod_dir
             .as_os_str()
@@ -81,7 +75,7 @@ impl Runner for PyRunner {
             .to_string();
 
         // Get the sanitized and checked fs path to the module.
-        let mod_path = request.path.to_fs_path(&self.db_path, &Tail::None);
+        let mod_path = request.path.to_fs_path(self.db_post_path, &Tail::None);
         let mod_path_string = mod_path
             .as_os_str()
             .to_str()
