@@ -83,4 +83,9 @@ do_usermod -a -G cms-sock-db www-data #TODO: cms-sock-db shall be removed eventu
 do_usermod -a -G cms-sock-post www-data #TODO: cms-sock-post shall be removed eventually.
 do_usermod -a -G cms-sock-back www-data
 
+# The git-user shall be able to give group permissions in db.
+if grep -q '^git:' /etc/passwd; then
+    do_usermod -a -G cms-fs-ro,cms-fs-x,www-data git
+fi
+
 # vim: ts=4 sw=4 expandtab
