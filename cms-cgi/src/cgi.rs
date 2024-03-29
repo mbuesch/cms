@@ -21,17 +21,19 @@ use anyhow::{self as ah, format_err as err};
 use std::{env, ffi::OsString};
 
 fn get_cgienv(name: &str) -> OsString {
-    env::var_os(name).unwrap_or_else(|| OsString::new())
+    env::var_os(name).unwrap_or_default()
 }
 
 fn get_cgienv_str(name: &str) -> String {
-    get_cgienv(name)
-        .into_string()
-        .unwrap_or_else(|_| String::new())
+    get_cgienv(name).into_string().unwrap_or_default()
 }
 
 fn get_cgienv_u32(name: &str, default: u32) -> u32 {
-    u32::from_str_radix(&get_cgienv_str(name), 10).unwrap_or(default)
+    get_cgienv_str(name).parse::<u32>().unwrap_or(default)
+}
+
+fn get_cgienv_bool(name: &str) -> bool {
+    get_cgienv(name).as_encoded_bytes() == b"on"
 }
 
 pub struct Cgi {
@@ -52,7 +54,7 @@ impl Cgi {
         let path = get_cgienv("PATH_INFO");
         let body_len = get_cgienv_u32("CONTENT_LENGTH", 0);
         let body_type = get_cgienv("CONTENT_TYPE");
-        let https = get_cgienv("HTTPS").as_encoded_bytes() == b"on";
+        let https = get_cgienv_bool("HTTPS");
         let host = get_cgienv("HTTP_HOST");
         let cookie = get_cgienv("HTTP_COOKIE");
         Self {

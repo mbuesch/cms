@@ -23,8 +23,8 @@ mod cgi;
 
 use crate::cgi::Cgi;
 use anyhow::{self as ah, Context as _};
-use tokio::runtime;
 use std::time::Duration;
+use tokio::runtime;
 
 async fn async_main() -> ah::Result<()> {
     let cgi = Cgi::new();
