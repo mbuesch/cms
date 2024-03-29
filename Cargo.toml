@@ -2,10 +2,12 @@
 
 [workspace]
 members = [
+    "cms-cgi",
     "cms-fsd",
     "cms-ident",
     "cms-postd",
     "cms-socket",
+    "cms-socket-back",
     "cms-socket-db",
     "cms-socket-post",
     "cms-systemd",

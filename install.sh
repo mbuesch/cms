@@ -42,6 +42,15 @@ try_systemctl()
     systemctl "$@" 2>/dev/null
 }
 
+entry_checks()
+{
+    [ -d "$basedir/target/release" ] ||\
+        die "CMS is not built! Run ./build.sh"
+
+    [ "$(id -u)" = "0" ] ||\
+        die "Must be root to install CMS."
+}
+
 stop_services()
 {
     try_systemctl stop apache2
@@ -60,6 +69,11 @@ start_services()
 
 install_dirs()
 {
+    rm -rf /opt/cms/bin
+    rm -rf /opt/cms/lib
+    rm -rf /opt/cms/libexec
+    rm -rf /opt/cms/share
+
     do_install \
         -o root -g root -m 0755 \
         -d /opt/cms/bin
@@ -68,19 +82,17 @@ install_dirs()
         -o root -g root -m 0755 \
         -d /opt/cms/etc/cms
 
-    rm -rf /opt/cms/share/cms-wsgi
-
     do_install \
         -o root -g root -m 0755 \
         -d /opt/cms/share/cms-wsgi
 
-    rm -rf /opt/cms/lib/python3/site-packages/cms
+    do_install \
+        -o root -g root -m 0755 \
+        -d /opt/cms/libexec/cms-cgi
 
     do_install \
         -o root -g root -m 0755 \
         -d /opt/cms/lib/python3/site-packages/cms
-
-    rm -rf /opt/cms/lib/python3/site-packages/cms_cython
 
     do_install \
         -o root -g root -m 0755 \
@@ -129,6 +141,14 @@ install_postd()
     do_systemctl enable cms-postd.socket
 }
 
+install_cgi()
+{
+    do_install \
+        -o root -g root -m 0755 --no-target-directory \
+        "$basedir/target/release/cms-cgi" \
+        /opt/cms/libexec/cms-cgi/cms.cgi
+}
+
 install_py()
 {
     do_install \
@@ -147,10 +167,12 @@ install_py()
         /opt/cms/share/cms-wsgi/
 }
 
+entry_checks
 stop_services
 install_dirs
 install_fsd
 install_postd
+install_cgi
 install_py
 start_services
 
