@@ -3,14 +3,31 @@
 
 basedir="$(realpath "$0" | xargs dirname)"
 
-set -e
+info()
+{
+    echo "--- $*"
+}
 
-if ! [ -x "$basedir/setup.py" -a -f "$basedir/Cargo.toml" ]; then
-    echo "basedir sanity check failed"
+error()
+{
+    echo "=== ERROR: $*" >&2
+}
+
+warning()
+{
+    echo "=== WARNING: $*" >&2
+}
+
+die()
+{
+    error "$*"
     exit 1
-fi
+}
 
-cd "$basedir"
+[ -x "$basedir/setup.py" -a -f "$basedir/Cargo.toml" ] ||\
+    die "basedir sanity check failed"
+
+cd "$basedir" || die "cd basedir failed."
 
 find . \( \
     \( -name '__pycache__' \) -o \
