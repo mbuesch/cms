@@ -22,11 +22,22 @@
 mod cgi;
 
 use crate::cgi::Cgi;
-use anyhow as ah;
+use anyhow::{self as ah, Context as _};
+use tokio::runtime;
+use std::time::Duration;
 
-fn main() -> ah::Result<()> {
+async fn async_main() -> ah::Result<()> {
     let cgi = Cgi::new();
     cgi.run()
+}
+
+fn main() -> ah::Result<()> {
+    runtime::Builder::new_current_thread()
+        .thread_keep_alive(Duration::from_millis(0))
+        .enable_all()
+        .build()
+        .context("Tokio runtime builder")?
+        .block_on(async_main())
 }
 
 // vim: ts=4 sw=4 expandtab

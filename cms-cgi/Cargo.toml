@@ -10,8 +10,8 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = [ "derive" ] }
 querystrong = "0.3"
-tokio = { version = "1", features = [ "rt", "signal" ] }
+tokio = { version = "1", features = [ "rt" ] }
 
 # vim: ts=4 sw=4 expandtab
