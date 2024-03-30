@@ -11,6 +11,9 @@ publish = false
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = [ "derive" ] }
+cms-ident = { path = "../cms-ident" }
+cms-socket = { path = "../cms-socket" }
+cms-socket-back = { path = "../cms-socket-back" }
 querystrong = "0.3"
 tokio = { version = "1", features = [ "rt" ] }
 

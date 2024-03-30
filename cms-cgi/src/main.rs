@@ -27,8 +27,8 @@ use std::time::Duration;
 use tokio::runtime;
 
 async fn async_main() -> ah::Result<()> {
-    let cgi = Cgi::new();
-    cgi.run()
+    let mut cgi = Cgi::new().await?;
+    cgi.run().await
 }
 
 fn main() -> ah::Result<()> {

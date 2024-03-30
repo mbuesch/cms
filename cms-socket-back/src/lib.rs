@@ -45,6 +45,7 @@ pub enum Msg {
         body_mime: Vec<u8>,
     },
     Reply {
+        status: u32,
         error: String,
         body: Vec<u8>,
         mime: String,
