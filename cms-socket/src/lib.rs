@@ -88,22 +88,22 @@ impl CmsSocket {
     }
 
     pub async fn accept(&mut self) -> ah::Result<CmsSocketConn> {
-        let (stream, addr) = self.sock.accept().await?;
-        Ok(CmsSocketConn::new(stream, addr))
+        let (stream, _addr) = self.sock.accept().await?;
+        Ok(CmsSocketConn::new(stream))
     }
 }
 
 pub struct CmsSocketConn {
     stream: UnixStream,
-    _addr: SocketAddr,
 }
 
 impl CmsSocketConn {
-    pub fn new(stream: UnixStream, addr: SocketAddr) -> Self {
-        Self {
-            stream,
-            _addr: addr,
-        }
+    fn new(stream: UnixStream) -> Self {
+        Self { stream }
+    }
+
+    pub async fn connect(path: &Path) -> ah::Result<Self> {
+        Ok(Self::new(UnixStream::connect(path).await?))
     }
 
     pub async fn recv_msg<F, M>(&mut self, try_deserialize: F) -> ah::Result<Option<M>>
