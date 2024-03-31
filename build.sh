@@ -27,9 +27,6 @@ die()
 [ -x "$basedir/setup.py" -a -f "$basedir/Cargo.toml" ] ||\
     die "basedir sanity check failed"
 
-[ "$(id -u)" = "0" ] &&\
-    die "Must NOT be root to build CMS."
-
 cd "$basedir" || die "cd basedir failed."
 rm -f cms_cython
 export CFLAGS="-O3 -pipe"
