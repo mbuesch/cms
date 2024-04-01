@@ -30,7 +30,7 @@ use std::{
     os::unix::{fs::MetadataExt as _, net::UnixListener as StdUnixListener},
     path::Path,
 };
-use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
+use tokio::net::{UnixListener, UnixStream};
 
 const MAX_RX_BUF: usize = 1024 * 1024 * 16;
 

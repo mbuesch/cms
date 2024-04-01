@@ -1,0 +1,15 @@
+[Unit]
+Description=CMS backend daemon
+PartOf=cms-backd.socket
+
+[Service]
+Type=notify
+ExecStart=/opt/cms/bin/cms-backd
+ExecReload=/bin/kill -HUP $MAINPID
+StandardOutput=journal
+StandardError=journal
+User=cms-backd
+Group=cms-backd
+
+[Install]
+WantedBy=multi-user.target

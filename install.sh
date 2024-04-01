@@ -54,16 +54,19 @@ entry_checks()
 stop_services()
 {
     try_systemctl stop apache2
-    try_systemctl stop cms-fsd.socket
-    try_systemctl stop cms-fsd.service
+    try_systemctl stop cms-backd.socket
+    try_systemctl stop cms-backd.service
     try_systemctl stop cms-postd.socket
     try_systemctl stop cms-postd.service
+    try_systemctl stop cms-fsd.socket
+    try_systemctl stop cms-fsd.service
 }
 
 start_services()
 {
     do_systemctl start cms-fsd.socket
     do_systemctl start cms-postd.socket
+    do_systemctl start cms-backd.socket
     do_systemctl start apache2
 }
 
@@ -93,6 +96,10 @@ install_dirs()
     do_install \
         -o root -g root -m 0755 \
         -d /opt/cms/lib/python3/site-packages/cms
+
+    do_install \
+        -o root -g root -m 0755 \
+        -d /opt/cms/lib/python3/site-packages/cmsbackpy
 
     do_install \
         -o root -g root -m 0755 \
@@ -158,6 +165,26 @@ install_py()
 
     do_install \
         -o root -g root -m 0644 \
+        "$basedir"/cmsbackpy/*.py \
+        /opt/cms/lib/python3/site-packages/cmsbackpy/
+
+    do_install \
+        -o root -g root -m 0755 \
+        "$basedir/cmsbackpy/bin/cms-backd" \
+        /opt/cms/bin/
+
+    do_install \
+        -o root -g root -m 0644 \
+        "$basedir/cmsbackpy/cms-backd.service" \
+        /etc/systemd/system/
+
+    do_install \
+        -o root -g root -m 0644 \
+        "$basedir/cmsbackpy/cms-backd.socket" \
+        /etc/systemd/system/
+
+    do_install \
+        -o root -g root -m 0644 \
         "$basedir"/cms_cython/*.py "$basedir"/cms_cython/*.so \
         /opt/cms/lib/python3/site-packages/cms_cython/
 
@@ -165,6 +192,9 @@ install_py()
         -o root -g root -m 0644 \
         "$basedir/index.wsgi" \
         /opt/cms/share/cms-wsgi/
+
+    do_systemctl enable cms-backd.service
+    do_systemctl enable cms-backd.socket
 }
 
 entry_checks

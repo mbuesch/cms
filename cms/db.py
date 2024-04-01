@@ -98,6 +98,7 @@ class CMSDatabase(object):
 		reply = self.__communicateDb(MsgGetHeaders(
 			path=pageIdent.getFilesystemPath(),
 		))
+		assert_is_msg(reply, MsgHeaders)
 		data = self.__decode(reply.data)
 		return data
 
@@ -112,6 +113,7 @@ class CMSDatabase(object):
 			get_nav_stop=False,
 			get_nav_label=False,
 		))
+		assert_is_msg(reply, MsgPage)
 		redirect = self.__decode(reply.redirect).strip()
 		if redirect:
 			raise CMSException301(redirect)
@@ -131,6 +133,7 @@ class CMSDatabase(object):
 			get_nav_stop=False,
 			get_nav_label=False,
 		))
+		assert_is_msg(reply, MsgPage)
 		title = self.__decode(reply.title)
 		return title
 
@@ -145,6 +148,7 @@ class CMSDatabase(object):
 			get_nav_stop=False,
 			get_nav_label=False,
 		))
+		assert_is_msg(reply, MsgPage)
 		stamp = datetime.utcfromtimestamp(reply.stamp or 0)
 		return stamp
 
@@ -154,6 +158,7 @@ class CMSDatabase(object):
 		reply = self.__communicateDb(MsgGetSubPages(
 			path=pageIdent.getFilesystemPath(),
 		))
+		assert_is_msg(reply, MsgSubPages)
 		res = []
 		for i in range(len(reply.pages)):
 			pagename = self.__decode(reply.pages[i])
@@ -170,6 +175,7 @@ class CMSDatabase(object):
 			parent=pageIdent.getFilesystemPath() if pageIdent is not None else "",
 			name=macroname,
 		))
+		assert_is_msg(reply, MsgMacro)
 		data = self.__decode(reply.data)
 		return '\n'.join( l for l in data.splitlines() if l )
 
@@ -177,6 +183,7 @@ class CMSDatabase(object):
 		reply = self.__communicateDb(MsgGetString(
 			name=name,
 		))
+		assert_is_msg(reply, MsgString)
 		string = self.__decode(reply.data).strip()
 		if string:
 			return string
@@ -188,6 +195,7 @@ class CMSDatabase(object):
 			query=query.items(),
 			form_fields=formFields.items(),
 		))
+		assert_is_msg(reply, MsgPostHandlerResult)
 		if reply.error:
 			raise CMSException(400, reply.error)
 		return bytes(reply.body), reply.mime

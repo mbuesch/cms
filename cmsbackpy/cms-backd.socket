@@ -1,0 +1,14 @@
+[Unit]
+Description=CMS backend daemon socket
+Requires=cms-backd.service
+AssertPathExists=/run
+
+[Socket]
+ListenStream=/run/cms-backd.sock
+Accept=no
+SocketUser=cms-backd
+SocketGroup=cms-sock-back
+SocketMode=0660
+
+[Install]
+WantedBy=multi-user.target

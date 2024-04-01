@@ -42,6 +42,11 @@ MAGIC_POST = 0x6ADCB73F
 ID_POST_RUNPOSTHANDLER = 0
 ID_POST_POSTHANDLERRESULT = 1
 
+MAGIC_BACK = 0x9C66EA74
+ID_BACK_GET = 0
+ID_BACK_POST = 1
+ID_BACK_REPLY = 2
+
 def pack_u8(value):
 	return (value & 0xFF).to_bytes(1, sys.byteorder)
 
@@ -103,6 +108,15 @@ def unpack_str(buf, i):
 		return v.decode("UTF-8", "strict"), i
 	except UnicodeError:
 		raise ValueError("unpack_str: Invalid string encoding.")
+
+def unpack_hashmap_str_bytes(buf, i):
+	count, i = unpack_u64(buf, i)
+	ret = {}
+	for _ in range(count):
+		name, i = unpack_str(buf, i)
+		value, i = unpack_bytes(buf, i)
+		ret[name] = value
+	return ret
 
 def unpack_header(buf, magic_expected):
 	if len(buf) < MSG_HDR_LEN:
@@ -320,6 +334,61 @@ class MsgPostHandlerResult:
 		self = cls(error=error, body=body, mime=mime)
 		return self
 
+class MsgGet:
+	def __init__(self, host, path, https, cookie, query):
+		self.host = host
+		self.path = path
+		self.https = https
+		self.cookie = cookie
+		self.query = query
+
+	@classmethod
+	def unpack(cls, buf, i):
+		host, i = unpack_bytes(buf, i)
+		path, i = unpack_str(buf, i)
+		https, i = unpack_bool(buf, i)
+		cookie, i = unpack_bytes(buf, i)
+		query, i = unpack_hashmap_str_bytes(buf, i)
+		self = cls(host=host, path=path, https=https, cookie=cookie, query=query)
+		return self
+
+class MsgPost:
+	def __init__(self, host, path, https, cookie, query, body, body_mime):
+		self.host = host
+		self.path = path
+		self.https = https
+		self.cookie = cookie
+		self.query = query
+		self.body = body
+		self.body_mime = body_mime
+
+	@classmethod
+	def unpack(cls, buf, i):
+		host, i = unpack_bytes(buf, i)
+		path, i = unpack_str(buf, i)
+		https, i = unpack_bool(buf, i)
+		cookie, i = unpack_bytes(buf, i)
+		query, i = unpack_hashmap_str_bytes(buf, i)
+		body, i = unpack_bytes(buf, i)
+		body_mime, i = unpack_str(buf, i)
+		self = cls(host=host, path=path, https=https, cookie=cookie, query=query, body=body, body_mime=body_mime)
+		return self
+
+class MsgReply:
+	def __init__(self, status, error, body, mime):
+		self.status = status
+		self.error = error
+		self.body = body
+		self.mime = mime
+
+	def pack(self):
+		payload = bytearray(pack_u32(ID_BACK_REPLY))
+		payload += pack_u32(self.status)
+		payload += pack_str(self.error)
+		payload += pack_bytes(self.body)
+		payload += pack_str(self.mime)
+		return pack_message(payload, MAGIC_BACK)
+
 def unpack_message(buf, magic):
 	variant, i = unpack_u32(buf, MSG_HDR_LEN)
 	if magic == MAGIC_DB:
@@ -336,6 +405,11 @@ def unpack_message(buf, magic):
 	elif magic == MAGIC_POST:
 		if variant == ID_POST_POSTHANDLERRESULT:
 			return MsgPostHandlerResult.unpack(buf, i)
+	elif magic == MAGIC_BACK:
+		if variant == ID_BACK_GET:
+			return MsgGet.unpack(buf, i)
+		elif variant == ID_BACK_POST:
+			return MsgPost.unpack(buf, i)
 	raise ValueError("unpack_message: Unknown variant ID.")
 
 def recv_message(sock, magic):
@@ -356,3 +430,7 @@ def recv_message(sock, magic):
 				raise ValueError("recv_message: Buffer out of bounds access.")
 		else:
 			recvLen = MSG_HDR_LEN - len(buf)
+
+def assert_is_msg(msg, msgType):
+	if not isinstance(msg, msgType):
+		raise ValueError("Invalid message")
