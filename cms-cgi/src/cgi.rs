@@ -217,15 +217,9 @@ impl Cgi {
         if self.body_type.is_empty() {
             return Err(err!("POST: Invalid CONTENT_TYPE."));
         }
-        let body_mime = self.body_type.clone();
 
-        let body = {
-            let len = self.body_len.try_into().unwrap();
-            let mut body = Vec::with_capacity(len);
-            body.resize(len, 0);
-            io::stdin().read_exact(&mut body).await?;
-            body
-        };
+        let mut body = vec![0; self.body_len.try_into().unwrap()];
+        io::stdin().read_exact(&mut body).await?;
 
         let request = Msg::Post {
             host: self.host.as_encoded_bytes().to_vec(),
@@ -234,7 +228,7 @@ impl Cgi {
             cookie: self.cookie.as_encoded_bytes().to_vec(),
             query: self.query.clone(),
             body,
-            body_mime,
+            body_mime: self.body_type.clone(),
         };
 
         let msg = self.backend.recv_msg(Msg::try_msg_deserialize).await?;
