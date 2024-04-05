@@ -15,6 +15,6 @@ cms-ident = { path = "../cms-ident" }
 cms-socket = { path = "../cms-socket" }
 cms-socket-back = { path = "../cms-socket-back" }
 querystrong = "0.3"
-tokio = { version = "1", features = [ "rt" ] }
+tokio = { version = "1", features = [ "rt", "io-std", "io-util" ] }
 
 # vim: ts=4 sw=4 expandtab

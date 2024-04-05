@@ -42,7 +42,7 @@ pub enum Msg {
         cookie: Vec<u8>,
         query: HashMap<String, Vec<u8>>,
         body: Vec<u8>,
-        body_mime: Vec<u8>,
+        body_mime: String,
     },
     Reply {
         status: u32,
