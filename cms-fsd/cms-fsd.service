@@ -8,6 +8,8 @@ ExecStart=/opt/cms/bin/cms-fsd /opt/cms/etc/cms/db
 ExecReload=/bin/kill -HUP $MAINPID
 StandardOutput=journal
 StandardError=journal
+Restart=on-failure
+RestartSec=1
 User=cms-fsd
 Group=cms-fsd
 
