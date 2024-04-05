@@ -4,18 +4,26 @@
 import sys
 sys.path.insert(0, "/opt/cms/lib/python3/site-packages/")
 
-import os, socket
+import os, fcntl, socket
 from cms.socket import *
 
-sdsock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-sdsock.connect(os.getenv("NOTIFY_SOCKET"))
+notify_socket = os.getenv("NOTIFY_SOCKET")
+if not notify_socket:
+    raise ValueError("env: NOTIFY_SOCKET not set.")
+listen_fds = os.getenv("LISTEN_FDS")
+if not listen_fds:
+    raise ValueError("env: LISTEN_FDS not set.")
+listen_fds = int(listen_fds, 10)
+if listen_fds <= 0 or listen_fds > 1:
+    raise ValueError("env: Invalid LISTEN_FDS.")
 
-fd = 3
-backsock = socket.fromfd(fd, socket.AF_UNIX, socket.SOCK_STREAM)
-#backsock.bind("/run/cms-backd.sock")
-
-sdsock.sendall(b"READY=1")
-del sdsock
+with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sdsock:
+    sdsock.connect(notify_socket)
+    fd = 3
+    for i in range(fd, fd + listen_fds):
+        fcntl.fcntl(i, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
+    backsock = socket.fromfd(fd, socket.AF_UNIX, socket.SOCK_STREAM)
+    sdsock.sendall(b"READY=1")
 
 while True:
     conn, addr = backsock.accept()
