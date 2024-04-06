@@ -172,7 +172,8 @@ install_py()
 
     do_install \
         -o root -g root -m 0644 \
-        "$basedir"/cms_cython/*.py "$basedir"/cms_cython/*.so \
+        "$basedir"/build/lib.*cpython*/cms_cython/*.py \
+        "$basedir"/build/lib.*cpython*/cms_cython/*.so \
         /opt/cms/lib/python3/site-packages/cms_cython/
 
     do_systemctl enable cms-backd.service
