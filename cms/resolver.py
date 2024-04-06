@@ -36,6 +36,8 @@ __all__ = [
 MACRO_STACK_SIZE	= 64 #@nocy
 MACRO_STACK_NAME_SIZE	= 32 #@nocy
 
+WWW_PATH = "/var/www" #TODO
+
 # Call stack element
 class _StackElem(object):		#@nocy
 	__slots__ = (			#@nocy
@@ -99,7 +101,7 @@ class CMSStatementResolver(object): #+cdef
 		"BR"		: "<br />",
 		"DOMAIN"	: lambda self, n: self.cms.domain,
 		"CMS_BASE"	: lambda self, n: self.cms.urlBase,
-		"IMAGES_DIR"	: lambda self, n: self.cms.imagesDir,
+		"IMAGES_DIR"	: lambda self, n: "/images", #TODO
 		"THUMBS_DIR"	: lambda self, n: self.cms.urlBase + "/__thumbs",
 		"DEBUG"		: lambda self, n: "1" if self.cms.debug else "",
 		"__DUMPVARS__"	: lambda self, n: self.__dumpVars(),
@@ -505,7 +507,7 @@ class CMSStatementResolver(object): #+cdef
 			self.__stmtError("FILE_EXISTS: invalid args")
 		relpath, enoent = args[0], args[1] if len(args) == 2 else ""
 		try:
-			exists = fs.exists(self.cms.wwwPath,
+			exists = fs.exists(WWW_PATH,
 					   CMSPageIdent.validateSafePath(relpath))
 		except (CMSException) as e:
 			exists = False
@@ -537,7 +539,7 @@ class CMSStatementResolver(object): #+cdef
 			args[1] if len(args) >= 2 else "",\
 			args[2] if len(args) >= 3 else "%d %B %Y %H:%M (UTC)"
 		try:
-			stamp = fs.mtime(self.cms.wwwPath,
+			stamp = fs.mtime(WWW_PATH,
 					 CMSPageIdent.validateSafePath(relpath))
 		except (CMSException) as e:
 			return resolverRet(cons, enoent)
