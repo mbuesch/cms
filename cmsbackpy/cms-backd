@@ -66,7 +66,6 @@ def run_backd(backsock):
             startStamp = time.monotonic()
 
         status = 200 # Ok
-        error = ""
         reply_body = b""
         reply_mime = ""
         extra_headers = []
@@ -83,7 +82,6 @@ def run_backd(backsock):
                 raise RuntimeError("Received invalid message.")
         except CMSException as e:
             status = e.httpStatusCode
-            error = e.httpStatus
             reply_body, reply_mime, extra_headers = cms.getErrorPage(e, protocol)
 
         if cms.debug and "html" in reply_mime:
@@ -93,7 +91,6 @@ def run_backd(backsock):
 
         reply = MsgReply(
             status=status,
-            error=error,
             body=reply_body,
             mime=reply_mime,
             extra_headers=extra_headers,

@@ -382,9 +382,8 @@ class MsgPost:
 		return self
 
 class MsgReply:
-	def __init__(self, status, error, body, mime, extra_headers):
+	def __init__(self, status, body, mime, extra_headers):
 		self.status = status
-		self.error = error
 		self.body = body
 		self.mime = mime
 		self.extra_headers = extra_headers
@@ -392,7 +391,6 @@ class MsgReply:
 	def pack(self):
 		payload = bytearray(pack_u32(ID_BACK_REPLY))
 		payload += pack_u32(self.status)
-		payload += pack_str(self.error)
 		payload += pack_bytes(self.body)
 		payload += pack_str(self.mime)
 		payload += pack_list_str(self.extra_headers)

@@ -46,7 +46,6 @@ pub enum Msg {
     },
     Reply {
         status: u32,
-        error: String,
         body: Vec<u8>,
         mime: String,
         extra_headers: Vec<String>,
