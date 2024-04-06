@@ -99,10 +99,6 @@ install_dirs()
 
     do_install \
         -o root -g root -m 0755 \
-        -d /opt/cms/lib/python3/site-packages/cmsbackpy
-
-    do_install \
-        -o root -g root -m 0755 \
         -d /opt/cms/lib/python3/site-packages/cms_cython
 }
 
@@ -164,13 +160,8 @@ install_py()
         /opt/cms/lib/python3/site-packages/cms/
 
     do_install \
-        -o root -g root -m 0644 \
-        "$basedir"/cmsbackpy/*.py \
-        /opt/cms/lib/python3/site-packages/cmsbackpy/
-
-    do_install \
         -o root -g root -m 0755 \
-        "$basedir/cmsbackpy/bin/cms-backd" \
+        "$basedir/cmsbackpy/cms-backd" \
         /opt/cms/bin/
 
     do_install \
