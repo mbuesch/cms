@@ -142,7 +142,7 @@ impl Cgi {
         let Ok(path) = path.parse::<Ident>() else {
             return Err(response_400_bad_request(err!("Failed to parse PATH_INFO string.")).await);
         };
-        let Ok(path) = path.into_checked() else {
+        let Ok(path) = path.into_checked_sys() else {
             return Err(response_404_not_found(err!("URI path contains invalid chars.")).await);
         };
 

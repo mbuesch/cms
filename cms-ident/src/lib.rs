@@ -191,6 +191,15 @@ impl Ident {
         Ok(CheckedIdent(self))
     }
 
+    /// Convert this [Ident] into a trusted [CheckedIdent] with system name.
+    #[inline]
+    pub fn into_checked_sys(self) -> ah::Result<CheckedIdent> {
+        // Run the checks.
+        self.check(MAX_IDENT_DEPTH, ElemFmt::System)?;
+        // The ident is safe. Seal it in a read-only wrapper.
+        Ok(CheckedIdent(self))
+    }
+
     /// Convert this [Ident] into a trusted [CheckedIdentElem].
     #[inline]
     pub fn into_checked_element(self) -> ah::Result<CheckedIdentElem> {
