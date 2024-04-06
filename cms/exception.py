@@ -22,7 +22,6 @@
 __all__ = [
 	"CMSException",
 	"CMSException301",
-	"CMSPostException",
 ]
 
 class CMSException(Exception):
@@ -78,7 +77,3 @@ class CMSException301(CMSException):
 			'<a href="%s">%s</a>' \
 			'</p>' %\
 			(self.url(), self.url())
-
-class CMSPostException(CMSException):
-	def __init__(self, message=""):
-		CMSException.__init__(self, 400, "POST handler failed: " + message)
