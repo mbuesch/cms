@@ -32,7 +32,7 @@ use std::{
 };
 use tokio::net::{UnixListener, UnixStream};
 
-const MAX_RX_BUF: usize = 1024 * 1024 * 16;
+const MAX_RX_BUF: usize = 1024 * 1024 * 64;
 
 #[derive(Clone, Debug)]
 pub enum DeserializeResult<M> {
@@ -169,12 +169,11 @@ impl CmsSocketConn {
 }
 
 const MSG_HDR_LEN: usize = 8;
-const SERDE_LIMIT: u64 = 1024 * 1024;
 
 #[inline]
 pub fn bincode_config() -> impl bincode::Options {
     bincode::DefaultOptions::new()
-        .with_limit(SERDE_LIMIT)
+        .with_limit(MAX_RX_BUF.try_into().unwrap())
         .with_native_endian()
         .with_fixint_encoding()
         .reject_trailing_bytes()
