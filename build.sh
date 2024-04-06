@@ -28,12 +28,10 @@ die()
     die "basedir sanity check failed"
 
 cd "$basedir" || die "cd basedir failed."
-rm -f cms_cython
 export CFLAGS="-O3 -pipe"
 export CPPFLAGS=
 export CXXFLAGS=
 python3 ./setup.py build || die "Python build failed."
-ln -s build/lib.*-3*/cms_cython . || die "Python link failed."
 cargo update || die "Cargo update failed."
 cargo auditable build --release || die "Cargo build failed."
 cargo audit bin --deny warnings \

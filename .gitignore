@@ -3,5 +3,4 @@
 __pycache__/
 /Cargo.lock
 /build
-/cms_cython
 /target/
