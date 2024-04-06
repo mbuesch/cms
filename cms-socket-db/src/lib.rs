@@ -51,6 +51,9 @@ pub enum Msg {
     GetString {
         name: Ident,
     },
+    GetImage {
+        name: Ident,
+    },
 
     // Values
     Page {
@@ -74,6 +77,9 @@ pub enum Msg {
         data: Vec<u8>,
     },
     String {
+        data: Vec<u8>,
+    },
+    Image {
         data: Vec<u8>,
     },
 }

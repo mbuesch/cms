@@ -35,6 +35,7 @@ enum CacheKey {
     NavLabel(Ident),
     Macro(Ident, Ident),
     String(Ident),
+    Image(Ident),
     Headers(Ident),
 }
 
@@ -192,6 +193,11 @@ impl DbCache {
     pub async fn get_string(&self, name: &CheckedIdentElem) -> Vec<u8> {
         let key = CacheKey::String(name.as_downgrade_ref().clone());
         get_cached!(self, key, Blob, get_string(name))
+    }
+
+    pub async fn get_image(&self, name: &CheckedIdentElem) -> Vec<u8> {
+        let key = CacheKey::Image(name.as_downgrade_ref().clone());
+        get_cached!(self, key, Blob, get_image(name))
     }
 
     pub async fn get_headers(&self, page: &CheckedIdent) -> Vec<u8> {

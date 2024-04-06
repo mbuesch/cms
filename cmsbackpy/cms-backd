@@ -52,11 +52,7 @@ def init_systemd():
     return backsock
 
 def run_backd(backsock):
-    cms = CMS(
-        wwwPath="/var/www/html",#TODO
-        domain="",
-        debug=True,
-    )
+    cms = CMS(domain="", debug=True)
     atexit.register(cms.shutdown)
     while True:
         conn, addr = backsock.accept()

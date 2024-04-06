@@ -165,11 +165,20 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 let reply = Msg::String { data };
                 conn.send_msg(&reply).await?;
             }
+            Some(Msg::GetImage { name }) => {
+                let name = name.into_checked_element()?;
+
+                let data = db.get_image(&name).await;
+
+                let reply = Msg::Image { data };
+                conn.send_msg(&reply).await?;
+            }
             Some(Msg::Page { .. })
             | Some(Msg::Headers { .. })
             | Some(Msg::SubPages { .. })
             | Some(Msg::Macro { .. })
-            | Some(Msg::String { .. }) => {
+            | Some(Msg::String { .. })
+            | Some(Msg::Image { .. }) => {
                 eprintln!("Received unsupported message.");
             }
             None => {

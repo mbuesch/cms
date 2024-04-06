@@ -32,11 +32,13 @@ ID_DB_GETHEADERS = 1
 ID_DB_GETSUBPAGES = 2
 ID_DB_GETMACRO = 3
 ID_DB_GETSTRING = 4
-ID_DB_PAGE = 5
-ID_DB_HEADERS = 6
-ID_DB_SUBPAGES = 7
-ID_DB_MACRO = 8
-ID_DB_STRING = 9
+ID_DB_GETIMAGE = 5
+ID_DB_PAGE = 6
+ID_DB_HEADERS = 7
+ID_DB_SUBPAGES = 8
+ID_DB_MACRO = 9
+ID_DB_STRING = 10
+ID_DB_IMAGE = 11
 
 MAGIC_POST = 0x6ADCB73F
 ID_POST_RUNPOSTHANDLER = 0
@@ -205,6 +207,15 @@ class MsgGetString:
 		payload += pack_str(self.name)
 		return pack_message(payload, MAGIC_DB)
 
+class MsgGetImage:
+	def __init__(self, name):
+		self.name = name
+
+	def pack(self):
+		payload = bytearray(pack_u32(ID_DB_GETIMAGE))
+		payload += pack_str(self.name)
+		return pack_message(payload, MAGIC_DB)
+
 class MsgPage:
 	def __init__(
 		self,
@@ -314,6 +325,16 @@ class MsgString:
 		self = cls(data=data)
 		return self
 
+class MsgImage:
+	def __init__(self, data):
+		self.data = data
+
+	@classmethod
+	def unpack(cls, buf, i):
+		data, i = unpack_bytes(buf, i)
+		self = cls(data=data)
+		return self
+
 class MsgRunPostHandler:
 	def __init__(self, path, query, form_fields):
 		self.path = path
@@ -409,6 +430,8 @@ def unpack_message(buf, magic):
 			return MsgMacro.unpack(buf, i)
 		elif variant == ID_DB_STRING:
 			return MsgString.unpack(buf, i)
+		elif variant == ID_DB_IMAGE:
+			return MsgImage.unpack(buf, i)
 	elif magic == MAGIC_POST:
 		if variant == ID_POST_POSTHANDLERRESULT:
 			return MsgPostHandlerResult.unpack(buf, i)

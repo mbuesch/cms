@@ -188,6 +188,14 @@ class CMSDatabase(object):
 			return string
 		return default or ""
 
+	def getImage(self, name):
+		name = CMSPageIdent.validateSafePathComponent(name)
+		reply = self.__communicateDb(MsgGetImage(
+			name=name,
+		))
+		assert_is_msg(reply, MsgImage)
+		return reply.data
+
 	def runPostHandler(self, pageIdent, formFields, query):
 		reply = self.__communicatePost(MsgRunPostHandler(
 			path=pageIdent.getFilesystemPath() + "/post.py",

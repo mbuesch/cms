@@ -148,6 +148,7 @@ pub struct PageInfo {
 pub struct DbFsIntf {
     db_pages: PathBuf,
     db_macros: PathBuf,
+    db_images: PathBuf,
     db_strings: PathBuf,
 }
 
@@ -167,6 +168,10 @@ impl DbFsIntf {
         if !db_macros.is_dir() {
             return Err(err!("DB: {:?} is not a directory.", db_macros));
         }
+        let db_images = path.join("images");
+        if !db_images.is_dir() {
+            return Err(err!("DB: {:?} is not a directory.", db_images));
+        }
         let db_strings = path.join("strings");
         if !db_strings.is_dir() {
             return Err(err!("DB: {:?} is not a directory.", db_strings));
@@ -174,6 +179,7 @@ impl DbFsIntf {
         Ok(Self {
             db_pages,
             db_macros,
+            db_images,
             db_strings,
         })
     }
@@ -302,6 +308,13 @@ impl DbFsIntf {
 
     pub async fn get_string(&self, name: &CheckedIdentElem, watches: &mut Watches) -> Vec<u8> {
         let path = name.to_fs_path(&self.db_strings, &Tail::None);
+        fs_file_read(&path, watches)
+            .await
+            .unwrap_or_else(|_| vec![])
+    }
+
+    pub async fn get_image(&self, name: &CheckedIdentElem, watches: &mut Watches) -> Vec<u8> {
+        let path = name.to_fs_path(&self.db_images, &Tail::None);
         fs_file_read(&path, watches)
             .await
             .unwrap_or_else(|_| vec![])

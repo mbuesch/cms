@@ -42,21 +42,14 @@ class CMS(object):
 	__rootPageIdent = CMSPageIdent()
 
 	def __init__(self,
-		     wwwPath,
-		     imagesDir="/images",
 		     domain="example.com",
 		     urlBase="/cms",
 		     cssUrlPath="/cms.css",
 		     debug=False):
-		# wwwPath => Unix path to the static www data.
-		# imagesDir => Subdirectory path, based on wwwPath, to
-		#	the images directory.
 		# domain => The site domain name.
 		# urlBase => URL base component to the HTTP server CMS mapping.
 		# cssUrlBase => URL subpath to the CSS.
 		# debug => Enable/disable debugging
-		self.wwwPath = wwwPath
-		self.imagesDir = imagesDir
 		self.domain = domain
 		self.urlBase = urlBase
 		self.cssUrlPath = cssUrlPath
@@ -251,16 +244,15 @@ class CMS(object):
 		except (KeyError) as e:
 			qual = qualities[1]
 		try:
-			imgPath = fs.mkpath(self.wwwPath,
-					    self.imagesDir,
-					    CMSPageIdent.validateSafePathComponent(imagename))
-			with open(imgPath.encode("UTF-8", "strict"), "rb") as fd:
-				with Image.open(fd) as img:
-					img.thumbnail((width, height), qual)
-					with img.convert("RGB") as cimg:
-						output = BytesIO()
-						cimg.save(output, "JPEG")
-						data = output.getvalue()
+			imgData = self.db.getImage(imagename)
+			if not imgData:
+				raise CMSException(404)
+			with Image.open(BytesIO(imgData)) as img:
+				img.thumbnail((width, height), qual)
+				with img.convert("RGB") as cimg:
+					output = BytesIO()
+					cimg.save(output, "JPEG")
+					data = output.getvalue()
 		except (IOError, UnicodeError) as e:
 			raise CMSException(404)
 		return data, "image/jpeg"
