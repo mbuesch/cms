@@ -41,16 +41,14 @@ ext_modules = setup_cython.ext_modules
 
 setup(	name		= "cms",
 	version		= "0.0",
-	description	= "simple WSGI/Python based CMS script",
+	description	= "Simple Rust and Python based CMS",
 	license		= "GNU General Public License v2 or later",
 	author		= "Michael Buesch",
 	author_email	= "m@bues.ch",
 	url		= "https://bues.ch",
 	packages	= [ "cms", ],
-	scripts		= [ "index.wsgi", ],
 	cmdclass	= cmdclass,
 	ext_modules	= ext_modules,
-	keywords	= "CMS WSGI Apache httpd",
 	classifiers	= [
 		"Development Status :: 5 - Production/Stable",
 		"Environment :: Console",
@@ -71,9 +69,8 @@ setup(	name		= "cms",
 		"Topic :: Internet :: WWW/HTTP :: Browsers",
 		"Topic :: Internet :: WWW/HTTP :: Dynamic Content",
 		"Topic :: Internet :: WWW/HTTP :: Site Management",
-		"Topic :: Internet :: WWW/HTTP :: WSGI",
 		"Topic :: Text Processing",
 		"Topic :: Text Processing :: Markup :: HTML",
 	],
-	long_description = "simple WSGI/Python based CMS script"
+	long_description = "Simple Rust and Python based CMS"
 )

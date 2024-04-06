@@ -87,10 +87,6 @@ install_dirs()
 
     do_install \
         -o root -g root -m 0755 \
-        -d /opt/cms/share/cms-wsgi
-
-    do_install \
-        -o root -g root -m 0755 \
         -d /opt/cms/libexec/cms-cgi
 
     do_install \
@@ -178,11 +174,6 @@ install_py()
         -o root -g root -m 0644 \
         "$basedir"/cms_cython/*.py "$basedir"/cms_cython/*.so \
         /opt/cms/lib/python3/site-packages/cms_cython/
-
-    do_install \
-        -o root -g root -m 0644 \
-        "$basedir/index.wsgi" \
-        /opt/cms/share/cms-wsgi/
 
     do_systemctl enable cms-backd.service
     do_systemctl enable cms-backd.socket
