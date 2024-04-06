@@ -35,7 +35,11 @@ export CXXFLAGS=
 python3 ./setup.py build || die "Python build failed."
 ln -s build/lib.*-3*/cms_cython . || die "Python link failed."
 cargo update || die "Cargo update failed."
-cargo build --release || die "Cargo build failed."
-cargo audit --deny warnings || die "Cargo audit failed."
+cargo auditable build --release || die "Cargo build failed."
+cargo audit bin --deny warnings \
+    target/release/cms-fsd \
+    target/release/cms-cgi \
+    target/release/cms-postd \
+    || die "Cargo audit failed."
 
 # vim: ts=4 sw=4 expandtab
