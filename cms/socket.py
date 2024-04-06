@@ -79,6 +79,13 @@ def pack_hashmap_str_bytes(items):
 		ret += pack_bytes(v)
 	return ret
 
+def pack_list_str(items):
+	ret = bytearray(pack_u64(len(items)))
+	for item in items:
+		assert isinstance(item, str)
+		ret += pack_str(item)
+	return ret
+
 def pack_message(payload, magic):
 	ret = bytearray(pack_u32(magic))
 	ret += pack_u32(len(payload))
@@ -116,7 +123,7 @@ def unpack_hashmap_str_bytes(buf, i):
 		name, i = unpack_str(buf, i)
 		value, i = unpack_bytes(buf, i)
 		ret[name] = value
-	return ret
+	return ret, i
 
 def unpack_header(buf, magic_expected):
 	if len(buf) < MSG_HDR_LEN:
@@ -375,11 +382,12 @@ class MsgPost:
 		return self
 
 class MsgReply:
-	def __init__(self, status, error, body, mime):
+	def __init__(self, status, error, body, mime, extra_headers):
 		self.status = status
 		self.error = error
 		self.body = body
 		self.mime = mime
+		self.extra_headers = extra_headers
 
 	def pack(self):
 		payload = bytearray(pack_u32(ID_BACK_REPLY))
@@ -387,6 +395,7 @@ class MsgReply:
 		payload += pack_str(self.error)
 		payload += pack_bytes(self.body)
 		payload += pack_str(self.mime)
+		payload += pack_list_str(self.extra_headers)
 		return pack_message(payload, MAGIC_BACK)
 
 def unpack_message(buf, magic):

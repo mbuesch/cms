@@ -36,10 +36,9 @@ def __initCMS(environ):
 	global maxPostContentLength
 
 	domain = environ.get("cms.domain", None)
-	db = environ.get("cms.db", None)
 	wwwBase = environ.get("cms.wwwBase", None)
-	if domain is None or db is None or wwwBase is None:
-		raise Exception("WSGI environment cms.domain, cms.db "
+	if domain is None or wwwBase is None:
+		raise Exception("WSGI environment cms.domain "
 				"or cms.wwwBase not set.")
 	debug = stringBool(environ.get("cms.debug", "0"), False)
 	try:
@@ -47,8 +46,7 @@ def __initCMS(environ):
 	except ValueError as e:
 		maxPostContentLength = 0
 	# Initialize the CMS module
-	cms = CMS(dbPath=db,
-		  wwwPath=wwwBase,
+	cms = CMS(wwwPath=wwwBase,
 		  domain=domain,
 		  debug=debug)
 	atexit.register(cms.shutdown)

@@ -49,6 +49,7 @@ pub enum Msg {
         error: String,
         body: Vec<u8>,
         mime: String,
+        extra_headers: Vec<String>,
     },
 }
 

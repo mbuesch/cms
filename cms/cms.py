@@ -42,14 +42,12 @@ class CMS(object):
 	__rootPageIdent = CMSPageIdent()
 
 	def __init__(self,
-		     dbPath,
 		     wwwPath,
 		     imagesDir="/images",
 		     domain="example.com",
 		     urlBase="/cms",
 		     cssUrlPath="/cms.css",
 		     debug=False):
-		# dbPath => Unix path to the database directory.
 		# wwwPath => Unix path to the static www data.
 		# imagesDir => Subdirectory path, based on wwwPath, to
 		#	the images directory.
@@ -64,7 +62,7 @@ class CMS(object):
 		self.cssUrlPath = cssUrlPath
 		self.debug = debug
 
-		self.db = CMSDatabase(dbPath)
+		self.db = CMSDatabase()
 		self.resolver = CMSStatementResolver(self)
 
 	def shutdown(self):

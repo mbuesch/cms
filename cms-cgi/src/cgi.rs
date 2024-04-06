@@ -25,6 +25,8 @@ use querystrong::QueryStrong;
 use std::{collections::HashMap, env, ffi::OsString, path::Path};
 use tokio::io::{self, AsyncReadExt as _, AsyncWriteExt as _};
 
+const MAX_POST_BODY_LEN: u32 = 1024 * 1024;
+
 fn get_cgienv(name: &str) -> OsString {
     env::var_os(name).unwrap_or_default()
 }
@@ -192,6 +194,7 @@ impl Cgi {
                 error,
                 body,
                 mime,
+                extra_headers,
             }) => {
                 //TODO
             }
@@ -212,7 +215,10 @@ impl Cgi {
 
     async fn run_post(&mut self) -> ah::Result<()> {
         if self.body_len == 0 {
-            return Err(err!("POST: Invalid CONTENT_LENGTH."));
+            return Err(err!("POST: CONTENT_LENGTH is zero."));
+        }
+        if self.body_len > MAX_POST_BODY_LEN {
+            return Err(err!("POST: CONTENT_LENGTH is too large."));
         }
         if self.body_type.is_empty() {
             return Err(err!("POST: Invalid CONTENT_TYPE."));
@@ -239,6 +245,7 @@ impl Cgi {
                 error,
                 body,
                 mime,
+                extra_headers,
             }) => {
                 //TODO
             }

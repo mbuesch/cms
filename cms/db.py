@@ -35,8 +35,7 @@ __all__ = [
 class CMSDatabase(object):
 	validate = CMSPageIdent.validateName
 
-	def __init__(self, basePath):
-		self.pageBase = fs.mkpath(basePath, "pages")
+	def __init__(self):
 		try:
 			self.dbsock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 			self.dbsock.connect("/run/cms-fsd.sock")

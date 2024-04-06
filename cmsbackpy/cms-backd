@@ -21,13 +21,13 @@
 import sys
 sys.path.insert(0, "/opt/cms/lib/python3/site-packages/")
 
-import os, fcntl, socket
+import os, fcntl, socket, atexit, time
 
 try:
     from cms_cython.socket import *
     from cms_cython import CMS, CMSException
 except ImportError as e:
-    print("Failed to import cms_cython:", e, file=sys.stderr)
+    print("cms-backd: Failed to import cms_cython:", e, file=sys.stderr)
     from cms.socket import *
     from cms import CMS, CMSException
 
@@ -52,18 +52,50 @@ def init_systemd():
     return backsock
 
 def run_backd(backsock):
+    cms = CMS(
+        wwwPath="/var/www/html",#TODO
+        domain="bues.ch",#TODO
+        debug=True,
+    )
+    atexit.register(cms.shutdown)
     while True:
         conn, addr = backsock.accept()
         msg = recv_message(conn, MAGIC_BACK)
-        assert_is_msg(msg, (MsgGet, MsgPost))
-        if isinstance(msg, MsgGet):
-            print("GET")
-            pass#TODO
-        elif isinstance(msg, MsgPost):
-            print("POST")
-            pass#TODO
-        else:
-            raise ValueError("Received invalid message.")
+
+        if cms.debug:
+            startStamp = time.monotonic()
+
+        status = 200 # Ok
+        extra_headers = []
+        protocol = "https"#TODO
+        try:
+            if isinstance(msg, MsgGet):
+                reply_body, reply_mime = cms.get(msg.path, msg.query, protocol)
+            elif isinstance(msg, MsgPost):
+                reply_body, reply_mime = cms.post(msg.path, msg.query, msg.body, msg.body_mime, protocol)
+            else:
+                raise RuntimeError("Received invalid message.")
+        except CMSException as e:
+            status = e.httpStatusCode
+            reply_body, reply_mime, extra_headers = cms.getErrorPage(e, protocol)
+
+        if cms.debug and "html" in reply_mime:
+            delta = time.monotonic() - startStamp
+            ms = delta * 1e3
+            reply_body += ("\n<!-- generated in %.3f ms -->" % ms).encode("UTF-8", "ignore")
+
+        reply = MsgReply(
+            status=status,
+            error="",
+            body=reply_body,
+            mime=reply_mime,
+            extra_headers=extra_headers,
+        )
+        reply_data = reply.pack()
+        try:
+            conn.sendall(reply_data)
+        except Exception as e:
+            print(f"cms-backd: Failed to send reply: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     run_backd(init_systemd())
