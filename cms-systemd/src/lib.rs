@@ -45,7 +45,7 @@ pub fn have_systemd() -> bool {
 
 /// Create a new [UnixListener] with the socket provided by systemd.
 ///
-/// If [unset_environment] is true, all environment variables related
+/// If `unset_environment` is true, all environment variables related
 /// to this operation will be cleared.
 pub fn unix_from_systemd(unset_environment: bool) -> ah::Result<UnixListener> {
     let fds = daemon::listen_fds(unset_environment).context("Systemd listen_fds")?;
@@ -61,7 +61,7 @@ pub fn unix_from_systemd(unset_environment: bool) -> ah::Result<UnixListener> {
 
 /// Notify ready-status to systemd.
 ///
-/// If [unset_environment] is true, all environment variables related
+/// If `unset_environment` is true, all environment variables related
 /// to this operation will be cleared.
 pub fn systemd_notify_ready(unset_environment: bool) -> ah::Result<()> {
     daemon::notify(unset_environment, [(daemon::STATE_READY, "1")].iter())

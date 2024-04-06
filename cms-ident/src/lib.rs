@@ -157,7 +157,7 @@ impl Ident {
         self
     }
 
-    /// Check if the identifier ends with the specified [tail] str.
+    /// Check if the identifier ends with the specified `tail` str.
     #[inline]
     pub fn ends_with(&self, tail: &str) -> bool {
         self.as_str().ends_with(tail)
@@ -276,19 +276,19 @@ macro_rules! impl_checked_ident {
             /// Convert this checked identifier into a safe [PathBuf]
             /// for filesystem use.
             ///
-            /// The [base] is the start of the filesystem path.
+            /// The `base` is the start of the filesystem path.
             ///
-            /// The elements of the identifier are added between [base] and [tail].
+            /// The elements of the identifier are added between `base` and `tail`.
             ///
-            /// The [tail] is optionally added to the end of the path.
+            /// The `tail` is optionally added to the end of the path.
             ///
-            /// Warning: [base] is not checked for safe filesystem access.
+            /// Warning: `base` is not checked for safe filesystem access.
             #[inline]
             pub fn to_fs_path(&self, base: &Path, tail: &Tail) -> PathBuf {
                 self.to_stripped_fs_path(base, Strip::No, tail).unwrap()
             }
 
-            /// Same as [to_fs_path], but may strip some elements
+            /// Same as `to_fs_path`, but may strip some elements
             /// from the identifier elements.
             #[inline]
             pub fn to_stripped_fs_path(
