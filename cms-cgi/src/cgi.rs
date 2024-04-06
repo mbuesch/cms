@@ -18,7 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use anyhow::{self as ah, format_err as err};
-use cms_ident::{CheckedIdent, Ident};
+use cms_ident::Ident;
 use cms_socket::{CmsSocketConn, MsgSerde as _};
 use cms_socket_back::{Msg, SOCK_FILE};
 use querystrong::QueryStrong;
@@ -103,9 +103,9 @@ async fn response_notok(status: u32, body: &[u8], mime: &str) {
 }
 
 pub struct Cgi {
-    query: HashMap<String, Vec<u8>>,
+    query: String,
     meth: OsString,
-    path: CheckedIdent,
+    path: String,
     body_len: u32,
     body_type: String,
     https: bool,
@@ -123,39 +123,13 @@ impl Cgi {
 
         //TODO: We can restrict syscalls with seccomp here.
 
-        let q = get_cgienv_str("QUERY_STRING").unwrap_or_default();
-        let Ok(q) = QueryStrong::parse(&q) else {
-            return Err(response_400_bad_request(err!("Invalid QUERY_STRING in URI.")).await);
-        };
-        let mut query = HashMap::with_capacity(q.len());
-        if let Some(q) = q.as_map() {
-            for (n, v) in q {
-                if let querystrong::Value::String(v) = v {
-                    query.insert(n.to_string(), v.as_bytes().to_vec());
-                }
-            }
-        }
-
+        let query = get_cgienv_str("QUERY_STRING").unwrap_or_default();
         let meth = get_cgienv("REQUEST_METHOD");
-
         let path = get_cgienv_str("PATH_INFO").unwrap_or_default();
-        let Ok(path) = path.parse::<Ident>() else {
-            return Err(response_400_bad_request(err!("Failed to parse PATH_INFO string.")).await);
-        };
-        let Ok(path) = path.into_checked_sys() else {
-            return Err(response_404_not_found(err!("URI path contains invalid chars.")).await);
-        };
-
         let body_len = get_cgienv_u32("CONTENT_LENGTH").unwrap_or_default();
-
         let body_type = get_cgienv_str("CONTENT_TYPE").unwrap_or_default();
-
         let https = get_cgienv_bool("HTTPS");
-
-        let Ok(host) = get_cgienv_str("HTTP_HOST") else {
-            return Err(response_404_not_found(err!("Invalid HTTP_HOST.")).await);
-        };
-
+        let host = get_cgienv_str("HTTP_HOST").unwrap_or_default();
         let cookie = get_cgienv("HTTP_COOKIE");
 
         Ok(Self {
@@ -172,56 +146,69 @@ impl Cgi {
     }
 
     pub async fn run(&mut self) -> ah::Result<()> {
-        match self.meth.as_encoded_bytes() {
-            b"GET" => self.run_get().await,
-            b"POST" => self.run_post().await,
-            _ => {
-                let meth = self.meth.to_string_lossy();
-                Err(response_400_bad_request(err!("Unsupported REQUEST_METHOD: '{meth}'")).await)
+        let Ok(path) = self.path.parse::<Ident>() else {
+            return Err(response_400_bad_request(err!("Failed to parse PATH_INFO string.")).await);
+        };
+        let Ok(path) = path.into_checked_sys() else {
+            return Err(response_404_not_found(err!("URI path contains invalid chars.")).await);
+        };
+
+        let Ok(q) = QueryStrong::parse(&self.query) else {
+            return Err(response_400_bad_request(err!("Invalid QUERY_STRING in URI.")).await);
+        };
+        let mut query = HashMap::with_capacity(q.len());
+        if let Some(q) = q.as_map() {
+            for (n, v) in q {
+                if let querystrong::Value::String(v) = v {
+                    query.insert(n.to_string(), v.as_bytes().to_vec());
+                }
             }
         }
-    }
 
-    async fn run_get(&mut self) -> ah::Result<()> {
-        let request = Msg::Get {
-            host: self.host.clone(),
-            path: self.path.clone().downgrade(),
-            https: self.https,
-            cookie: self.cookie.as_encoded_bytes().to_vec(),
-            query: self.query.clone(),
-        };
-        self.backend.send_msg(&request).await?;
-        self.receive_reply().await
-    }
+        match self.meth.as_encoded_bytes() {
+            b"GET" => {
+                let request = Msg::Get {
+                    host: self.host.clone(),
+                    path: path.downgrade(),
+                    https: self.https,
+                    cookie: self.cookie.as_encoded_bytes().to_vec(),
+                    query,
+                };
+                self.backend.send_msg(&request).await?;
+            }
+            b"POST" => {
+                if self.body_len == 0 {
+                    return Err(err!("POST: CONTENT_LENGTH is zero."));
+                }
+                if self.body_len > MAX_POST_BODY_LEN {
+                    return Err(err!("POST: CONTENT_LENGTH is too large."));
+                }
+                if self.body_type.is_empty() {
+                    return Err(err!("POST: Invalid CONTENT_TYPE."));
+                }
 
-    async fn run_post(&mut self) -> ah::Result<()> {
-        if self.body_len == 0 {
-            return Err(err!("POST: CONTENT_LENGTH is zero."));
+                let mut body = vec![0; self.body_len.try_into().unwrap()];
+                io::stdin().read_exact(&mut body).await?;
+
+                let request = Msg::Post {
+                    host: self.host.clone(),
+                    path: path.downgrade(),
+                    https: self.https,
+                    cookie: self.cookie.as_encoded_bytes().to_vec(),
+                    query,
+                    body,
+                    body_mime: self.body_type.clone(),
+                };
+                self.backend.send_msg(&request).await?;
+            }
+            _ => {
+                let meth = self.meth.to_string_lossy();
+                return Err(
+                    response_400_bad_request(err!("Unsupported REQUEST_METHOD: '{meth}'")).await,
+                );
+            }
         }
-        if self.body_len > MAX_POST_BODY_LEN {
-            return Err(err!("POST: CONTENT_LENGTH is too large."));
-        }
-        if self.body_type.is_empty() {
-            return Err(err!("POST: Invalid CONTENT_TYPE."));
-        }
 
-        let mut body = vec![0; self.body_len.try_into().unwrap()];
-        io::stdin().read_exact(&mut body).await?;
-
-        let request = Msg::Post {
-            host: self.host.clone(),
-            path: self.path.clone().downgrade(),
-            https: self.https,
-            cookie: self.cookie.as_encoded_bytes().to_vec(),
-            query: self.query.clone(),
-            body,
-            body_mime: self.body_type.clone(),
-        };
-        self.backend.send_msg(&request).await?;
-        self.receive_reply().await
-    }
-
-    async fn receive_reply(&mut self) -> ah::Result<()> {
         let msg = self.backend.recv_msg(Msg::try_msg_deserialize).await?;
         match msg {
             Some(Msg::Reply {
