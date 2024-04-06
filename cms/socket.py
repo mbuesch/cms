@@ -351,7 +351,7 @@ class MsgGet:
 
 	@classmethod
 	def unpack(cls, buf, i):
-		host, i = unpack_bytes(buf, i)
+		host, i = unpack_str(buf, i)
 		path, i = unpack_str(buf, i)
 		https, i = unpack_bool(buf, i)
 		cookie, i = unpack_bytes(buf, i)
@@ -371,7 +371,7 @@ class MsgPost:
 
 	@classmethod
 	def unpack(cls, buf, i):
-		host, i = unpack_bytes(buf, i)
+		host, i = unpack_str(buf, i)
 		path, i = unpack_str(buf, i)
 		https, i = unpack_bool(buf, i)
 		cookie, i = unpack_bytes(buf, i)

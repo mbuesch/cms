@@ -29,14 +29,14 @@ pub const SOCK_FILE: &str = "cms-backd.sock";
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Msg {
     Get {
-        host: Vec<u8>,
+        host: String,
         path: Ident,
         https: bool,
         cookie: Vec<u8>,
         query: HashMap<String, Vec<u8>>,
     },
     Post {
-        host: Vec<u8>,
+        host: String,
         path: Ident,
         https: bool,
         cookie: Vec<u8>,

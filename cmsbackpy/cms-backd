@@ -54,7 +54,7 @@ def init_systemd():
 def run_backd(backsock):
     cms = CMS(
         wwwPath="/var/www/html",#TODO
-        domain="bues.ch",#TODO
+        domain="",
         debug=True,
     )
     atexit.register(cms.shutdown)
@@ -66,17 +66,24 @@ def run_backd(backsock):
             startStamp = time.monotonic()
 
         status = 200 # Ok
+        error = ""
+        reply_body = b""
+        reply_mime = ""
         extra_headers = []
-        protocol = "https"#TODO
         try:
             if isinstance(msg, MsgGet):
+                cms.domain = msg.host
+                protocol = "https" if msg.https else "http"
                 reply_body, reply_mime = cms.get(msg.path, msg.query, protocol)
             elif isinstance(msg, MsgPost):
+                cms.domain = msg.host
+                protocol = "https" if msg.https else "http"
                 reply_body, reply_mime = cms.post(msg.path, msg.query, msg.body, msg.body_mime, protocol)
             else:
                 raise RuntimeError("Received invalid message.")
         except CMSException as e:
             status = e.httpStatusCode
+            error = e.httpStatus
             reply_body, reply_mime, extra_headers = cms.getErrorPage(e, protocol)
 
         if cms.debug and "html" in reply_mime:
@@ -86,7 +93,7 @@ def run_backd(backsock):
 
         reply = MsgReply(
             status=status,
-            error="",
+            error=error,
             body=reply_body,
             mime=reply_mime,
             extra_headers=extra_headers,
