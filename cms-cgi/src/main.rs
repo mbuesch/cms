@@ -28,7 +28,8 @@ use tokio::runtime;
 
 async fn async_main() -> ah::Result<()> {
     let mut cgi = Cgi::new().await?;
-    cgi.run().await
+    cgi.run().await;
+    Ok(())
 }
 
 fn main() -> ah::Result<()> {

@@ -66,32 +66,20 @@ async fn response_200_ok(body: &[u8], mime: &str, extra_headers: &[String]) {
     out(&mut f, body).await;
 }
 
-async fn response_400_bad_request(err: ah::Error) -> ah::Error {
+async fn response_400_bad_request(err: &str) {
     let mut f = io::stdout();
     outstr(&mut f, "Content-type: text/plain\n").await;
     outstr(&mut f, "Status: 400 Bad Request\n").await;
     outstr(&mut f, "\n").await;
-    outstr(&mut f, &format!("{err}")).await;
-    err
+    outstr(&mut f, err).await;
 }
 
-async fn response_404_not_found(err: ah::Error) -> ah::Error {
-    let mut f = io::stdout();
-    outstr(&mut f, "Location: /cms/__nopage/__nogroup.html\n").await;
-    //outstr(&mut f, "Content-type: text/plain\n").await;
-    //outstr(&mut f, "Status: 404 Not Found\n").await;
-    outstr(&mut f, "\n").await;
-    //outstr(&mut f, &format!("{err}")).await;
-    err
-}
-
-async fn response_500_internal_error(err: ah::Error) -> ah::Error {
+async fn response_500_internal_error(err: &str) {
     let mut f = io::stdout();
     outstr(&mut f, "Content-type: text/plain\n").await;
     outstr(&mut f, "Status: 500 Internal Server Error\n").await;
     outstr(&mut f, "\n").await;
-    outstr(&mut f, &format!("{err}")).await;
-    err
+    outstr(&mut f, err).await;
 }
 
 async fn response_notok(status: u32, body: &[u8], mime: &str) {
@@ -118,7 +106,8 @@ impl Cgi {
     pub async fn new() -> ah::Result<Self> {
         let sock_path = Path::new("/run").join(SOCK_FILE);
         let Ok(backend) = CmsSocketConn::connect(&sock_path).await else {
-            return Err(response_500_internal_error(err!("Backend connection failed.")).await);
+            response_500_internal_error("Backend connection failed.").await;
+            return Err(err!("Backend connection failed."));
         };
 
         //TODO: We can restrict syscalls with seccomp here.
@@ -145,16 +134,19 @@ impl Cgi {
         })
     }
 
-    pub async fn run(&mut self) -> ah::Result<()> {
+    pub async fn run(&mut self) {
         let Ok(path) = self.path.parse::<Ident>() else {
-            return Err(response_400_bad_request(err!("Failed to parse PATH_INFO string.")).await);
+            response_400_bad_request("Failed to parse PATH_INFO string.").await;
+            return;
         };
         let Ok(path) = path.into_checked_sys() else {
-            return Err(response_404_not_found(err!("URI path contains invalid chars.")).await);
+            response_400_bad_request("URI path contains invalid chars.").await;
+            return;
         };
 
         let Ok(q) = QueryStrong::parse(&self.query) else {
-            return Err(response_400_bad_request(err!("Invalid QUERY_STRING in URI.")).await);
+            response_400_bad_request("Invalid QUERY_STRING in URI.").await;
+            return;
         };
         let mut query = HashMap::with_capacity(q.len());
         if let Some(q) = q.as_map() {
@@ -174,21 +166,30 @@ impl Cgi {
                     cookie: self.cookie.as_encoded_bytes().to_vec(),
                     query,
                 };
-                self.backend.send_msg(&request).await?;
+                if self.backend.send_msg(&request).await.is_err() {
+                    response_500_internal_error("Backend send failed.").await;
+                    return;
+                }
             }
             b"POST" => {
                 if self.body_len == 0 {
-                    return Err(err!("POST: CONTENT_LENGTH is zero."));
+                    response_400_bad_request("POST: CONTENT_LENGTH is zero.").await;
+                    return;
                 }
                 if self.body_len > MAX_POST_BODY_LEN {
-                    return Err(err!("POST: CONTENT_LENGTH is too large."));
+                    response_400_bad_request("POST: CONTENT_LENGTH is too large.").await;
+                    return;
                 }
                 if self.body_type.is_empty() {
-                    return Err(err!("POST: Invalid CONTENT_TYPE."));
+                    response_400_bad_request("POST: Invalid CONTENT_TYPE.").await;
+                    return;
                 }
 
                 let mut body = vec![0; self.body_len.try_into().unwrap()];
-                io::stdin().read_exact(&mut body).await?;
+                if io::stdin().read_exact(&mut body).await.is_err() {
+                    response_500_internal_error("CGI stdin read failed.").await;
+                    return;
+                }
 
                 let request = Msg::Post {
                     host: self.host.clone(),
@@ -199,43 +200,39 @@ impl Cgi {
                     body,
                     body_mime: self.body_type.clone(),
                 };
-                self.backend.send_msg(&request).await?;
+                if self.backend.send_msg(&request).await.is_err() {
+                    response_500_internal_error("Backend send failed.").await;
+                    return;
+                }
             }
             _ => {
                 let meth = self.meth.to_string_lossy();
-                return Err(
-                    response_400_bad_request(err!("Unsupported REQUEST_METHOD: '{meth}'")).await,
-                );
+                response_400_bad_request(&format!("Unsupported REQUEST_METHOD: '{meth}'")).await;
+                return;
             }
         }
 
-        let msg = self.backend.recv_msg(Msg::try_msg_deserialize).await?;
+        let msg = self.backend.recv_msg(Msg::try_msg_deserialize).await;
         match msg {
-            Some(Msg::Reply {
+            Ok(Some(Msg::Reply {
                 status,
                 body,
                 mime,
                 extra_headers,
-            }) => match status {
+            })) => match status {
                 200 => response_200_ok(&body, &mime, &extra_headers).await,
-                404 => {
-                    return Err(response_404_not_found(err!("Not Found")).await);
-                }
-                status => {
-                    response_notok(status, &body, &mime).await;
-                    return Err(err!("Http error {status}"));
-                }
+                status => response_notok(status, &body, &mime).await,
             },
-            Some(Msg::Get { .. }) | Some(Msg::Post { .. }) => {
-                return Err(
-                    response_500_internal_error(err!("Invalid backend message received.")).await,
-                );
+            Ok(Some(Msg::Get { .. })) | Ok(Some(Msg::Post { .. })) => {
+                response_500_internal_error("Invalid backend message received.").await;
             }
-            None => {
-                return Err(response_500_internal_error(err!("Backend disconnected.")).await);
+            Ok(None) => {
+                response_500_internal_error("Backend disconnected.").await;
+            }
+            Err(_) => {
+                response_500_internal_error("Backend receive error.").await;
             }
         }
-        Ok(())
     }
 }
 
