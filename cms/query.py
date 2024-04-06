@@ -32,10 +32,11 @@ class CMSQuery(object):
 	)
 
 	def __init__(self, queryDict):
-		self.__queryDict = {
-			name : values[-1]
-			for name, values in queryDict.items()
-		}
+		self.__queryDict = {}
+		for k, v in queryDict.items():
+			assert isinstance(k, str)
+			assert isinstance(v, (bytes, bytearray))
+			self.__queryDict[k] = v.decode("UTF-8", "strict")
 
 	def items(self):
 		return self.__queryDict.items()
