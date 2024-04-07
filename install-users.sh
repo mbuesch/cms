@@ -47,6 +47,8 @@ systemctl stop cms-fsd.socket >/dev/null 2>&1
 systemctl stop cms-fsd.service >/dev/null 2>&1
 systemctl stop cms-postd.socket >/dev/null 2>&1
 systemctl stop cms-postd.service >/dev/null 2>&1
+systemctl stop cms-backd.socket >/dev/null 2>&1
+systemctl stop cms-backd.service >/dev/null 2>&1
 
 # Delete all existing users, if any.
 userdel cms-fsd >/dev/null 2>&1
