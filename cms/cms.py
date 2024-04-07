@@ -44,15 +44,12 @@ class CMS(object):
 	def __init__(self,
 		     domain="example.com",
 		     urlBase="/cms",
-		     cssUrlPath="/cms.css",
 		     debug=False):
 		# domain => The site domain name.
 		# urlBase => URL base component to the HTTP server CMS mapping.
-		# cssUrlBase => URL subpath to the CSS.
 		# debug => Enable/disable debugging
 		self.domain = domain
 		self.urlBase = urlBase
-		self.cssUrlPath = cssUrlPath
 		self.debug = debug
 
 		self.db = CMSDatabase()
@@ -80,7 +77,7 @@ class CMS(object):
 	<meta name="date" content="{date}" />
 	<meta name="robots" content="all" />
 	<title>{title}</title>
-	<link rel="stylesheet" href="{self.cssUrlPath}" type="text/css" />
+	<link rel="stylesheet" href="{self.urlBase}/__css/cms.css" type="text/css" />
 	<link rel="sitemap" type="application/xml" title="Sitemap" href="{sitemap}" />
 	{additional or ''}
 </head>
@@ -217,6 +214,15 @@ class CMS(object):
 
 		return "\n".join(body)
 
+	def __getCss(self, cssname, query, protocol):
+		try:
+			if cssname == "cms.css":
+				return (self.db.getString("css").encode("UTF-8", "strict"),
+					"text/css; charset=UTF-8")
+		except UnicodeError as e:
+			raise CMSException(500, "Unicode encode error")
+		raise CMSException(404)
+
 	def __getSiteMap(self, query, protocol):
 		sitemap = CMSSiteMap(self.db, self.domain, self.urlBase)
 		data = sitemap.getSiteMap(self.__rootPageIdent, protocol)
@@ -298,6 +304,8 @@ class CMS(object):
 			return self.__getImageThumbnail(pageIdent.get(1), query, protocol)
 		elif firstIdent in ("__sitemap", "__sitemap.xml"):
 			return self.__getSiteMap(query, protocol)
+		elif firstIdent == "__css":
+			return self.__getCss(pageIdent.get(1), query, protocol)
 		return self.__getHtmlPage(pageIdent, query, protocol)
 
 	def get(self, path, query={}, protocol="http"):
