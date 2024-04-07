@@ -143,7 +143,7 @@ class CMS(object):
 		body.append('<div class="titlebar">')
 		body.append('\t<div class="logo">')
 		body.append('\t\t<a href="%s">' % self.urlBase)
-		body.append('\t\t\t<img alt="logo" src="/logo.png" />')
+		body.append(f'\t\t\t<img alt="logo" src="{self.urlBase}/__images/logo.png" />')
 		body.append('\t\t</a>')
 		body.append('\t</div>')
 		body.append('\t<div class="title">%s</div>' % pageTitle)
