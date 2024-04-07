@@ -45,7 +45,7 @@ class CMSException(Exception):
 		self.message = message
 
 	def getHttpHeaders(self, resolveCallback):
-		return ()
+		return []
 
 	def getHtmlHeader(self, db):
 		return ""
@@ -65,7 +65,7 @@ class CMSException301(CMSException):
 		return self.message
 
 	def getHttpHeaders(self, resolveCallback):
-		return ( ('Location', resolveCallback(self.url())), )
+		return [ f"Location: {resolveCallback(self.url())}" ]
 
 	def getHtmlHeader(self, db):
 		return '<meta http-equiv="refresh" content="0; URL=%s" />' %\
