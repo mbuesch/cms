@@ -22,8 +22,13 @@ use cms_ident::Ident;
 use cms_socket::{CmsSocketConn, MsgSerde as _};
 use cms_socket_back::{Msg, SOCK_FILE};
 use querystrong::QueryStrong;
-use std::{collections::HashMap, env, ffi::OsString, path::Path};
-use tokio::io::{self, AsyncReadExt as _, AsyncWriteExt as _, Stdout};
+use std::{
+    collections::HashMap,
+    env,
+    ffi::OsString,
+    io::{self, Read as _, Stdout, Write as _},
+    path::Path,
+};
 
 const MAX_POST_BODY_LEN: u32 = 1024 * 1024;
 
@@ -47,50 +52,50 @@ fn get_cgienv_bool(name: &str) -> bool {
     get_cgienv(name).as_encoded_bytes() == b"on"
 }
 
-async fn out(f: &mut Stdout, data: &[u8]) {
-    f.write_all(data).await.unwrap();
+fn out(f: &mut Stdout, data: &[u8]) {
+    f.write_all(data).unwrap();
 }
 
-async fn outstr(f: &mut Stdout, data: &str) {
-    out(f, data.as_bytes()).await;
+fn outstr(f: &mut Stdout, data: &str) {
+    out(f, data.as_bytes());
 }
 
 async fn response_200_ok(body: Option<&[u8]>, mime: &str, extra_headers: &[String]) {
     let mut f = io::stdout();
-    outstr(&mut f, &format!("Content-type: {mime}\n")).await;
+    outstr(&mut f, &format!("Content-type: {mime}\n"));
     for header in extra_headers {
-        outstr(&mut f, &format!("{header}\n")).await;
+        outstr(&mut f, &format!("{header}\n"));
     }
-    outstr(&mut f, "Status: 200 Ok\n").await;
-    outstr(&mut f, "\n").await;
+    outstr(&mut f, "Status: 200 Ok\n");
+    outstr(&mut f, "\n");
     if let Some(body) = body {
-        out(&mut f, body).await;
+        out(&mut f, body);
     }
 }
 
 async fn response_400_bad_request(err: &str) {
     let mut f = io::stdout();
-    outstr(&mut f, "Content-type: text/plain\n").await;
-    outstr(&mut f, "Status: 400 Bad Request\n").await;
-    outstr(&mut f, "\n").await;
-    outstr(&mut f, err).await;
+    outstr(&mut f, "Content-type: text/plain\n");
+    outstr(&mut f, "Status: 400 Bad Request\n");
+    outstr(&mut f, "\n");
+    outstr(&mut f, err);
 }
 
 async fn response_500_internal_error(err: &str) {
     let mut f = io::stdout();
-    outstr(&mut f, "Content-type: text/plain\n").await;
-    outstr(&mut f, "Status: 500 Internal Server Error\n").await;
-    outstr(&mut f, "\n").await;
-    outstr(&mut f, err).await;
+    outstr(&mut f, "Content-type: text/plain\n");
+    outstr(&mut f, "Status: 500 Internal Server Error\n");
+    outstr(&mut f, "\n");
+    outstr(&mut f, err);
 }
 
 async fn response_notok(status: u32, body: Option<&[u8]>, mime: &str) {
     let mut f = io::stdout();
-    outstr(&mut f, &format!("Content-type: {mime}\n")).await;
-    outstr(&mut f, &format!("Status: {status}\n")).await;
-    outstr(&mut f, "\n").await;
+    outstr(&mut f, &format!("Content-type: {mime}\n"));
+    outstr(&mut f, &format!("Status: {status}\n"));
+    outstr(&mut f, "\n");
     if let Some(body) = body {
-        out(&mut f, body).await;
+        out(&mut f, body);
     }
 }
 
@@ -191,7 +196,7 @@ impl Cgi {
                 }
 
                 let mut body = vec![0; self.body_len.try_into().unwrap()];
-                if io::stdin().read_exact(&mut body).await.is_err() {
+                if io::stdin().read_exact(&mut body).is_err() {
                     response_500_internal_error("CGI stdin read failed.").await;
                     return;
                 }
