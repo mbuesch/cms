@@ -28,7 +28,6 @@ from cms.resolver import * #+cimport
 from cms.sitemap import *
 from cms.util import * #+cimport
 
-import functools
 import PIL.Image as Image
 import urllib.parse
 
@@ -232,36 +231,48 @@ class CMS(object):
 		except UnicodeError as e:
 			raise CMSException(500, "Unicode encode error")
 
-	@functools.lru_cache(maxsize=2**8)
-	def __getImageThumbnail(self, imagename, query, protocol):
+	def __getImage(self, imagename, query, protocol, thumb=False):
 		if not imagename:
 			raise CMSException(404)
-		width = query.getInt("w", 300)
-		height = query.getInt("h", 300)
-		qual = query.getInt("q", 1)
-		qualities = {
-			0 : Image.NEAREST,
-			1 : Image.BILINEAR,
-			2 : Image.BICUBIC,
-			3 : getattr(Image, "LANCZOS", getattr(Image, "ANTIALIAS", Image.BICUBIC)),
-		}
 		try:
-			qual = qualities[qual]
-		except (KeyError) as e:
-			qual = qualities[1]
-		try:
+			lower = imagename.lower()
+			if lower.endswith(".jpg"):
+				mime = "image/jpeg"
+			elif lower.endswith(".svg"):
+				mime = "image/svg+xml"
+			else:
+				i = lower.rfind(".")
+				if i < 0:
+					raise CMSException(404)
+				mime = f"image/{lower[i+1:]}"
+
 			imgData = self.db.getImage(imagename)
 			if not imgData:
 				raise CMSException(404)
-			with Image.open(BytesIO(imgData)) as img:
-				img.thumbnail((width, height), qual)
-				with img.convert("RGB") as cimg:
-					output = BytesIO()
-					cimg.save(output, "JPEG")
-					data = output.getvalue()
+			if thumb:
+				width = query.getInt("w", 300)
+				height = query.getInt("h", 300)
+				qual = query.getInt("q", 1)
+				qualities = {
+					0 : Image.NEAREST,
+					1 : Image.BILINEAR,
+					2 : Image.BICUBIC,
+					3 : getattr(Image, "LANCZOS", getattr(Image, "ANTIALIAS", Image.BICUBIC)),
+				}
+				try:
+					qual = qualities[qual]
+				except (KeyError) as e:
+					qual = qualities[1]
+				with Image.open(BytesIO(imgData)) as img:
+					img.thumbnail((width, height), qual)
+					with img.convert("RGB") as cimg:
+						output = BytesIO()
+						cimg.save(output, "JPEG")
+						imgData = output.getvalue()
+						mime = "image/jpeg"
 		except (IOError, UnicodeError) as e:
 			raise CMSException(404)
-		return data, "image/jpeg"
+		return imgData, mime
 
 	def __getHtmlPage(self, pageIdent, query, protocol):
 		pageTitle, pageData, stamp = self.db.getPage(pageIdent)
@@ -301,7 +312,9 @@ class CMS(object):
 		pageIdent = CMSPageIdent.parse(path)
 		firstIdent = pageIdent.get(0, allowSysNames=True)
 		if firstIdent == "__thumbs":
-			return self.__getImageThumbnail(pageIdent.get(1), query, protocol)
+			return self.__getImage(pageIdent.get(1), query, protocol, thumb=True)
+		elif firstIdent == "__images":
+			return self.__getImage(pageIdent.get(1), query, protocol, thumb=False)
 		elif firstIdent in ("__sitemap", "__sitemap.xml"):
 			return self.__getSiteMap(query, protocol)
 		elif firstIdent == "__css":

@@ -101,7 +101,7 @@ class CMSStatementResolver(object): #+cdef
 		"BR"		: "<br />",
 		"DOMAIN"	: lambda self, n: self.cms.domain,
 		"CMS_BASE"	: lambda self, n: self.cms.urlBase,
-		"IMAGES_DIR"	: lambda self, n: "/images", #TODO
+		"IMAGES_DIR"	: lambda self, n: self.cms.urlBase + "/__images",
 		"THUMBS_DIR"	: lambda self, n: self.cms.urlBase + "/__thumbs",
 		"DEBUG"		: lambda self, n: "1" if self.cms.debug else "",
 		"__DUMPVARS__"	: lambda self, n: self.__dumpVars(),
