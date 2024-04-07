@@ -55,7 +55,7 @@ async fn outstr(f: &mut Stdout, data: &str) {
     out(f, data.as_bytes()).await;
 }
 
-async fn response_200_ok(body: &[u8], mime: &str, extra_headers: &[String]) {
+async fn response_200_ok(body: Option<&[u8]>, mime: &str, extra_headers: &[String]) {
     let mut f = io::stdout();
     outstr(&mut f, &format!("Content-type: {mime}\n")).await;
     for header in extra_headers {
@@ -63,7 +63,9 @@ async fn response_200_ok(body: &[u8], mime: &str, extra_headers: &[String]) {
     }
     outstr(&mut f, "Status: 200 Ok\n").await;
     outstr(&mut f, "\n").await;
-    out(&mut f, body).await;
+    if let Some(body) = body {
+        out(&mut f, body).await;
+    }
 }
 
 async fn response_400_bad_request(err: &str) {
@@ -82,12 +84,14 @@ async fn response_500_internal_error(err: &str) {
     outstr(&mut f, err).await;
 }
 
-async fn response_notok(status: u32, body: &[u8], mime: &str) {
+async fn response_notok(status: u32, body: Option<&[u8]>, mime: &str) {
     let mut f = io::stdout();
     outstr(&mut f, &format!("Content-type: {mime}\n")).await;
     outstr(&mut f, &format!("Status: {status}\n")).await;
     outstr(&mut f, "\n").await;
-    out(&mut f, body).await;
+    if let Some(body) = body {
+        out(&mut f, body).await;
+    }
 }
 
 pub struct Cgi {
@@ -157,8 +161,9 @@ impl Cgi {
             }
         }
 
-        match self.meth.as_encoded_bytes() {
-            b"GET" => {
+        let meth = self.meth.as_encoded_bytes();
+        match meth {
+            b"GET" | b"HEAD" => {
                 let request = Msg::Get {
                     host: self.host.clone(),
                     path: path.downgrade(),
@@ -219,10 +224,17 @@ impl Cgi {
                 body,
                 mime,
                 extra_headers,
-            })) => match status {
-                200 => response_200_ok(&body, &mime, &extra_headers).await,
-                status => response_notok(status, &body, &mime).await,
-            },
+            })) => {
+                let body = if meth == b"HEAD" {
+                    None
+                } else {
+                    Some(&body[..])
+                };
+                match status {
+                    200 => response_200_ok(body, &mime, &extra_headers).await,
+                    status => response_notok(status, body, &mime).await,
+                }
+            }
             Ok(Some(Msg::Get { .. })) | Ok(Some(Msg::Post { .. })) => {
                 response_500_internal_error("Invalid backend message received.").await;
             }
