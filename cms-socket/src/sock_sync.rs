@@ -59,14 +59,10 @@ impl CmsSocketConnSync {
                     .context("Socket read")?;
             }
         }
-        match try_deserialize(&rxbuf)? {
-            DeserializeResult::Ok(msg) => {
-                return Ok(Some(msg));
-            }
-            DeserializeResult::Pending(_) => {
-                unreachable!();
-            }
+        if let DeserializeResult::Ok(msg) = try_deserialize(&rxbuf)? {
+            return Ok(Some(msg));
         }
+        unreachable!();
     }
 
     pub fn send_msg<M>(&mut self, msg: &impl MsgSerde<M>) -> ah::Result<()> {
