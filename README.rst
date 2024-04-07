@@ -4,15 +4,44 @@ Simple Rust and Python based CMS
 Copyright (c) 2011-2024 Michael Buesch <m@bues.ch>
 
 
-Installing
-==========
+Building
+========
 
 Run the `build.sh` script to build the CMS system.
 
-After building, run the `install-users.sh` script to create the user/group structure for CMS in the operating system.
+The build requires the `cargo-audit` and `cargo-auditable` Rust crates installed:
+
+.. code:: sh
+
+    cargo install cargo-audit cargo-auditable
+
+The Python part requires the `Cython` compiler installed:
+
+.. code:: sh
+
+    apt install cython3 python3 build-essential
+
+After installing all build dependencies, run the build script:
+
+.. code:: sh
+
+    ./build.sh
+
+Installing
+==========
+
+After building, run the `install-users.sh` script to create the user/group structure for CMS in the operating system:
+
+.. code:: sh
+
+    ./install-users.sh
 
 After that, run the `install.sh` script.
 It will install the CMS system into `/opt/cms/`.
+
+.. code:: sh
+
+    ./install.sh
 
 Then create the database inside of `/opt/cms/etc/cms/db/`.
 You may start with the example db:
