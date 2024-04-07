@@ -74,15 +74,25 @@ def run_backd(backsock):
                 cms.domain = msg.host
                 protocol = "https" if msg.https else "http"
                 reply_body, reply_mime = cms.get(msg.path, msg.query, protocol)
+
+                if "html" in reply_mime:
+                    extra_headers.append("Cache-Control: max-age=10")
+                elif reply_mime.startswith("image/"):
+                    extra_headers.append("Cache-Control: max-age=3600")
+                elif reply_mime.startswith("text/css"):
+                    extra_headers.append("Cache-Control: max-age=600")
             elif isinstance(msg, MsgPost):
                 cms.domain = msg.host
                 protocol = "https" if msg.https else "http"
                 reply_body, reply_mime = cms.post(msg.path, msg.query, msg.body, msg.body_mime, protocol)
+
+                extra_headers.append("Cache-Control: no-cache")
             else:
                 raise RuntimeError("Received invalid message.")
         except CMSException as e:
             status = e.httpStatusCode
             reply_body, reply_mime, extra_headers = cms.getErrorPage(e, protocol)
+            extra_headers.append("Cache-Control: no-store")
 
         if cms.debug and "html" in reply_mime:
             delta = time.monotonic() - startStamp
