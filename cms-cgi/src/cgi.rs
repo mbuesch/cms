@@ -28,7 +28,10 @@ use std::{
     ffi::OsString,
     io::{self, Read as _, Stdout, Write as _},
     path::Path,
+    time::Instant,
 };
+
+const DEBUG: bool = false;
 
 const MAX_POST_BODY_LEN: u32 = 1024 * 1024;
 
@@ -60,13 +63,22 @@ fn outstr(f: &mut Stdout, data: &str) {
     out(f, data.as_bytes());
 }
 
-fn response_200_ok(body: Option<&[u8]>, mime: &str, extra_headers: &[String]) {
+fn response_200_ok(
+    body: Option<&[u8]>,
+    mime: &str,
+    extra_headers: &[String],
+    start_stamp: Option<Instant>,
+) {
     let mut f = io::stdout();
     outstr(&mut f, &format!("Content-type: {mime}\n"));
     for header in extra_headers {
         outstr(&mut f, &format!("{header}\n"));
     }
     outstr(&mut f, "Status: 200 Ok\n");
+    if let Some(start_stamp) = start_stamp {
+        let walltime = (Instant::now() - start_stamp).as_micros();
+        outstr(&mut f, &format!("X-CMS-Walltime: {walltime} us\n"));
+    }
     outstr(&mut f, "\n");
     if let Some(body) = body {
         out(&mut f, body);
@@ -109,10 +121,13 @@ pub struct Cgi {
     host: String,
     cookie: OsString,
     backend: CmsSocketConnSync,
+    start_stamp: Option<Instant>,
 }
 
 impl Cgi {
     pub fn new() -> ah::Result<Self> {
+        let start_stamp = if DEBUG { Some(Instant::now()) } else { None };
+
         let sock_path = Path::new("/run").join(SOCK_FILE);
         let Ok(backend) = CmsSocketConnSync::connect(&sock_path) else {
             response_500_internal_error("Backend connection failed.");
@@ -140,6 +155,7 @@ impl Cgi {
             host,
             cookie,
             backend,
+            start_stamp,
         })
     }
 
@@ -236,7 +252,7 @@ impl Cgi {
                     Some(&body[..])
                 };
                 match status {
-                    200 => response_200_ok(body, &mime, &extra_headers),
+                    200 => response_200_ok(body, &mime, &extra_headers, self.start_stamp),
                     status => response_notok(status, body, &mime),
                 }
             }
