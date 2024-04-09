@@ -17,8 +17,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use anyhow::{self as ah, format_err as err};
+use anyhow::{self as ah, format_err as err, Context as _};
 use cms_ident::Ident;
+use cms_seccomp::{seccomp_compile, seccomp_install, Allow};
 use cms_socket::{CmsSocketConnSync, MsgSerde as _};
 use cms_socket_back::{Msg, SOCK_FILE};
 use querystrong::QueryStrong;
@@ -134,7 +135,11 @@ impl Cgi {
             return Err(err!("Backend connection failed."));
         };
 
-        //TODO: We can restrict syscalls with seccomp here.
+        seccomp_install(
+            seccomp_compile(&[Allow::Read, Allow::Write, Allow::Recv, Allow::Send])
+                .context("Compile seccomp filter")?,
+        )
+        .context("Install seccomp filter")?;
 
         let query = get_cgienv_str("QUERY_STRING").unwrap_or_default();
         let meth = get_cgienv("REQUEST_METHOD");
