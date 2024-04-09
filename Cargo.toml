@@ -6,6 +6,7 @@ members = [
     "cms-fsd",
     "cms-ident",
     "cms-postd",
+    "cms-seccomp",
     "cms-socket",
     "cms-socket-back",
     "cms-socket-db",
