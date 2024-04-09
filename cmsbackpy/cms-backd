@@ -57,13 +57,12 @@ def run_backd(backsock):
     while True:
         try:
             conn, addr = backsock.accept()
+            if cms.debug:
+                startStamp = time.monotonic()
             msg = recv_message(conn, MAGIC_BACK)
         except Exception as e:
             print(f"cms-backd: Receive failed: {e}", file=sys.stderr)
             continue
-
-        if cms.debug:
-            startStamp = time.monotonic()
 
         status = 200 # Ok
         reply_body = b""
@@ -94,10 +93,10 @@ def run_backd(backsock):
             reply_body, reply_mime, extra_headers = cms.getErrorPage(e, protocol)
             extra_headers.append("Cache-Control: no-store")
 
-        if cms.debug and "html" in reply_mime:
+        if cms.debug:
             delta = time.monotonic() - startStamp
-            ms = delta * 1e3
-            reply_body += ("\n<!-- backend: %.3f ms -->" % ms).encode("UTF-8", "ignore")
+            us = round(delta * 1e6)
+            extra_headers.append(f"X-CMS-Py-Walltime: {us} us")
 
         reply = MsgReply(
             status=status,
