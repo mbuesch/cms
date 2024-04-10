@@ -41,6 +41,7 @@ def get_backsock(rundir):
     else:
         backsock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         backsock.bind(str(rundir / "cms-backd.sock"))
+        backsock.listen()
         return backsock
 
 def run_backd(backsock, rundir):
@@ -54,6 +55,7 @@ def run_backd(backsock, rundir):
             msg = recv_message(conn, MAGIC_BACK)
         except Exception as e:
             print(f"cms-backd: Receive failed: {e}", file=sys.stderr)
+            time.sleep(0.1)
             continue
 
         status = 200 # Ok
@@ -109,14 +111,19 @@ if __name__ == "__main__":
                    default=pathlib.Path("/run"))
     p.add_argument("--pythonpath", type=pathlib.Path,
                    default=pathlib.Path("/opt/cms/lib/python3/site-packages"))
+    p.add_argument("--no-cython", action="store_true")
     args = p.parse_args()
 
     sys.path.insert(0, str(args.pythonpath))
-    try:
-        from cms_cython.socket import *
-        from cms_cython import CMS, CMSException
-    except ImportError as e:
-        print("cms-backd: Failed to import cms_cython:", e, file=sys.stderr)
+    imported = False
+    if not args.no_cython:
+        try:
+            from cms_cython.socket import *
+            from cms_cython import CMS, CMSException
+            imported = True
+        except ImportError as e:
+            print("cms-backd: Failed to import cms_cython:", e, file=sys.stderr)
+    if not imported:
         from cms.socket import *
         from cms import CMS, CMSException
 
