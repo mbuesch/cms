@@ -18,41 +18,33 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-sys.path.insert(0, "/opt/cms/lib/python3/site-packages/")
+import sys, os, fcntl, socket, atexit, time, pathlib, argparse
 
-import os, fcntl, socket, atexit, time
-
-try:
-    from cms_cython.socket import *
-    from cms_cython import CMS, CMSException
-except ImportError as e:
-    print("cms-backd: Failed to import cms_cython:", e, file=sys.stderr)
-    from cms.socket import *
-    from cms import CMS, CMSException
-
-def init_systemd():
+def get_backsock(rundir):
     notify_socket = os.getenv("NOTIFY_SOCKET")
-    if not notify_socket:
-        raise ValueError("env: NOTIFY_SOCKET not set.")
-    listen_fds = os.getenv("LISTEN_FDS")
-    if not listen_fds:
-        raise ValueError("env: LISTEN_FDS not set.")
-    listen_fds = int(listen_fds, 10)
-    if listen_fds <= 0 or listen_fds > 1:
-        raise ValueError("env: Invalid LISTEN_FDS.")
+    if notify_socket:
+        listen_fds = os.getenv("LISTEN_FDS")
+        if not listen_fds:
+            raise ValueError("env: LISTEN_FDS not set.")
+        listen_fds = int(listen_fds, 10)
+        if listen_fds <= 0 or listen_fds > 1:
+            raise ValueError("env: Invalid LISTEN_FDS.")
 
-    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sdsock:
-        sdsock.connect(notify_socket)
-        fd = 3
-        for i in range(fd, fd + listen_fds):
-            fcntl.fcntl(i, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
-        backsock = socket.fromfd(fd, socket.AF_UNIX, socket.SOCK_STREAM)
-        sdsock.sendall(b"READY=1")
-    return backsock
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sdsock:
+            sdsock.connect(notify_socket)
+            fd = 3
+            for i in range(fd, fd + listen_fds):
+                fcntl.fcntl(i, fcntl.F_SETFD, fcntl.FD_CLOEXEC)
+            backsock = socket.fromfd(fd, socket.AF_UNIX, socket.SOCK_STREAM)
+            sdsock.sendall(b"READY=1")
+        return backsock
+    else:
+        backsock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        backsock.bind(str(rundir / "cms-backd.sock"))
+        return backsock
 
-def run_backd(backsock):
-    cms = CMS(domain="", debug=False)
+def run_backd(backsock, rundir):
+    cms = CMS(domain="", rundir=rundir, debug=False)
     atexit.register(cms.shutdown)
     while True:
         try:
@@ -112,6 +104,23 @@ def run_backd(backsock):
             continue
 
 if __name__ == "__main__":
-    run_backd(init_systemd())
+    p = argparse.ArgumentParser()
+    p.add_argument("--rundir", type=pathlib.Path,
+                   default=pathlib.Path("/run"))
+    p.add_argument("--pythonpath", type=pathlib.Path,
+                   default=pathlib.Path("/opt/cms/lib/python3/site-packages"))
+    args = p.parse_args()
+
+    sys.path.insert(0, str(args.pythonpath))
+    try:
+        from cms_cython.socket import *
+        from cms_cython import CMS, CMSException
+    except ImportError as e:
+        print("cms-backd: Failed to import cms_cython:", e, file=sys.stderr)
+        from cms.socket import *
+        from cms import CMS, CMSException
+
+    backsock = get_backsock(args.rundir)
+    run_backd(backsock, args.rundir)
 
 # vim: ts=4 sw=4 expandtab

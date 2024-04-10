@@ -30,6 +30,7 @@ from cms.util import * #+cimport
 
 import PIL.Image as Image
 import urllib.parse
+import pathlib
 
 __all__ = [
 	"CMS",
@@ -43,6 +44,7 @@ class CMS(object):
 	def __init__(self,
 		     domain="example.com",
 		     urlBase="/cms",
+		     rundir=pathlib.Path("/run"),
 		     debug=False):
 		# domain => The site domain name.
 		# urlBase => URL base component to the HTTP server CMS mapping.
@@ -51,7 +53,7 @@ class CMS(object):
 		self.urlBase = urlBase
 		self.debug = debug
 
-		self.db = CMSDatabase()
+		self.db = CMSDatabase(rundir)
 		self.resolver = CMSStatementResolver(self)
 
 	def shutdown(self):

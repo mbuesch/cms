@@ -35,15 +35,15 @@ __all__ = [
 class CMSDatabase(object):
 	validate = CMSPageIdent.validateName
 
-	def __init__(self):
+	def __init__(self, rundir):
 		try:
 			self.dbsock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-			self.dbsock.connect("/run/cms-fsd.sock")
+			self.dbsock.connect(str(rundir / "cms-fsd.sock"))
 		except Exception:
 			raise CMSException(500, "cms-fsd communication error")
 		try:
 			self.postsock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-			self.postsock.connect("/run/cms-postd.sock")
+			self.postsock.connect(str(rundir / "cms-postd.sock"))
 		except Exception:
 			raise CMSException(500, "cms-postd communication error")
 
