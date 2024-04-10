@@ -23,9 +23,19 @@ mod cgi;
 
 use crate::cgi::Cgi;
 use anyhow as ah;
+use clap::Parser;
+use std::path::PathBuf;
+
+#[derive(Parser, Debug, Clone)]
+struct Opts {
+    /// The run directory for runtime data.
+    #[arg(long, default_value = "/run")]
+    rundir: PathBuf,
+}
 
 fn main() -> ah::Result<()> {
-    let mut cgi = Cgi::new()?;
+    let opts = Opts::parse();
+    let mut cgi = Cgi::new(&opts.rundir)?;
     cgi.run();
     Ok(())
 }

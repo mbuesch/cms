@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
+clap = { version = "4", features = ["derive"] }
 cms-ident = { path = "../cms-ident" }
 cms-seccomp = { path = "../cms-seccomp" }
 cms-socket = { path = "../cms-socket" }

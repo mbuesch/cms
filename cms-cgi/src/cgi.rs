@@ -126,10 +126,10 @@ pub struct Cgi {
 }
 
 impl Cgi {
-    pub fn new() -> ah::Result<Self> {
+    pub fn new(rundir: &Path) -> ah::Result<Self> {
         let start_stamp = if DEBUG { Some(Instant::now()) } else { None };
 
-        let sock_path = Path::new("/run").join(SOCK_FILE);
+        let sock_path = rundir.join(SOCK_FILE);
         let Ok(backend) = CmsSocketConnSync::connect(&sock_path) else {
             response_500_internal_error("Backend connection failed.");
             return Err(err!("Backend connection failed."));
