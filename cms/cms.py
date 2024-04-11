@@ -385,7 +385,7 @@ class CMS(object):
 		except (CMSException) as e:
 			data = "Error in exception handler: %s %s" % \
 				(e.httpStatus, e.message)
-			mime, headers = "text/plain; charset=UTF-8", ()
+			mime, headers = "text/plain; charset=UTF-8", []
 		try:
 			return data.encode("UTF-8", "strict"), mime, headers
 		except UnicodeError as e:
