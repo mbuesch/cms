@@ -49,6 +49,7 @@ start_fsd()
     [ -x "$binary" ] || die "cms-fsd binary $binary not found."
     "$binary" \
         --rundir "$rundir" \
+        --no-systemd \
         "$dbdir" \
         &
     pid_fsd=$!
@@ -62,6 +63,7 @@ start_postd()
     [ -x "$binary" ] || die "cms-postd binary $binary not found."
     "$binary" \
         --rundir "$rundir" \
+        --no-systemd \
         "$dbdir" \
         &
     pid_postd=$!
