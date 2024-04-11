@@ -32,6 +32,8 @@ pub enum Allow {
     Open,
     Read,
     Write,
+    Stat,
+    Listdir,
     Recv,
     Send,
     Sendfile,
@@ -40,6 +42,8 @@ pub enum Allow {
     SignalMask,
     SignalReturn,
     Threading,
+    Inotify,
+    Prctl,
 }
 
 #[derive(Clone, Debug)]
@@ -68,17 +72,21 @@ pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filte
     .into();
 
     let add_read_write_rules = |rules: &mut BTreeMap<_, _>| {
+        #[cfg(feature = "oldsyscalls")]
         rules.insert(libc::SYS_epoll_create, vec![]);
         rules.insert(libc::SYS_epoll_create1, vec![]);
         rules.insert(libc::SYS_epoll_ctl, vec![]);
+        #[cfg(feature = "oldsyscalls")]
         rules.insert(libc::SYS_epoll_pwait, vec![]);
         rules.insert(libc::SYS_epoll_pwait2, vec![]);
         rules.insert(libc::SYS_epoll_wait, vec![]);
+        rules.insert(libc::SYS_lseek, vec![]);
+        #[cfg(feature = "oldsyscalls")]
         rules.insert(libc::SYS_poll, vec![]);
         rules.insert(libc::SYS_ppoll, vec![]);
         rules.insert(libc::SYS_pselect6, vec![]);
+        #[cfg(feature = "oldsyscalls")]
         rules.insert(libc::SYS_select, vec![]);
-        rules.insert(libc::SYS_lseek, vec![]);
     };
 
     for allow in allow {
@@ -96,6 +104,7 @@ pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filte
                 rules.insert(libc::SYS_socket, vec![]); //TODO: Restrict to AF_UNIX
             }
             Allow::UnixListen => {
+                #[cfg(feature = "oldsyscalls")]
                 rules.insert(libc::SYS_accept, vec![]);
                 rules.insert(libc::SYS_accept4, vec![]);
                 rules.insert(libc::SYS_bind, vec![]);
@@ -109,6 +118,7 @@ pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filte
             }
             Allow::Read => {
                 rules.insert(libc::SYS_pread64, vec![]);
+                #[cfg(feature = "oldsyscalls")]
                 rules.insert(libc::SYS_preadv, vec![]);
                 rules.insert(libc::SYS_preadv2, vec![]);
                 rules.insert(libc::SYS_read, vec![]);
@@ -119,11 +129,27 @@ pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filte
                 rules.insert(libc::SYS_fdatasync, vec![]);
                 rules.insert(libc::SYS_fsync, vec![]);
                 rules.insert(libc::SYS_pwrite64, vec![]);
+                #[cfg(feature = "oldsyscalls")]
                 rules.insert(libc::SYS_pwritev, vec![]);
                 rules.insert(libc::SYS_pwritev2, vec![]);
                 rules.insert(libc::SYS_write, vec![]);
                 rules.insert(libc::SYS_writev, vec![]);
                 add_read_write_rules(&mut rules);
+            }
+            Allow::Stat => {
+                #[cfg(feature = "oldsyscalls")]
+                rules.insert(libc::SYS_stat, vec![]);
+                #[cfg(feature = "oldsyscalls")]
+                rules.insert(libc::SYS_fstat, vec![]);
+                #[cfg(feature = "oldsyscalls")]
+                rules.insert(libc::SYS_lstat, vec![]);
+                rules.insert(libc::SYS_statx, vec![]);
+                rules.insert(libc::SYS_newfstatat, vec![]);
+            }
+            Allow::Listdir => {
+                #[cfg(feature = "oldsyscalls")]
+                rules.insert(libc::SYS_getdents, vec![]);
+                rules.insert(libc::SYS_getdents64, vec![]);
             }
             Allow::Recv => {
                 rules.insert(libc::SYS_recvfrom, vec![]);
@@ -154,9 +180,19 @@ pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filte
                 rules.insert(libc::SYS_rt_sigreturn, vec![]);
             }
             Allow::Threading => {
+                #[cfg(feature = "oldsyscalls")]
                 rules.insert(libc::SYS_clone, vec![]); //TODO restrict to threads
                 rules.insert(libc::SYS_clone3, vec![]); //TODO restrict to threads
                 rules.insert(libc::SYS_rseq, vec![]);
+            }
+            Allow::Inotify => {
+                rules.insert(libc::SYS_inotify_init, vec![]);
+                rules.insert(libc::SYS_inotify_add_watch, vec![]);
+                rules.insert(libc::SYS_inotify_rm_watch, vec![]);
+            }
+            Allow::Prctl => {
+                //TODO: This should be restricted
+                rules.insert(libc::SYS_prctl, vec![]);
             }
         }
     }

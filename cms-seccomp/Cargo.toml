@@ -8,6 +8,11 @@ license = "GPL-2.0-or-later"
 authors = [ "Michael Büsch <m@bues.ch>" ]
 publish = false
 
+[feature]
+default = []
+# Include old syscalls in filters that are usually not used by modern libc.
+oldsyscalls = []
+
 [dependencies]
 anyhow = "1"
 libc = "0.2"
