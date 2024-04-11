@@ -25,19 +25,32 @@ use std::{collections::BTreeMap, env::consts::ARCH};
 
 #[derive(Clone, Debug)]
 pub enum Allow {
+    Mmap,
+    Mprotect,
     UnixConnect,
     UnixListen,
+    Open,
     Read,
     Write,
     Recv,
     Send,
     Sendfile,
     Futex,
+    Signal,
+    SignalMask,
+    SignalReturn,
+    Threading,
+}
+
+#[derive(Clone, Debug)]
+pub enum Action {
+    Kill,
+    Log,
 }
 
 pub struct Filter(BpfProgram);
 
-pub fn seccomp_compile(allow: &[Allow]) -> ah::Result<Filter> {
+pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filter> {
     let mut rules: BTreeMap<_, _> = [
         (libc::SYS_brk, vec![]),
         (libc::SYS_close, vec![]),
@@ -49,6 +62,7 @@ pub fn seccomp_compile(allow: &[Allow]) -> ah::Result<Filter> {
         (libc::SYS_gettid, vec![]),
         (libc::SYS_madvise, vec![]),
         (libc::SYS_munmap, vec![]),
+        (libc::SYS_sched_getaffinity, vec![]),
         (libc::SYS_sigaltstack, vec![]),
     ]
     .into();
@@ -69,6 +83,14 @@ pub fn seccomp_compile(allow: &[Allow]) -> ah::Result<Filter> {
 
     for allow in allow {
         match *allow {
+            Allow::Mmap => {
+                rules.insert(libc::SYS_mmap, vec![]);
+                rules.insert(libc::SYS_mremap, vec![]);
+                rules.insert(libc::SYS_munmap, vec![]);
+            }
+            Allow::Mprotect => {
+                rules.insert(libc::SYS_mprotect, vec![]);
+            }
             Allow::UnixConnect => {
                 rules.insert(libc::SYS_connect, vec![]);
                 rules.insert(libc::SYS_socket, vec![]); //TODO: Restrict to AF_UNIX
@@ -79,6 +101,11 @@ pub fn seccomp_compile(allow: &[Allow]) -> ah::Result<Filter> {
                 rules.insert(libc::SYS_bind, vec![]);
                 rules.insert(libc::SYS_listen, vec![]);
                 rules.insert(libc::SYS_socket, vec![]); //TODO: Restrict to AF_UNIX
+            }
+            Allow::Open => {
+                //TODO: This should be restricted
+                rules.insert(libc::SYS_open, vec![]);
+                rules.insert(libc::SYS_openat, vec![]);
             }
             Allow::Read => {
                 rules.insert(libc::SYS_pread64, vec![]);
@@ -116,12 +143,30 @@ pub fn seccomp_compile(allow: &[Allow]) -> ah::Result<Filter> {
                 rules.insert(libc::SYS_get_robust_list, vec![]);
                 rules.insert(libc::SYS_set_robust_list, vec![]);
             }
+            Allow::Signal => {
+                rules.insert(libc::SYS_rt_sigaction, vec![]);
+                rules.insert(libc::SYS_rt_sigprocmask, vec![]);
+            }
+            Allow::SignalMask => {
+                rules.insert(libc::SYS_rt_sigprocmask, vec![]);
+            }
+            Allow::SignalReturn => {
+                rules.insert(libc::SYS_rt_sigreturn, vec![]);
+            }
+            Allow::Threading => {
+                rules.insert(libc::SYS_clone, vec![]); //TODO restrict to threads
+                rules.insert(libc::SYS_clone3, vec![]); //TODO restrict to threads
+                rules.insert(libc::SYS_rseq, vec![]);
+            }
         }
     }
 
     let filter = SeccompFilter::new(
         rules,
-        SeccompAction::KillProcess,
+        match deny_action {
+            Action::Kill => SeccompAction::KillProcess,
+            Action::Log => SeccompAction::Log,
+        },
         SeccompAction::Allow,
         ARCH.try_into().context("Unsupported CPU ARCH")?,
     )

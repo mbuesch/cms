@@ -19,7 +19,7 @@
 
 use anyhow::{self as ah, format_err as err, Context as _};
 use cms_ident::Ident;
-use cms_seccomp::{seccomp_compile, seccomp_install, Allow};
+use cms_seccomp::{seccomp_compile, seccomp_install, Action, Allow};
 use cms_socket::{CmsSocketConnSync, MsgSerde as _};
 use cms_socket_back::{Msg, SOCK_FILE};
 use querystrong::QueryStrong;
@@ -136,8 +136,11 @@ impl Cgi {
         };
 
         seccomp_install(
-            seccomp_compile(&[Allow::Read, Allow::Write, Allow::Recv, Allow::Send])
-                .context("Compile seccomp filter")?,
+            seccomp_compile(
+                &[Allow::Read, Allow::Write, Allow::Recv, Allow::Send],
+                Action::Kill,
+            )
+            .context("Compile seccomp filter")?,
         )
         .context("Install seccomp filter")?;
 
