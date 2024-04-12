@@ -12,6 +12,7 @@ Restart=on-failure
 RestartSec=1
 User=cms-postd
 Group=cms-postd
+Nice=5
 
 [Install]
 WantedBy=multi-user.target
