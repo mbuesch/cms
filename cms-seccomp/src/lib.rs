@@ -20,7 +20,9 @@
 #![forbid(unsafe_code)]
 
 use anyhow::{self as ah, Context as _};
-use seccompiler::{apply_filter_all_threads, BpfProgram, SeccompAction, SeccompFilter};
+use seccompiler::{
+    apply_filter_all_threads, sock_filter, BpfProgram, SeccompAction, SeccompFilter,
+};
 use std::{collections::BTreeMap, env::consts::ARCH};
 
 #[derive(Clone, Debug)]
@@ -54,7 +56,45 @@ pub enum Action {
 
 pub struct Filter(BpfProgram);
 
+impl Filter {
+    /// Simple serialization, without serde.
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut raw = Vec::with_capacity(self.0.len() * 8);
+        for insn in &self.0 {
+            raw.extend_from_slice(&insn.code.to_le_bytes());
+            raw.push(insn.jt);
+            raw.push(insn.jf);
+            raw.extend_from_slice(&insn.k.to_le_bytes());
+        }
+        debug_assert_eq!(raw.len(), self.0.len() * 8);
+        raw
+    }
+
+    /// Simple de-serialization, without serde.
+    pub fn deserialize(raw: &[u8]) -> Self {
+        assert!(raw.len() % 8 == 0);
+        let mut bpf = Vec::with_capacity(raw.len() / 8);
+        for i in (0..raw.len()).step_by(8) {
+            let code = u16::from_le_bytes(raw[i..i + 2].try_into().unwrap());
+            let jt = raw[i + 2];
+            let jf = raw[i + 3];
+            let k = u32::from_le_bytes(raw[i + 4..i + 8].try_into().unwrap());
+            bpf.push(sock_filter { code, jt, jf, k });
+        }
+        debug_assert_eq!(bpf.len() * 8, raw.len());
+        Self(bpf)
+    }
+}
+
 pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filter> {
+    seccomp_compile_for_arch(allow, deny_action, ARCH)
+}
+
+pub fn seccomp_compile_for_arch(
+    allow: &[Allow],
+    deny_action: Action,
+    arch: &str,
+) -> ah::Result<Filter> {
     let mut rules: BTreeMap<_, _> = [
         (libc::SYS_brk, vec![]),
         (libc::SYS_close, vec![]),
@@ -204,7 +244,7 @@ pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filte
             Action::Log => SeccompAction::Log,
         },
         SeccompAction::Allow,
-        ARCH.try_into().context("Unsupported CPU ARCH")?,
+        arch.try_into().context("Unsupported CPU ARCH")?,
     )
     .context("Create seccomp filter")?;
 
@@ -215,6 +255,21 @@ pub fn seccomp_compile(allow: &[Allow], deny_action: Action) -> ah::Result<Filte
 
 pub fn seccomp_install(filter: Filter) -> ah::Result<()> {
     apply_filter_all_threads(&filter.0).context("Apply seccomp filter")
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_filter_serialize() {
+        let filter = seccomp_compile(&[Allow::Read], Action::Kill).unwrap();
+        let filter2 = Filter::deserialize(&filter.serialize());
+        assert_eq!(filter.0.len(), filter2.0.len());
+        for i in 0..filter.0.len() {
+            assert_eq!(filter.0[i], filter2.0[i]);
+        }
+    }
 }
 
 // vim: ts=4 sw=4 expandtab
