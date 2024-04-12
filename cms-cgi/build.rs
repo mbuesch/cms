@@ -27,7 +27,13 @@ fn main() {
     let arch = target_arch().expect("Failed to get build target architecture");
 
     let seccomp_filter = seccomp_compile_for_arch(
-        &[Allow::Read, Allow::Write, Allow::Recv, Allow::Send],
+        &[
+            Allow::Read,
+            Allow::Write,
+            Allow::Recv,
+            Allow::Send,
+            Allow::Mmap,
+        ],
         Action::Kill,
         arch.as_str(),
     )
