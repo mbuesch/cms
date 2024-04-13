@@ -46,6 +46,10 @@ pub enum Allow {
     Threading,
     Inotify,
     Prctl,
+    Timer,
+    ClockGet,
+    ClockSet,
+    Sleep,
 }
 
 #[derive(Clone, Debug)]
@@ -233,6 +237,24 @@ pub fn seccomp_compile_for_arch(
             Allow::Prctl => {
                 //TODO: This should be restricted
                 rules.insert(libc::SYS_prctl, vec![]);
+            }
+            Allow::Timer => {
+                rules.insert(libc::SYS_timer_create, vec![]);
+                rules.insert(libc::SYS_timer_settime, vec![]);
+                rules.insert(libc::SYS_timer_gettime, vec![]);
+                rules.insert(libc::SYS_timer_getoverrun, vec![]);
+                rules.insert(libc::SYS_timer_delete, vec![]);
+            }
+            Allow::ClockGet => {
+                rules.insert(libc::SYS_clock_gettime, vec![]);
+                rules.insert(libc::SYS_clock_getres, vec![]);
+            }
+            Allow::ClockSet => {
+                rules.insert(libc::SYS_clock_settime, vec![]);
+            }
+            Allow::Sleep => {
+                rules.insert(libc::SYS_nanosleep, vec![]);
+                rules.insert(libc::SYS_clock_nanosleep, vec![]);
             }
         }
     }

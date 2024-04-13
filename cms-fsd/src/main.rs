@@ -221,6 +221,9 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
                 Allow::Threading,
                 Allow::Inotify,
                 Allow::Prctl,
+                Allow::Timer,
+                Allow::ClockGet,
+                Allow::Sleep,
             ],
             Action::Kill,
         )
