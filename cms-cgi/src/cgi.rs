@@ -34,14 +34,21 @@ use std::{
 
 const DEBUG: bool = false;
 
+const MAX_CGIENV_LEN: usize = 1024 * 4;
+const MAX_CGIENV_U32_LEN: usize = 10;
 const MAX_POST_BODY_LEN: u32 = 1024 * 1024;
 
-fn get_cgienv(name: &str) -> OsString {
-    env::var_os(name).unwrap_or_default()
+fn get_cgienv(name: &str) -> ah::Result<OsString> {
+    let value = env::var_os(name).unwrap_or_default();
+    if value.len() <= MAX_CGIENV_LEN {
+        Ok(value)
+    } else {
+        Err(err!("Environment variable '{name}' is too long."))
+    }
 }
 
 fn get_cgienv_str(name: &str) -> ah::Result<String> {
-    if let Ok(s) = get_cgienv(name).into_string() {
+    if let Ok(s) = get_cgienv(name)?.into_string() {
         Ok(s)
     } else {
         Err(err!("Environment variable '{name}' is not valid UTF-8."))
@@ -49,11 +56,16 @@ fn get_cgienv_str(name: &str) -> ah::Result<String> {
 }
 
 fn get_cgienv_u32(name: &str) -> ah::Result<u32> {
-    Ok(get_cgienv_str(name)?.parse::<u32>()?)
+    let value = get_cgienv_str(name)?;
+    if value.len() <= MAX_CGIENV_U32_LEN {
+        Ok(value.parse::<u32>()?)
+    } else {
+        Err(err!("Environment variable '{name}' is too long (u32)."))
+    }
 }
 
-fn get_cgienv_bool(name: &str) -> bool {
-    get_cgienv(name).as_encoded_bytes() == b"on"
+fn get_cgienv_bool(name: &str) -> ah::Result<bool> {
+    Ok(get_cgienv(name)?.as_encoded_bytes() == b"on")
 }
 
 fn out(f: &mut Stdout, data: &[u8]) {
@@ -146,13 +158,13 @@ impl Cgi {
         }
 
         let query = get_cgienv_str("QUERY_STRING").unwrap_or_default();
-        let meth = get_cgienv("REQUEST_METHOD");
+        let meth = get_cgienv("REQUEST_METHOD")?;
         let path = get_cgienv_str("PATH_INFO").unwrap_or_default();
         let body_len = get_cgienv_u32("CONTENT_LENGTH").unwrap_or_default();
         let body_type = get_cgienv_str("CONTENT_TYPE").unwrap_or_default();
-        let https = get_cgienv_bool("HTTPS");
+        let https = get_cgienv_bool("HTTPS")?;
         let host = get_cgienv_str("HTTP_HOST").unwrap_or_default();
-        let cookie = get_cgienv("HTTP_COOKIE");
+        let cookie = get_cgienv("HTTP_COOKIE")?;
 
         Ok(Self {
             query,
