@@ -259,7 +259,7 @@ class CMS(object):
 					0 : Image.NEAREST,
 					1 : Image.BILINEAR,
 					2 : Image.BICUBIC,
-					3 : getattr(Image, "LANCZOS", getattr(Image, "ANTIALIAS", Image.BICUBIC)),
+					3 : getattr(Image, "LANCZOS", Image.BICUBIC),
 				}
 				try:
 					qual = qualities[qual]
