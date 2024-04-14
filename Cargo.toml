@@ -2,16 +2,24 @@
 
 [workspace]
 members = [
-    "cms-cgi",
-    "cms-fsd",
-    "cms-ident",
-    "cms-postd",
-    "cms-seccomp",
-    "cms-socket",
-    "cms-socket-back",
-    "cms-socket-db",
-    "cms-socket-post",
-    "cms-systemd",
+    # Webserver CGI frontend:
+    "cms-cgi",          # Webserver CGI executable.
+
+    # Daemons:
+    "cms-backd",        # Backend daemon.
+    "cms-fsd",          # Database access daemon.
+    "cms-postd",        # Post execution daemon.
+
+    # Daemon communication sockets:
+    "cms-socket",       # Generic socket abstraction.
+    "cms-socket-back",  # Backend daemon access socket.
+    "cms-socket-db",    # Database daemon access socket.
+    "cms-socket-post",  # Post daemon access socket.
+
+    # Helper libraries:
+    "cms-ident",        # CMS page identifier encapsulation.
+    "cms-systemd",      # Systemd daemon helper routines.
+    "cms-seccomp",      # Seccomp abstraction.
 ]
 resolver = "2"
 
