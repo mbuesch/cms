@@ -108,6 +108,8 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
 
     let mut sock = CmsSocket::from_systemd_or_path(opts.no_systemd, &opts.rundir.join(SOCK_FILE))?;
 
+    //TODO: install seccomp filter.
+
     // Task: Socket handler.
     let opts_clone = Arc::clone(&opts);
     task::spawn(async move {
