@@ -57,6 +57,7 @@ fn get_cgienv_str(name: &str) -> ah::Result<String> {
 
 fn get_cgienv_u32(name: &str) -> ah::Result<u32> {
     let value = get_cgienv_str(name)?;
+    let value = value.trim();
     if value.len() <= MAX_CGIENV_U32_LEN {
         Ok(value.parse::<u32>()?)
     } else {
@@ -65,7 +66,7 @@ fn get_cgienv_u32(name: &str) -> ah::Result<u32> {
 }
 
 fn get_cgienv_bool(name: &str) -> ah::Result<bool> {
-    Ok(get_cgienv(name)?.as_encoded_bytes() == b"on")
+    Ok(get_cgienv_str(name)?.trim() == "on")
 }
 
 fn out(f: &mut Stdout, data: &[u8]) {
@@ -126,7 +127,7 @@ fn response_notok(status: u32, body: Option<&[u8]>, mime: &str) {
 
 pub struct Cgi {
     query: String,
-    meth: OsString,
+    meth: String,
     path: String,
     body_len: u32,
     body_type: String,
@@ -158,7 +159,7 @@ impl Cgi {
         }
 
         let query = get_cgienv_str("QUERY_STRING").unwrap_or_default();
-        let meth = get_cgienv("REQUEST_METHOD")?;
+        let meth = get_cgienv_str("REQUEST_METHOD")?.trim().to_string();
         let path = get_cgienv_str("PATH_INFO").unwrap_or_default();
         let body_len = get_cgienv_u32("CONTENT_LENGTH").unwrap_or_default();
         let body_type = get_cgienv_str("CONTENT_TYPE").unwrap_or_default();
@@ -203,9 +204,8 @@ impl Cgi {
             }
         }
 
-        let meth = self.meth.as_encoded_bytes();
-        match meth {
-            b"GET" | b"HEAD" => {
+        match &self.meth[..] {
+            "GET" | "HEAD" => {
                 let request = Msg::Get {
                     host: self.host.clone(),
                     path: path.downgrade(),
@@ -218,7 +218,7 @@ impl Cgi {
                     return;
                 }
             }
-            b"POST" => {
+            "POST" => {
                 if self.body_len == 0 {
                     response_400_bad_request("POST: CONTENT_LENGTH is zero.");
                     return;
@@ -253,7 +253,7 @@ impl Cgi {
                 }
             }
             _ => {
-                let meth = self.meth.to_string_lossy();
+                let meth = &self.meth;
                 response_400_bad_request(&format!("Unsupported REQUEST_METHOD: '{meth}'"));
                 return;
             }
@@ -267,7 +267,7 @@ impl Cgi {
                 mime,
                 extra_headers,
             })) => {
-                let body = if meth == b"HEAD" {
+                let body = if self.meth == "HEAD" {
                     None
                 } else {
                     Some(&body[..])
