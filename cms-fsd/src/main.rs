@@ -299,7 +299,7 @@ fn main() -> ah::Result<()> {
     let opts = Arc::new(Opts::parse());
 
     runtime::Builder::new_multi_thread()
-        .thread_keep_alive(Duration::from_millis(0))
+        .thread_keep_alive(Duration::from_millis(1000))
         .worker_threads(opts.worker_threads.into())
         .enable_all()
         .build()
