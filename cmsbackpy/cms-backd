@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys, os, fcntl, socket, atexit, time, pathlib, argparse
+import sys, os, fcntl, socket, time, pathlib, argparse
 
 def get_backsock(rundir):
     notify_socket = os.getenv("NOTIFY_SOCKET")
@@ -45,12 +45,11 @@ def get_backsock(rundir):
         return backsock
 
 def run_backd(backsock, rundir):
-    cms = CMS(domain="", rundir=rundir, debug=False)
-    atexit.register(cms.shutdown)
+    debug = False
     while True:
         try:
             conn, addr = backsock.accept()
-            if cms.debug:
+            if debug:
                 startStamp = time.monotonic()
             msg = recv_message(conn, MAGIC_BACK)
         except Exception as e:
@@ -62,6 +61,7 @@ def run_backd(backsock, rundir):
         reply_body = b""
         reply_mime = ""
         extra_headers = []
+        cms = CMS(domain="", rundir=rundir, debug=debug)
         try:
             if isinstance(msg, MsgGet):
                 cms.domain = msg.host
@@ -87,7 +87,7 @@ def run_backd(backsock, rundir):
             reply_body, reply_mime, extra_headers = cms.getErrorPage(e, protocol)
             extra_headers.append("Cache-Control: no-store")
 
-        if cms.debug:
+        if debug:
             delta = time.monotonic() - startStamp
             us = round(delta * 1e6)
             extra_headers.append(f"X-CMS-Py-Walltime: {us} us")
