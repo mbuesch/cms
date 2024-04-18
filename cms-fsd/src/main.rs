@@ -71,6 +71,7 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 get_nav_stop,
                 get_nav_label,
             }) => {
+                //TODO: Cleaning should be done in the backd.
                 let path = path.into_cleaned_path().into_checked()?;
 
                 let title = if get_title {
@@ -121,6 +122,7 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 conn.send_msg(&reply).await?;
             }
             Some(Msg::GetHeaders { path }) => {
+                //TODO: Cleaning should be done in the backd.
                 let path = path.into_cleaned_path().into_checked()?;
 
                 let data = db.get_headers(&path).await;
@@ -129,6 +131,7 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 conn.send_msg(&reply).await?;
             }
             Some(Msg::GetSubPages { path }) => {
+                //TODO: Cleaning should be done in the backd.
                 let path = path.into_cleaned_path().into_checked()?;
 
                 let mut infos = db.get_subpages(&path).await;
@@ -150,6 +153,7 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 conn.send_msg(&reply).await?;
             }
             Some(Msg::GetMacro { parent, name }) => {
+                //TODO: Cleaning should be done in the backd.
                 let parent = parent.into_cleaned_path().into_checked()?;
                 let name = name.into_checked_element()?;
 

@@ -19,10 +19,21 @@
 
 #![forbid(unsafe_code)]
 
+mod backend;
+mod cache;
+mod cookie;
+mod query;
+
+use crate::{
+    backend::{CmsBack, CmsGetArgs, CmsPostArgs},
+    cache::CmsCache,
+    cookie::Cookie,
+    query::Query,
+};
 use anyhow::{self as ah, format_err as err, Context as _};
 use clap::Parser;
-use cms_socket::CmsSocket;
-use cms_socket_back::SOCK_FILE;
+use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
+use cms_socket_back::{Msg, SOCK_FILE};
 use std::{num::NonZeroUsize, path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     runtime,
@@ -45,6 +56,68 @@ struct Opts {
     worker_threads: NonZeroUsize,
 }
 
+async fn process_conn(mut conn: CmsSocketConn, cache: Arc<CmsCache>) -> ah::Result<()> {
+    let mut back = CmsBack::new(cache);
+    loop {
+        let msg = conn.recv_msg(Msg::try_msg_deserialize).await?;
+        match msg {
+            Some(Msg::Get {
+                host,
+                path,
+                https,
+                cookie,
+                query,
+            }) => {
+                let path = path.into_cleaned_path().into_checked()?;
+
+                let reply = back.get(&CmsGetArgs {
+                    host,
+                    path,
+                    _cookie: Cookie::new(cookie),
+                    query: Query::new(query),
+                    https,
+                });
+
+                let reply: Msg = reply.into();
+                conn.send_msg(&reply).await?;
+            }
+            Some(Msg::Post {
+                host,
+                path,
+                https,
+                cookie,
+                query,
+                body,
+                body_mime,
+            }) => {
+                let path = path.into_cleaned_path().into_checked()?;
+
+                let reply = back.post(
+                    &CmsGetArgs {
+                        host,
+                        path,
+                        _cookie: Cookie::new(cookie),
+                        query: Query::new(query),
+                        https,
+                    },
+                    &CmsPostArgs { body, body_mime },
+                );
+
+                let reply: Msg = reply.into();
+                conn.send_msg(&reply).await?;
+            }
+            Some(Msg::Reply { .. }) => {
+                eprintln!("Received unsupported message.");
+            }
+            None => {
+                #[cfg(debug_assertions)]
+                eprintln!("Client disconnected.");
+                return Ok(());
+            }
+        }
+    }
+}
+
 async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
     let (main_exit_tx, mut main_exit_rx) = sync::mpsc::channel(1);
 
@@ -56,13 +129,21 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
 
     //TODO install seccomp filter.
 
+    let cache = Arc::new(CmsCache::new());
+
     // Task: Socket handler.
+    let cache_sock = Arc::clone(&cache);
     task::spawn(async move {
         loop {
+            let cache = Arc::clone(&cache_sock);
             match sock.accept().await {
-                Ok(_conn) => {
+                Ok(conn) => {
                     // Socket connection handler.
-                    //TODO
+                    task::spawn(async move {
+                        if let Err(e) = process_conn(conn, cache).await {
+                            eprintln!("Client error: {e}");
+                        }
+                    });
                 }
                 Err(e) => {
                     let _ = main_exit_tx.send(Err(e)).await;
