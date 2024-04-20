@@ -102,6 +102,18 @@ impl Ident {
         self.0.split(ELEMSEP)
     }
 
+    /// Get the first path element as a &str.
+    ///
+    /// Returns None, if this identifier has zero elements.
+    #[inline]
+    pub fn first_element_str(&self) -> Option<&str> {
+        if self.0.is_empty() {
+            None
+        } else {
+            self.elements().next()
+        }
+    }
+
     /// Get the last path element as a &str.
     ///
     /// Returns None, if this identifier has zero elements.
@@ -114,9 +126,21 @@ impl Ident {
         }
     }
 
+    /// Get the n'th path element as a &str.
+    ///
+    /// Returns None, if this identifier has zero elements.
+    #[inline]
+    pub fn nth_element_str(&self, n: usize) -> Option<&str> {
+        if self.0.is_empty() {
+            None
+        } else {
+            self.elements().nth(n)
+        }
+    }
+
     /// Get the number of path elements.
     #[inline]
-    fn element_count(&self) -> usize {
+    pub fn element_count(&self) -> usize {
         if self.0.is_empty() {
             0
         } else {
