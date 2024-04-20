@@ -143,65 +143,62 @@ impl DbCache {
     }
 
     pub async fn get_page(&self, page: &CheckedIdent) -> Vec<u8> {
-        let key = CacheKey::Page(page.as_downgrade_ref().clone());
+        let key = CacheKey::Page(page.downgrade_clone());
         get_cached!(self, key, Blob, get_page(page))
     }
 
     pub async fn get_page_redirect(&self, page: &CheckedIdent) -> Vec<u8> {
-        let key = CacheKey::PageRedirect(page.as_downgrade_ref().clone());
+        let key = CacheKey::PageRedirect(page.downgrade_clone());
         get_cached!(self, key, Blob, get_page_redirect(page))
     }
 
     pub async fn get_page_title(&self, page: &CheckedIdent) -> Vec<u8> {
-        let key = CacheKey::PageTitle(page.as_downgrade_ref().clone());
+        let key = CacheKey::PageTitle(page.downgrade_clone());
         get_cached!(self, key, Blob, get_page_title(page))
     }
 
     pub async fn get_page_stamp(&self, page: &CheckedIdent) -> u64 {
-        let key = CacheKey::PageStamp(page.as_downgrade_ref().clone());
+        let key = CacheKey::PageStamp(page.downgrade_clone());
         get_cached!(self, key, U64, get_page_stamp(page))
     }
 
     pub async fn get_page_prio(&self, page: &CheckedIdent) -> u64 {
-        let key = CacheKey::PagePrio(page.as_downgrade_ref().clone());
+        let key = CacheKey::PagePrio(page.downgrade_clone());
         get_cached!(self, key, U64, get_page_prio(page))
     }
 
     pub async fn get_subpages(&self, page: &CheckedIdent) -> Vec<PageInfo> {
-        let key = CacheKey::Subpages(page.as_downgrade_ref().clone());
+        let key = CacheKey::Subpages(page.downgrade_clone());
         get_cached!(self, key, PageInfoList, get_subpages(page))
     }
 
     pub async fn get_nav_stop(&self, page: &CheckedIdent) -> bool {
-        let key = CacheKey::NavStop(page.as_downgrade_ref().clone());
+        let key = CacheKey::NavStop(page.downgrade_clone());
         get_cached!(self, key, Bool, get_nav_stop(page))
     }
 
     pub async fn get_nav_label(&self, page: &CheckedIdent) -> Vec<u8> {
-        let key = CacheKey::NavLabel(page.as_downgrade_ref().clone());
+        let key = CacheKey::NavLabel(page.downgrade_clone());
         get_cached!(self, key, Blob, get_nav_label(page))
     }
 
     pub async fn get_macro(&self, page: &CheckedIdent, name: &CheckedIdentElem) -> Vec<u8> {
-        let key = CacheKey::Macro(
-            page.as_downgrade_ref().clone(),
-            name.as_downgrade_ref().clone(),
-        );
+        let key = CacheKey::Macro(page.downgrade_clone(), name.downgrade_clone());
         get_cached!(self, key, Blob, get_macro(page, name))
     }
 
     pub async fn get_string(&self, name: &CheckedIdentElem) -> Vec<u8> {
-        let key = CacheKey::String(name.as_downgrade_ref().clone());
+        let key = CacheKey::String(name.downgrade_clone());
         get_cached!(self, key, Blob, get_string(name))
     }
 
     pub async fn get_image(&self, name: &CheckedIdentElem) -> Vec<u8> {
-        let key = CacheKey::Image(name.as_downgrade_ref().clone());
+        let key = CacheKey::Image(name.downgrade_clone());
         get_cached!(self, key, Blob, get_image(name))
     }
 
     pub async fn get_headers(&self, page: &CheckedIdent) -> Vec<u8> {
-        let key = CacheKey::Headers(page.as_downgrade_ref().clone());
+        let key = CacheKey::Headers(page.downgrade_clone());
         get_cached!(self, key, Blob, get_headers(page))
     }
 }

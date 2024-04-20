@@ -297,6 +297,12 @@ macro_rules! impl_checked_ident {
                 &self.0
             }
 
+            /// Downgrade to an unchecked cloned [Ident].
+            #[inline]
+            pub fn downgrade_clone(&self) -> Ident {
+                self.as_downgrade_ref().clone()
+            }
+
             /// Convert this checked identifier into a safe [PathBuf]
             /// for filesystem use.
             ///

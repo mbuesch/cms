@@ -198,7 +198,7 @@ impl CmsBack {
     async fn get_page(&mut self, get: &CmsGetArgs) -> CmsReply {
         let reply = self
             .comm_db(&MsgDb::GetPage {
-                path: get.path.as_downgrade_ref().clone(),
+                path: get.path.downgrade_clone(),
                 get_title: true,
                 get_data: true,
                 get_stamp: true,
@@ -224,7 +224,7 @@ impl CmsBack {
 
         let reply = self
             .comm_db(&MsgDb::GetHeaders {
-                path: get.path.as_downgrade_ref().clone(),
+                path: get.path.downgrade_clone(),
             })
             .await;
         let Ok(MsgDb::Headers { data: headers }) = reply else {
