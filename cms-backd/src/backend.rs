@@ -17,7 +17,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{cache::CmsCache, cookie::Cookie, query::Query};
+use crate::{
+    cache::CmsCache,
+    cookie::Cookie,
+    query::Query,
+    resolver::{getvar, Resolver, ResolverVars},
+};
 use anyhow::{self as ah, format_err as err, Context as _};
 use cms_ident::CheckedIdent;
 use cms_socket::{CmsSocketConn, MsgSerde as _};
@@ -25,6 +30,7 @@ use cms_socket_db::{Msg as MsgDb, SOCK_FILE as SOCK_FILE_DB};
 use cms_socket_post::{Msg as MsgPost, SOCK_FILE as SOCK_FILE_POST};
 use std::{
     path::{Path, PathBuf},
+    rc::Rc,
     sync::Arc,
 };
 
@@ -34,6 +40,16 @@ pub struct CmsGetArgs {
     pub _cookie: Cookie,
     pub query: Query,
     pub https: bool,
+}
+
+impl CmsGetArgs {
+    pub fn protocol_str(&self) -> &str {
+        if self.https {
+            "https"
+        } else {
+            "http"
+        }
+    }
 }
 
 pub struct CmsPostArgs {
@@ -147,8 +163,8 @@ impl CmsBack {
     }
 
     async fn comm_db(&mut self, request: &MsgDb) -> ah::Result<MsgDb> {
-        let mut sock = self.sock_db().await?;
-        sock.send_msg(request);
+        let sock = self.sock_db().await?;
+        sock.send_msg(request).await?;
         if let Some(reply) = sock.recv_msg(MsgDb::try_msg_deserialize).await? {
             Ok(reply)
         } else {
@@ -157,8 +173,8 @@ impl CmsBack {
     }
 
     async fn comm_post(&mut self, request: &MsgPost) -> ah::Result<MsgPost> {
-        let mut sock = self.sock_post().await?;
-        sock.send_msg(request);
+        let sock = self.sock_post().await?;
+        sock.send_msg(request).await?;
         if let Some(reply) = sock.recv_msg(MsgPost::try_msg_deserialize).await? {
             Ok(reply)
         } else {
@@ -175,12 +191,67 @@ impl CmsBack {
         if let Ok(MsgDb::String { data }) = reply {
             Ok(data)
         } else {
-            Err(err!("CSS: Invalid db reply."))
+            Err(err!("String: Invalid db reply."))
         }
     }
 
     async fn get_page(&mut self, get: &CmsGetArgs) -> CmsReply {
-        //TODO
+        let reply = self
+            .comm_db(&MsgDb::GetPage {
+                path: get.path.as_downgrade_ref().clone(),
+                get_title: true,
+                get_data: true,
+                get_stamp: true,
+                get_prio: true,
+                get_redirect: true,
+                get_nav_stop: false,
+                get_nav_label: false,
+            })
+            .await;
+        let Ok(MsgDb::Page {
+            title,
+            data,
+            stamp,
+            prio,
+            redirect,
+            ..
+        }) = reply
+        else {
+            return CmsReply::internal_error("GetPage: Invalid db reply");
+        };
+        let mut title = String::from_utf8(title.unwrap_or_default()).unwrap_or_default();
+        let mut data = String::from_utf8(data.unwrap_or_default()).unwrap_or_default();
+
+        let reply = self
+            .comm_db(&MsgDb::GetHeaders {
+                path: get.path.as_downgrade_ref().clone(),
+            })
+            .await;
+        let Ok(MsgDb::Headers { data: headers }) = reply else {
+            return CmsReply::internal_error("GetHeaders: Invalid db reply");
+        };
+        let mut headers = String::from_utf8(headers).unwrap_or_default();
+
+        let mut vars = ResolverVars::new();
+        vars.register("PROTOCOL", getvar!(get.protocol_str().to_string()));
+        //TODO vars.register("PAGEIDENT", getvar!());
+        //TODO vars.register("CMS_PAGEIDENT", getvar!());
+        vars.register(
+            "GROUP",
+            getvar!(get.path.nth_element_str(0).unwrap_or("").to_string()),
+        );
+        vars.register(
+            "PAGE",
+            getvar!(get.path.nth_element_str(1).unwrap_or("").to_string()),
+        );
+        //TODO add query vars
+
+        title = Resolver::new(&vars).run(&title);
+        vars.register("TITLE", getvar!(title.clone()));
+        data = Resolver::new(&vars).run(&data);
+        headers = Resolver::new(&vars).run(&headers);
+
+        //TODO call page generator
         Default::default()
     }
 

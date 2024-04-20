@@ -22,7 +22,10 @@
 mod backend;
 mod cache;
 mod cookie;
+mod pagegen;
 mod query;
+mod resolver;
+mod sitemap;
 
 use crate::{
     backend::{CmsBack, CmsGetArgs, CmsPostArgs},
