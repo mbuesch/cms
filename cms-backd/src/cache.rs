@@ -17,11 +17,35 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pub struct CmsCache {}
+#![allow(dead_code)] //TODO
+
+use cms_ident::Ident;
+use lru::LruCache;
+use tokio::sync::Mutex;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+enum CacheKey {
+    //TODO
+    Page(Ident),
+}
+
+#[derive(Debug)]
+enum CacheValue {
+    //TODO
+    Blob(Vec<u8>),
+}
+
+pub struct CmsCache {
+    cache: Mutex<LruCache<CacheKey, CacheValue>>,
+}
 
 impl CmsCache {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(cache_size: u32) -> Self {
+        let cache_size: usize = cache_size.try_into().unwrap();
+        let cache_size = cache_size.try_into().unwrap();
+        Self {
+            cache: Mutex::new(LruCache::new(cache_size)),
+        }
     }
 }
 

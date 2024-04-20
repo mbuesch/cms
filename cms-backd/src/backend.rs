@@ -18,8 +18,15 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{cache::CmsCache, cookie::Cookie, query::Query};
+use anyhow::{self as ah, format_err as err, Context as _};
 use cms_ident::CheckedIdent;
-use std::sync::Arc;
+use cms_socket::{CmsSocketConn, MsgSerde as _};
+use cms_socket_db::{Msg as MsgDb, SOCK_FILE as SOCK_FILE_DB};
+use cms_socket_post::{Msg as MsgPost, SOCK_FILE as SOCK_FILE_POST};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 pub struct CmsGetArgs {
     pub host: String,
@@ -59,8 +66,27 @@ pub struct CmsReply {
 }
 
 impl CmsReply {
-    fn new() -> Self {
-        Default::default()
+    pub fn ok(body: Vec<u8>, mime: String) -> Self {
+        Self {
+            status: HttpStatus::Ok,
+            body,
+            mime,
+            ..Default::default()
+        }
+    }
+
+    pub fn not_found(_msg: &str) -> Self {
+        Self {
+            status: HttpStatus::NotFound,
+            ..Default::default()
+        }
+    }
+
+    pub fn internal_error(_msg: &str) -> Self {
+        Self {
+            status: HttpStatus::InternalServerError,
+            ..Default::default()
+        }
     }
 }
 
@@ -75,23 +101,131 @@ impl From<CmsReply> for cms_socket_back::Msg {
     }
 }
 
+macro_rules! result_to_reply {
+    ($result:expr, $mime:expr, $err_ctor:ident) => {
+        match $result {
+            Err(e) => CmsReply::$err_ctor(&format!("{e}")),
+            Ok(body) => CmsReply::ok(body, $mime.to_string()),
+        }
+    };
+}
+
 pub struct CmsBack {
+    #[allow(dead_code)] //TODO
     cache: Arc<CmsCache>,
+    sock_path_db: PathBuf,
+    sock_path_post: PathBuf,
+    sock_db: Option<CmsSocketConn>,
+    sock_post: Option<CmsSocketConn>,
 }
 
 impl CmsBack {
-    pub fn new(cache: Arc<CmsCache>) -> Self {
-        Self { cache }
+    pub async fn new(cache: Arc<CmsCache>, rundir: &Path) -> Self {
+        let sock_path_db = rundir.join(SOCK_FILE_DB);
+        let sock_path_post = rundir.join(SOCK_FILE_POST);
+        Self {
+            cache,
+            sock_path_db,
+            sock_path_post,
+            sock_db: None,
+            sock_post: None,
+        }
     }
 
-    pub fn get(&mut self, get: &CmsGetArgs) -> CmsReply {
-        //TODO
-        CmsReply::new()
+    async fn sock_db(&mut self) -> ah::Result<&mut CmsSocketConn> {
+        if self.sock_db.is_none() {
+            self.sock_db = Some(CmsSocketConn::connect(&self.sock_path_db).await?);
+        }
+        Ok(self.sock_db.as_mut().unwrap())
     }
 
-    pub fn post(&mut self, get: &CmsGetArgs, post: &CmsPostArgs) -> CmsReply {
+    async fn sock_post(&mut self) -> ah::Result<&mut CmsSocketConn> {
+        if self.sock_post.is_none() {
+            self.sock_post = Some(CmsSocketConn::connect(&self.sock_path_post).await?);
+        }
+        Ok(self.sock_post.as_mut().unwrap())
+    }
+
+    async fn comm_db(&mut self, request: &MsgDb) -> ah::Result<MsgDb> {
+        let mut sock = self.sock_db().await?;
+        sock.send_msg(request);
+        if let Some(reply) = sock.recv_msg(MsgDb::try_msg_deserialize).await? {
+            Ok(reply)
+        } else {
+            Err(err!("cms-fsd disconnected"))
+        }
+    }
+
+    async fn comm_post(&mut self, request: &MsgPost) -> ah::Result<MsgPost> {
+        let mut sock = self.sock_post().await?;
+        sock.send_msg(request);
+        if let Some(reply) = sock.recv_msg(MsgPost::try_msg_deserialize).await? {
+            Ok(reply)
+        } else {
+            Err(err!("cms-postd disconnected"))
+        }
+    }
+
+    async fn get_db_string(&mut self, name: &str) -> ah::Result<Vec<u8>> {
+        let reply = self
+            .comm_db(&MsgDb::GetString {
+                name: name.parse().context("Invalid DB string name")?,
+            })
+            .await;
+        if let Ok(MsgDb::String { data }) = reply {
+            Ok(data)
+        } else {
+            Err(err!("CSS: Invalid db reply."))
+        }
+    }
+
+    async fn get_page(&mut self, get: &CmsGetArgs) -> CmsReply {
         //TODO
-        CmsReply::new()
+        Default::default()
+    }
+
+    async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> CmsReply {
+        //TODO
+        Default::default()
+    }
+
+    async fn get_sitemap(&mut self, get: &CmsGetArgs) -> CmsReply {
+        //TODO
+        Default::default()
+    }
+
+    async fn get_css(&mut self, get: &CmsGetArgs) -> CmsReply {
+        if let Some(css_name) = get.path.nth_element_str(1) {
+            if css_name == "cms.css" {
+                return result_to_reply!(
+                    self.get_db_string("css").await,
+                    "text/css; charset=UTF-8",
+                    not_found
+                );
+            }
+        }
+        CmsReply::not_found("Invalid CSS name")
+    }
+
+    pub async fn get(&mut self, get: &CmsGetArgs) -> CmsReply {
+        let count = get.path.element_count();
+        let first = get.path.first_element_str();
+        let reply = match first {
+            Some("__thumbs") if count == 2 => self.get_image(get, true).await,
+            Some("__images") if count == 2 => self.get_image(get, false).await,
+            Some("__sitemap") | Some("__sitemap.xml") if count == 1 => self.get_sitemap(get).await,
+            Some("__css") if count == 2 => self.get_css(get).await,
+            _ => self.get_page(get).await,
+        };
+        if reply.status == HttpStatus::InternalServerError {
+            //TODO reduce information, if not debugging
+        }
+        reply
+    }
+
+    pub async fn post(&mut self, get: &CmsGetArgs, post: &CmsPostArgs) -> CmsReply {
+        //TODO
+        Default::default()
     }
 }
 

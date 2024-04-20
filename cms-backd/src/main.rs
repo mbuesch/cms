@@ -47,6 +47,10 @@ struct Opts {
     #[arg(long, default_value = "/run")]
     rundir: PathBuf,
 
+    /// The number of elements held in the cache.
+    #[arg(long, default_value = "1024", value_parser = clap::value_parser!(u32).range(1..))]
+    cache_size: u32,
+
     /// Always run in non-systemd mode.
     #[arg(long, default_value = "false")]
     no_systemd: bool,
@@ -56,8 +60,12 @@ struct Opts {
     worker_threads: NonZeroUsize,
 }
 
-async fn process_conn(mut conn: CmsSocketConn, cache: Arc<CmsCache>) -> ah::Result<()> {
-    let mut back = CmsBack::new(cache);
+async fn process_conn(
+    mut conn: CmsSocketConn,
+    cache: Arc<CmsCache>,
+    opts: Arc<Opts>,
+) -> ah::Result<()> {
+    let mut back = CmsBack::new(cache, &opts.rundir).await;
     loop {
         let msg = conn.recv_msg(Msg::try_msg_deserialize).await?;
         match msg {
@@ -70,13 +78,15 @@ async fn process_conn(mut conn: CmsSocketConn, cache: Arc<CmsCache>) -> ah::Resu
             }) => {
                 let path = path.into_cleaned_path().into_checked()?;
 
-                let reply = back.get(&CmsGetArgs {
-                    host,
-                    path,
-                    _cookie: Cookie::new(cookie),
-                    query: Query::new(query),
-                    https,
-                });
+                let reply = back
+                    .get(&CmsGetArgs {
+                        host,
+                        path,
+                        _cookie: Cookie::new(cookie),
+                        query: Query::new(query),
+                        https,
+                    })
+                    .await;
 
                 let reply: Msg = reply.into();
                 conn.send_msg(&reply).await?;
@@ -92,16 +102,18 @@ async fn process_conn(mut conn: CmsSocketConn, cache: Arc<CmsCache>) -> ah::Resu
             }) => {
                 let path = path.into_cleaned_path().into_checked()?;
 
-                let reply = back.post(
-                    &CmsGetArgs {
-                        host,
-                        path,
-                        _cookie: Cookie::new(cookie),
-                        query: Query::new(query),
-                        https,
-                    },
-                    &CmsPostArgs { body, body_mime },
-                );
+                let reply = back
+                    .post(
+                        &CmsGetArgs {
+                            host,
+                            path,
+                            _cookie: Cookie::new(cookie),
+                            query: Query::new(query),
+                            https,
+                        },
+                        &CmsPostArgs { body, body_mime },
+                    )
+                    .await;
 
                 let reply: Msg = reply.into();
                 conn.send_msg(&reply).await?;
@@ -129,18 +141,20 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
 
     //TODO install seccomp filter.
 
-    let cache = Arc::new(CmsCache::new());
+    let cache = Arc::new(CmsCache::new(opts.cache_size));
 
     // Task: Socket handler.
     let cache_sock = Arc::clone(&cache);
+    let opts_sock = Arc::clone(&opts);
     task::spawn(async move {
         loop {
             let cache = Arc::clone(&cache_sock);
+            let opts = Arc::clone(&opts_sock);
             match sock.accept().await {
                 Ok(conn) => {
                     // Socket connection handler.
                     task::spawn(async move {
-                        if let Err(e) = process_conn(conn, cache).await {
+                        if let Err(e) = process_conn(conn, cache, opts).await {
                             eprintln!("Client error: {e}");
                         }
                     });
