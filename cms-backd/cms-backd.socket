@@ -1,5 +1,5 @@
 [Unit]
-Description=CMS backend daemon socket (Python)
+Description=CMS backend daemon socket
 Requires=cms-backd.service
 AssertPathExists=/run
 
