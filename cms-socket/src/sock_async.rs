@@ -62,8 +62,8 @@ impl CmsSocket {
     pub fn from_systemd_or_path(no_systemd: bool, sock_path: &Path) -> ah::Result<Self> {
         if !no_systemd && have_systemd() {
             println!("Using socket from systemd.");
-            let sock = Self::from_std_listener(unix_from_systemd(true)?)?;
-            systemd_notify_ready(true)?;
+            let sock = Self::from_std_listener(unix_from_systemd()?)?;
+            systemd_notify_ready()?;
             Ok(sock)
         } else {
             println!("Creating socket {sock_path:?}.");

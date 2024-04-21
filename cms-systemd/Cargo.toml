@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-systemd = "0.10"
+#sd-notify = "0.4"
+sd-notify = { git = "https://github.com/mbuesch/sd-notify.git", branch = "fix-cloexec-bit" }
 
 # vim: ts=4 sw=4 expandtab

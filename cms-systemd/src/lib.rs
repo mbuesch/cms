@@ -18,55 +18,32 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use anyhow::{self as ah, format_err as err, Context as _};
-use std::os::{
-    fd::{FromRawFd as _, RawFd},
-    unix::net::UnixListener,
-};
-use systemd::daemon;
-
-/// Check if there is a systemd unix socket fd that is usable.
-fn check_fd(fd: RawFd) -> bool {
-    let no_path: Option<std::ffi::CString> = None;
-    daemon::is_socket_unix(
-        fd,
-        Some(daemon::SocketType::Stream),
-        daemon::Listening::NoListeningCheck,
-        no_path,
-    )
-    .unwrap_or(false)
-}
+use std::os::{fd::FromRawFd as _, unix::net::UnixListener};
 
 /// Check whether we have been invoked by systemd.
 pub fn have_systemd() -> bool {
-    daemon::listen_fds(false)
-        .map(|fds| fds.iter().any(check_fd))
-        .unwrap_or(false)
+    sd_notify::booted().unwrap_or(false)
+        && !std::env::var("LISTEN_FDS").unwrap_or_default().is_empty()
 }
 
 /// Create a new [UnixListener] with the socket provided by systemd.
 ///
-/// If `unset_environment` is true, all environment variables related
-/// to this operation will be cleared.
-pub fn unix_from_systemd(unset_environment: bool) -> ah::Result<UnixListener> {
-    let fds = daemon::listen_fds(unset_environment).context("Systemd listen_fds")?;
-    for fd in fds.iter() {
-        if check_fd(fd) {
-            // SAFETY:
-            // The fd from systemd is good and lives for the lifetime of the program.
-            return Ok(unsafe { UnixListener::from_raw_fd(fd) });
-        }
+/// All environment variables related to this operation will be cleared.
+pub fn unix_from_systemd() -> ah::Result<UnixListener> {
+    let mut fds = sd_notify::listen_fds().context("Systemd listen_fds")?;
+    if let Some(fd) = fds.next() {
+        // SAFETY:
+        // The fd from systemd is good and lives for the lifetime of the program.
+        return Ok(unsafe { UnixListener::from_raw_fd(fd) });
     }
     Err(err!("No systemd unix socket fd found"))
 }
 
 /// Notify ready-status to systemd.
 ///
-/// If `unset_environment` is true, all environment variables related
-/// to this operation will be cleared.
-pub fn systemd_notify_ready(unset_environment: bool) -> ah::Result<()> {
-    daemon::notify(unset_environment, [(daemon::STATE_READY, "1")].iter())
-        .context("Systemd notify READY=1")
-        .map(|_| ())
+/// All environment variables related to this operation will be cleared.
+pub fn systemd_notify_ready() -> ah::Result<()> {
+    Ok(sd_notify::notify(true, &[sd_notify::NotifyState::Ready])?)
 }
 
 // vim: ts=4 sw=4 expandtab
