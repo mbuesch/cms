@@ -148,6 +148,27 @@ install_cgi()
         /opt/cms/libexec/cms-cgi/cms.cgi
 }
 
+install_backd()
+{
+    do_install \
+        -o root -g root -m 0755 \
+        "$basedir/target/release/cms-backd" \
+        /opt/cms/bin/
+
+    do_install \
+        -o root -g root -m 0644 \
+        "$basedir/cms-backd/cms-backd.service" \
+        /etc/systemd/system/
+
+    do_install \
+        -o root -g root -m 0644 \
+        "$basedir/cms-backd/cms-backd.socket" \
+        /etc/systemd/system/
+
+    do_systemctl enable cms-backd.service
+    do_systemctl enable cms-backd.socket
+}
+
 install_py()
 {
     do_install \
@@ -180,13 +201,18 @@ install_py()
     do_systemctl enable cms-backd.socket
 }
 
+python=1
+[ "$1" = "--no-python" -o "$1" = "-P" ] && python=0
+
+[ $python -eq 0 ] && info "Python backend disabled."
 entry_checks
 stop_services
 install_dirs
 install_fsd
 install_postd
 install_cgi
-install_py
+[ $python -ne 0 ] && install_py
+[ $python -eq 0 ] && install_backd
 start_services
 
 # vim: ts=4 sw=4 expandtab
