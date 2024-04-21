@@ -34,8 +34,9 @@ export CXXFLAGS=
 python3 ./setup.py build || die "Python build failed."
 cargo auditable build --release || die "Cargo build failed."
 cargo audit bin --deny warnings \
-    target/release/cms-fsd \
+    target/release/cms-backd \
     target/release/cms-cgi \
+    target/release/cms-fsd \
     target/release/cms-postd \
     || die "Cargo audit failed."
 
