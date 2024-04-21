@@ -27,6 +27,18 @@ impl Query {
     pub fn new(items: HashMap<String, Vec<u8>>) -> Self {
         Self { items }
     }
+
+    pub fn get(&self, name: &str) -> Option<Vec<u8>> {
+        self.items.get(name).cloned()
+    }
+
+    pub fn get_str(&self, name: &str) -> Option<String> {
+        if let Some(v) = self.get(name) {
+            String::from_utf8(v).ok()
+        } else {
+            None
+        }
+    }
 }
 
 // vim: ts=4 sw=4 expandtab

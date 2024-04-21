@@ -17,11 +17,26 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pub struct PageGen {}
+use crate::backend::{CmsGetArgs, CmsReply};
+use chrono::{DateTime, Utc};
 
-impl PageGen {
-    pub fn new() -> Self {
-        Self {}
+pub struct PageGen<'a> {
+    get: &'a CmsGetArgs,
+}
+
+impl<'a> PageGen<'a> {
+    pub fn new(get: &'a CmsGetArgs) -> Self {
+        Self { get }
+    }
+
+    pub fn generate(
+        &mut self,
+        title: &str,
+        headers: &str,
+        data: &str,
+        stamp: DateTime<Utc>,
+    ) -> CmsReply {
+        Default::default() //TODO
     }
 }
 

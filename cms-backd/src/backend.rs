@@ -20,11 +20,13 @@
 use crate::{
     cache::CmsCache,
     cookie::Cookie,
+    pagegen::PageGen,
     query::Query,
     resolver::{getvar, Resolver, ResolverVars},
 };
 use anyhow::{self as ah, format_err as err, Context as _};
-use cms_ident::CheckedIdent;
+use chrono::{DateTime, Utc};
+use cms_ident::{CheckedIdent, UrlComp};
 use cms_socket::{CmsSocketConn, MsgSerde as _};
 use cms_socket_db::{Msg as MsgDb, SOCK_FILE as SOCK_FILE_DB};
 use cms_socket_post::{Msg as MsgPost, SOCK_FILE as SOCK_FILE_POST};
@@ -33,6 +35,14 @@ use std::{
     rc::Rc,
     sync::Arc,
 };
+
+fn html_escape(text: String) -> String {
+    text //TODO: escape &, <, >, " and '
+}
+
+fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
+    DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
+}
 
 pub struct CmsGetArgs {
     pub host: String,
@@ -124,6 +134,21 @@ macro_rules! result_to_reply {
             Ok(body) => CmsReply::ok(body, $mime.to_string()),
         }
     };
+}
+
+fn get_query_var(get: &CmsGetArgs, variable_name: &str, escape: bool) -> String {
+    if let Some(index) = variable_name.find('_') {
+        let qname = &variable_name[index + 1..];
+        if !qname.is_empty() {
+            let qvalue = get.query.get_str(qname).unwrap_or_default();
+            if escape {
+                return html_escape(qvalue);
+            } else {
+                return qvalue;
+            }
+        }
+    }
+    Default::default()
 }
 
 pub struct CmsBack {
@@ -221,6 +246,7 @@ impl CmsBack {
         };
         let mut title = String::from_utf8(title.unwrap_or_default()).unwrap_or_default();
         let mut data = String::from_utf8(data.unwrap_or_default()).unwrap_or_default();
+        let stamp = epoch_stamp(stamp.unwrap_or_default());
 
         let reply = self
             .comm_db(&MsgDb::GetHeaders {
@@ -234,8 +260,22 @@ impl CmsBack {
 
         let mut vars = ResolverVars::new();
         vars.register("PROTOCOL", getvar!(get.protocol_str().to_string()));
-        //TODO vars.register("PAGEIDENT", getvar!());
-        //TODO vars.register("CMS_PAGEIDENT", getvar!());
+        vars.register(
+            "PAGEIDENT",
+            getvar!(get.path.url(UrlComp {
+                protocol: None,
+                domain: None,
+                base: None,
+            })),
+        );
+        vars.register(
+            "CMS_PAGEIDENT",
+            getvar!(get.path.url(UrlComp {
+                protocol: None,
+                domain: None,
+                base: Some("/cms"), //TODO
+            })),
+        );
         vars.register(
             "GROUP",
             getvar!(get.path.nth_element_str(0).unwrap_or("").to_string()),
@@ -244,15 +284,15 @@ impl CmsBack {
             "PAGE",
             getvar!(get.path.nth_element_str(1).unwrap_or("").to_string()),
         );
-        //TODO add query vars
+        vars.register_prefix("Q", Rc::new(|name| get_query_var(get, name, true)));
+        vars.register_prefix("QRAW", Rc::new(|name| get_query_var(get, name, false)));
 
         title = Resolver::new(&vars).run(&title);
         vars.register("TITLE", getvar!(title.clone()));
         data = Resolver::new(&vars).run(&data);
         headers = Resolver::new(&vars).run(&headers);
 
-        //TODO call page generator
-        Default::default()
+        PageGen::new(get).generate(&title, &headers, &data, stamp)
     }
 
     async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> CmsReply {
