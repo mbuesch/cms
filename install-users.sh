@@ -81,8 +81,6 @@ sys_useradd -G cms-sock-post,cms-fs-x -g cms-postd cms-postd
 sys_useradd -G cms-sock-back,cms-sock-db,cms-sock-post -g cms-backd cms-backd
 
 # Add the communication socket to the web server process user.
-do_usermod -a -G cms-sock-db www-data #TODO: cms-sock-db shall be removed eventually.
-do_usermod -a -G cms-sock-post www-data #TODO: cms-sock-post shall be removed eventually.
 do_usermod -a -G cms-sock-back www-data
 
 # The git-user shall be able to give group permissions in db.
