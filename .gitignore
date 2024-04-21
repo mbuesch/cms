@@ -1,6 +1,5 @@
 *~
 *.swp
 __pycache__/
-/Cargo.lock
 /build
 /target/

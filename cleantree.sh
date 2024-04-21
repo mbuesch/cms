@@ -40,6 +40,6 @@ rm -f cms_cython
 rm -rf build dist .pybuild
 rm -f MANIFEST
 rm -rf target
-rm -f Cargo.lock cms-fsd.sock
+rm -f cms-fsd.sock
 
 # vim: ts=4 sw=4 expandtab
