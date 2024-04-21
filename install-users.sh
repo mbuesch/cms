@@ -81,11 +81,13 @@ sys_useradd -G cms-sock-post,cms-fs-x -g cms-postd cms-postd
 sys_useradd -G cms-sock-back,cms-sock-db,cms-sock-post -g cms-backd cms-backd
 
 # Add the communication socket to the web server process user.
-do_usermod -a -G cms-sock-back www-data
+if grep -q '^www-data:' /etc/passwd; then
+    do_usermod -a -G cms-sock-back www-data
+fi
 
 # The git-user shall be able to give group permissions in db.
 if grep -q '^git:' /etc/passwd; then
-    do_usermod -a -G cms-fs-ro,cms-fs-x,www-data git
+    do_usermod -a -G cms-fs-ro,cms-fs-x git
 fi
 
 # vim: ts=4 sw=4 expandtab
