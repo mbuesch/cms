@@ -171,6 +171,9 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 conn.send_msg(&reply).await?;
             }
             Some(Msg::GetImage { name }) => {
+                //TODO: We should support a hierarchy of identifiers for images,
+                //      just as we do for pages. In the db we should probably place
+                //      these hierarchial images into the page directory.
                 let name = name.into_checked_element()?;
 
                 let data = db.get_image(&name).await;
