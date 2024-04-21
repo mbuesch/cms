@@ -71,18 +71,33 @@ start_postd()
 
 start_backd()
 {
-    echo "Starting cms-backd..."
-    export NOTIFY_SOCKET=
-    rm -f "$rundir/cms-backd.sock"
-    local pyscript="$basedir/../cmsbackpy/cms-backd"
-    [ -r "$pyscript" ] || die "cms-backd script $pyscript not found."
-    python3 "$pyscript" \
-        --rundir "$rundir" \
-        --pythonpath "$basedir/.." \
-        --no-cython \
-        &
-    pid_backd=$!
+    if [ $python -eq 0 ]; then
+        echo "Starting cms-backd..."
+        rm -f "$rundir/cms-backd.sock"
+        local binary="$basedir/../target/release/cms-backd"
+        [ -x "$binary" ] || die "cms-backd binary $binary not found."
+        "$binary" \
+            --rundir "$rundir" \
+            --no-systemd \
+            &
+        pid_backd=$!
+    else
+        echo "Starting cmsbackpy..."
+        export NOTIFY_SOCKET=
+        rm -f "$rundir/cms-backd.sock"
+        local pyscript="$basedir/../cmsbackpy/cms-backd"
+        [ -r "$pyscript" ] || die "cms-backd script $pyscript not found."
+        python3 "$pyscript" \
+            --rundir "$rundir" \
+            --pythonpath "$basedir/.." \
+            --no-cython \
+            &
+        pid_backd=$!
+    fi
 }
+
+python=1
+[ "$1" = "--no-python" -o "$1" = "-P" ] && python=0
 
 rundir="$basedir/run"
 dbdir="$basedir/../example/db"

@@ -37,6 +37,6 @@ export HTTPS=on
 export HTTP_HOST=example.com
 export HTTP_COOKIE=
 
-strace "$binary" --rundir "$rundir" || die "cms-cgi failed."
+"$binary" --rundir "$rundir" || die "cms-cgi failed."
 
 # vim: ts=4 sw=4 expandtab
