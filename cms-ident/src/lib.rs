@@ -282,7 +282,7 @@ pub enum Tail {
     Two(CheckedIdentElem, CheckedIdentElem),
 }
 
-macro_rules! impl_checked_ident {
+macro_rules! impl_common_checked_ident {
     ($name:ident) => {
         impl $name {
             /// Downgrade to an unchecked [Ident].
@@ -374,7 +374,56 @@ macro_rules! impl_checked_ident {
     };
 }
 
-impl_checked_ident!(CheckedIdent);
-impl_checked_ident!(CheckedIdentElem);
+impl_common_checked_ident!(CheckedIdent);
+impl_common_checked_ident!(CheckedIdentElem);
+
+pub struct UrlComp<'a> {
+    pub protocol: Option<&'a str>,
+    pub domain: Option<&'a str>,
+    pub base: Option<&'a str>,
+}
+
+impl CheckedIdent {
+    /// Convert this [CheckedIdent] into an URL string.
+    pub fn url(&self, comp: UrlComp<'_>) -> String {
+        let mut url = String::with_capacity(128);
+
+        if let Some(protocol) = &comp.protocol {
+            url.push_str(protocol);
+            url.push_str("://");
+        }
+
+        if let Some(domain) = &comp.domain {
+            url.push_str(domain.trim_matches('/'));
+            url.push('/');
+        }
+
+        if let Some(base) = &comp.base {
+            if url.is_empty() {
+                url.push('/');
+            }
+            url.push_str(base.trim_matches('/'));
+            url.push('/');
+        }
+
+        if !self.as_str().is_empty() {
+            if url.is_empty() {
+                url.push('/');
+            }
+            for (i, elem) in self.elements().enumerate() {
+                if i != 0 {
+                    url.push('/');
+                }
+                url.push_str(elem);
+            }
+        }
+
+        if !url.is_empty() {
+            url.push_str(".html");
+        }
+
+        url
+    }
+}
 
 // vim: ts=4 sw=4 expandtab
