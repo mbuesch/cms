@@ -19,7 +19,7 @@
 
 use crate::msg::{DeserializeResult, MsgSerde, MAX_RX_BUF};
 use anyhow::{self as ah, format_err as err, Context as _};
-use cms_systemd::{have_systemd, systemd_notify_ready, unix_from_systemd};
+use cms_systemd::{systemd_notify_ready, unix_from_systemd};
 use libc::{S_IFMT, S_IFSOCK};
 use std::{
     fs::{metadata, remove_file},
@@ -60,15 +60,16 @@ impl CmsSocket {
     /// Create a new [CmsSocket] from Systemd environment
     /// or from the specified path, if there is no Systemd.
     pub fn from_systemd_or_path(no_systemd: bool, sock_path: &Path) -> ah::Result<Self> {
-        if !no_systemd && have_systemd() {
-            println!("Using socket from systemd.");
-            let sock = Self::from_std_listener(unix_from_systemd()?)?;
-            systemd_notify_ready()?;
-            Ok(sock)
-        } else {
-            println!("Creating socket {sock_path:?}.");
-            Self::new(sock_path)
+        if !no_systemd {
+            if let Ok(unix_listener) = unix_from_systemd() {
+                println!("Using socket from systemd.");
+                let sock = Self::from_std_listener(unix_listener)?;
+                systemd_notify_ready()?;
+                return Ok(sock);
+            }
         }
+        println!("Creating socket {sock_path:?}.");
+        Self::new(sock_path)
     }
 
     pub async fn accept(&mut self) -> ah::Result<CmsSocketConn> {

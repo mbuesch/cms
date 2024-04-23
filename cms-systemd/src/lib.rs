@@ -20,16 +20,13 @@
 use anyhow::{self as ah, format_err as err, Context as _};
 use std::os::{fd::FromRawFd as _, unix::net::UnixListener};
 
-/// Check whether we have been invoked by systemd.
-pub fn have_systemd() -> bool {
-    sd_notify::booted().unwrap_or(false)
-        && !std::env::var("LISTEN_FDS").unwrap_or_default().is_empty()
-}
-
 /// Create a new [UnixListener] with the socket provided by systemd.
 ///
 /// All environment variables related to this operation will be cleared.
 pub fn unix_from_systemd() -> ah::Result<UnixListener> {
+    if !sd_notify::booted().unwrap_or(false) {
+        return Err(err!("Not booted with systemd"));
+    }
     let mut fds = sd_notify::listen_fds().context("Systemd listen_fds")?;
     if let Some(fd) = fds.next() {
         // SAFETY:
