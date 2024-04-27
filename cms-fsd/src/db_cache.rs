@@ -51,7 +51,7 @@ pub struct DbCache {
     fs_intf: DbFsIntf,
     inotify: Mutex<Inotify>,
     inotify_watches: Watches,
-    cache: Mutex<LruCache<CacheKey, CacheValue>>,
+    cache: Option<Mutex<LruCache<CacheKey, CacheValue>>>,
 }
 
 macro_rules! get_cached {
@@ -71,8 +71,8 @@ macro_rules! get_cached {
             };
 
             // Query the cache.
-            {
-                let mut cache = $self.cache.lock().await;
+            if let Some(cache) = &$self.cache {
+                let mut cache = cache.lock().await;
                 if let Some(data) = cache.get(&$key) {
                     return unpack(data);
                 }
@@ -87,40 +87,46 @@ macro_rules! get_cached {
             };
 
             // Insert it into the cache.
-            {
-                let mut cache = $self.cache.lock().await;
+            if let Some(cache) = &$self.cache {
+                let mut cache = cache.lock().await;
                 unpack(cache.try_get_or_insert::<_, ()>(
                     $key,
                     || Ok(CacheValue::$value_type(data))
                 ).unwrap())
+            } else {
+                data
             }
         }
     }
 }
 
 impl DbCache {
-    pub fn new(fs_intf: DbFsIntf, cache_size: u32) -> Self {
-        let cache_size: usize = cache_size.try_into().unwrap();
-        let cache_size = cache_size.try_into().unwrap();
+    pub fn new(fs_intf: DbFsIntf, cache_size: usize) -> Self {
+        let cache = if cache_size == 0 {
+            None
+        } else {
+            let cache_size = cache_size.try_into().unwrap();
+            Some(Mutex::new(LruCache::new(cache_size)))
+        };
         let inotify = Inotify::init().expect("Inotify initialization failed");
         let watches = inotify.watches();
         Self {
             fs_intf,
             inotify: Mutex::new(inotify),
             inotify_watches: watches,
-            cache: Mutex::new(LruCache::new(cache_size)),
+            cache,
         }
     }
 
     pub async fn clear(&self) {
-        {
-            let mut cache = self.cache.lock().await;
+        if let Some(cache) = &self.cache {
+            let mut cache = cache.lock().await;
             if cache.is_empty() {
                 return;
             }
             cache.clear();
+            println!("DB cache cleared.");
         }
-        println!("DB cache cleared.");
     }
 
     pub async fn check_inotify(&self) {

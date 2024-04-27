@@ -36,16 +36,18 @@ enum CacheValue {
 }
 
 pub struct CmsCache {
-    cache: Mutex<LruCache<CacheKey, CacheValue>>,
+    cache: Option<Mutex<LruCache<CacheKey, CacheValue>>>,
 }
 
 impl CmsCache {
-    pub fn new(cache_size: u32) -> Self {
-        let cache_size: usize = cache_size.try_into().unwrap();
-        let cache_size = cache_size.try_into().unwrap();
-        Self {
-            cache: Mutex::new(LruCache::new(cache_size)),
-        }
+    pub fn new(cache_size: usize) -> Self {
+        let cache = if cache_size == 0 {
+            None
+        } else {
+            let cache_size = cache_size.try_into().unwrap();
+            Some(Mutex::new(LruCache::new(cache_size)))
+        };
+        Self { cache }
     }
 }
 

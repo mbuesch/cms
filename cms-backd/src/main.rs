@@ -51,8 +51,8 @@ struct Opts {
     rundir: PathBuf,
 
     /// The number of elements held in the cache.
-    #[arg(long, default_value = "1024", value_parser = clap::value_parser!(u32).range(1..))]
-    cache_size: u32,
+    #[arg(long, default_value = "1024")]
+    cache_size: usize,
 
     /// Always run in non-systemd mode.
     #[arg(long, default_value = "false")]
