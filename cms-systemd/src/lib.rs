@@ -17,30 +17,30 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use anyhow::{self as ah, format_err as err, Context as _};
+use anyhow::{self as ah, Context as _};
 use std::os::{fd::FromRawFd as _, unix::net::UnixListener};
 
 /// Create a new [UnixListener] with the socket provided by systemd.
 ///
 /// All environment variables related to this operation will be cleared.
-pub fn unix_from_systemd() -> ah::Result<UnixListener> {
-    if !sd_notify::booted().unwrap_or(false) {
-        return Err(err!("Not booted with systemd"));
+pub fn unix_from_systemd() -> ah::Result<Option<UnixListener>> {
+    if sd_notify::booted().unwrap_or(false) {
+        let mut fds = sd_notify::listen_fds().context("Systemd listen_fds")?;
+        if let Some(fd) = fds.next() {
+            // SAFETY:
+            // The fd from systemd is good and lives for the lifetime of the program.
+            return Ok(Some(unsafe { UnixListener::from_raw_fd(fd) }));
+        }
     }
-    let mut fds = sd_notify::listen_fds().context("Systemd listen_fds")?;
-    if let Some(fd) = fds.next() {
-        // SAFETY:
-        // The fd from systemd is good and lives for the lifetime of the program.
-        return Ok(unsafe { UnixListener::from_raw_fd(fd) });
-    }
-    Err(err!("No systemd unix socket fd found"))
+    Ok(None)
 }
 
 /// Notify ready-status to systemd.
 ///
 /// All environment variables related to this operation will be cleared.
 pub fn systemd_notify_ready() -> ah::Result<()> {
-    Ok(sd_notify::notify(true, &[sd_notify::NotifyState::Ready])?)
+    sd_notify::notify(true, &[sd_notify::NotifyState::Ready])?;
+    Ok(())
 }
 
 // vim: ts=4 sw=4 expandtab
