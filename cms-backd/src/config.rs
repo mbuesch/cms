@@ -37,7 +37,9 @@ impl CmsConfig {
     }
 
     pub fn url_base(&self) -> String {
-        self.ini.get(SECT, "url-base").unwrap_or_else(|| "/cms".to_string())
+        self.ini
+            .get(SECT, "url-base")
+            .unwrap_or_else(|| "/cms".to_string())
     }
 }
 

@@ -37,8 +37,8 @@ use std::{
     sync::Arc,
 };
 
-fn html_escape(text: String) -> String {
-    text //TODO: escape &, <, >, " and '
+fn html_safe_escape(text: &str) -> String {
+    html_escape::encode_safe(text).to_string()
 }
 
 fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
@@ -143,7 +143,7 @@ fn get_query_var(get: &CmsGetArgs, variable_name: &str, escape: bool) -> String 
         if !qname.is_empty() {
             let qvalue = get.query.get_str(qname).unwrap_or_default();
             if escape {
-                return html_escape(qvalue);
+                return html_safe_escape(&qvalue);
             } else {
                 return qvalue;
             }
