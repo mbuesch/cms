@@ -171,6 +171,7 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
     });
 
     // Main task.
+    let cache_main = Arc::clone(&cache);
     let exitcode;
     loop {
         tokio::select! {
@@ -185,7 +186,7 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
             }
             _ = sighup.recv() => {
                 eprintln!("SIGHUP: Reloading.");
-                //TODO
+                cache_main.clear().await;
             }
             code = main_exit_rx.recv() => {
                 if let Some(code) = code {

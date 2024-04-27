@@ -49,6 +49,16 @@ impl CmsCache {
         };
         Self { cache }
     }
+
+    pub async fn clear(&self) {
+        if let Some(cache) = &self.cache {
+            let mut cache = cache.lock().await;
+            if !cache.is_empty() {
+                cache.clear();
+                println!("Backend cache cleared.");
+            }
+        }
+    }
 }
 
 // vim: ts=4 sw=4 expandtab

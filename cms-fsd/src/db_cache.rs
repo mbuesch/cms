@@ -121,11 +121,10 @@ impl DbCache {
     pub async fn clear(&self) {
         if let Some(cache) = &self.cache {
             let mut cache = cache.lock().await;
-            if cache.is_empty() {
-                return;
+            if !cache.is_empty() {
+                cache.clear();
+                println!("DB cache cleared.");
             }
-            cache.clear();
-            println!("DB cache cleared.");
         }
     }
 
