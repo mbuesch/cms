@@ -201,6 +201,16 @@ install_py()
     do_systemctl enable cms-backd.socket
 }
 
+install_conf()
+{
+    if ! [ -f /opt/cms/etc/cms/backd.conf ]; then
+        do_install \
+            -o root -g cms-backd -m 0640 \
+            "$basedir/example/backd.conf" \
+            /opt/cms/etc/cms/
+    fi
+}
+
 python=1
 [ "$1" = "--no-python" -o "$1" = "-P" ] && python=0
 
@@ -213,6 +223,7 @@ install_postd
 install_cgi
 [ $python -ne 0 ] && install_py
 [ $python -eq 0 ] && install_backd
+install_conf
 start_services
 
 # vim: ts=4 sw=4 expandtab

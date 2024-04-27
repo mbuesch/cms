@@ -18,6 +18,7 @@ cms-socket = { path = "../cms-socket" }
 cms-socket-back = { path = "../cms-socket-back" }
 cms-socket-db = { path = "../cms-socket-db" }
 cms-socket-post = { path = "../cms-socket-post" }
+configparser = "3"
 lru = "0.12"
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros" ] }
 

@@ -21,6 +21,7 @@
 
 mod backend;
 mod cache;
+mod config;
 mod cookie;
 mod pagegen;
 mod query;
@@ -30,6 +31,7 @@ mod sitemap;
 use crate::{
     backend::{CmsBack, CmsGetArgs, CmsPostArgs},
     cache::CmsCache,
+    config::CmsConfig,
     cookie::Cookie,
     query::Query,
 };
@@ -65,10 +67,11 @@ struct Opts {
 
 async fn process_conn(
     mut conn: CmsSocketConn,
+    config: Arc<CmsConfig>,
     cache: Arc<CmsCache>,
     opts: Arc<Opts>,
 ) -> ah::Result<()> {
-    let mut back = CmsBack::new(cache, &opts.rundir).await;
+    let mut back = CmsBack::new(config, cache, &opts.rundir).await;
     loop {
         let msg = conn.recv_msg(Msg::try_msg_deserialize).await?;
         match msg {
@@ -141,23 +144,26 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
     let mut sighup = signal(SignalKind::hangup()).unwrap();
 
     let mut sock = CmsSocket::from_systemd_or_path(opts.no_systemd, &opts.rundir.join(SOCK_FILE))?;
+    let config = Arc::new(CmsConfig::new()?);
 
     //TODO install seccomp filter.
 
     let cache = Arc::new(CmsCache::new(opts.cache_size));
 
     // Task: Socket handler.
+    let config_sock = Arc::clone(&config);
     let cache_sock = Arc::clone(&cache);
     let opts_sock = Arc::clone(&opts);
     task::spawn(async move {
         loop {
+            let config = Arc::clone(&config_sock);
             let cache = Arc::clone(&cache_sock);
             let opts = Arc::clone(&opts_sock);
             match sock.accept().await {
                 Ok(conn) => {
                     // Socket connection handler.
                     task::spawn(async move {
-                        if let Err(e) = process_conn(conn, cache, opts).await {
+                        if let Err(e) = process_conn(conn, config, cache, opts).await {
                             eprintln!("Client error: {e}");
                         }
                     });

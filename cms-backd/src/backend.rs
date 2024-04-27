@@ -19,6 +19,7 @@
 
 use crate::{
     cache::CmsCache,
+    config::CmsConfig,
     cookie::Cookie,
     pagegen::PageGen,
     query::Query,
@@ -152,6 +153,7 @@ fn get_query_var(get: &CmsGetArgs, variable_name: &str, escape: bool) -> String 
 }
 
 pub struct CmsBack {
+    config: Arc<CmsConfig>,
     #[allow(dead_code)] //TODO
     cache: Arc<CmsCache>,
     sock_path_db: PathBuf,
@@ -161,10 +163,11 @@ pub struct CmsBack {
 }
 
 impl CmsBack {
-    pub async fn new(cache: Arc<CmsCache>, rundir: &Path) -> Self {
+    pub async fn new(config: Arc<CmsConfig>, cache: Arc<CmsCache>, rundir: &Path) -> Self {
         let sock_path_db = rundir.join(SOCK_FILE_DB);
         let sock_path_post = rundir.join(SOCK_FILE_POST);
         Self {
+            config,
             cache,
             sock_path_db,
             sock_path_post,
@@ -273,7 +276,7 @@ impl CmsBack {
             getvar!(get.path.url(UrlComp {
                 protocol: None,
                 domain: None,
-                base: Some("/cms"), //TODO
+                base: Some(&self.config.url_base()),
             })),
         );
         vars.register(
