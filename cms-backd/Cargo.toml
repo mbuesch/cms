@@ -19,6 +19,7 @@ cms-socket-back = { path = "../cms-socket-back" }
 cms-socket-db = { path = "../cms-socket-db" }
 cms-socket-post = { path = "../cms-socket-post" }
 configparser = "3"
+crunchy = { git = "https://github.com/mbuesch/crunchy.git", rev = "433a4d08b859031f22d80197931c555c8af7b1fb" }
 html-escape = "0.2"
 lru = "0.12"
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros" ] }

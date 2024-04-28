@@ -18,6 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{collections::HashMap, rc::Rc};
+use crunchy::unroll;
 
 pub type VarName<'a> = &'a str;
 pub type VarFn<'a> = Rc<dyn Fn(&str) -> String + Send + Sync + 'a>;
@@ -28,6 +29,8 @@ macro_rules! getvar {
     };
 }
 pub(crate) use getvar;
+
+const ESCAPE_CHARS: [char; 6] = ['\\', ',', '@', '$', '(', ')'];
 
 pub struct ResolverVars<'a> {
     vars: HashMap<VarName<'a>, VarFn<'a>>,
@@ -56,14 +59,14 @@ impl<'a> ResolverVars<'a> {
         // Find normal variable.
         if let Some(fun) = self.vars.get(name) {
             // Call the getter.
-            return Resolver::escape(fun(name));
+            return Resolver::escape(&fun(name));
         }
         // Find variable by prefix.
         if let Some(index) = name.find('_') {
             if index > 0 {
                 if let Some(fun) = self.prefixes.get(&name[..index]) {
                     // Call the getter.
-                    return Resolver::escape(fun(name));
+                    return Resolver::escape(&fun(name));
                 }
             }
         }
@@ -77,14 +80,37 @@ pub struct Resolver<'a> {
 }
 
 impl<'a> Resolver<'a> {
-    pub fn escape(text: String) -> String {
-        //TODO
-        text
+    pub fn escape(text: &str) -> String {
+        let mut escaped = String::with_capacity(text.len() * 2);
+        'mainloop: for c in text.chars() {
+            debug_assert_eq!(ESCAPE_CHARS.len(), 6);
+            unroll! {
+                for i in 0..6 {
+                    if c == ESCAPE_CHARS[i] {
+                        escaped.push('\\');
+                        escaped.push(c);
+                        continue 'mainloop;
+                    }
+                }
+            }
+            escaped.push(c);
+        }
+        escaped
     }
 
-    pub fn unescape(text: String) -> String {
-        //TODO
-        text
+    pub fn unescape(text: &str) -> String {
+        let mut unescaped = String::with_capacity(text.len());
+        let mut text_chars = text.chars();
+        while let Some(c) = text_chars.next() {
+            if c == '\\' {
+                if let Some(nc) = text_chars.next() {
+                    unescaped.push(nc);
+                }
+            } else {
+                unescaped.push(c);
+            }
+        }
+        unescaped
     }
 
     pub fn new(vars: &'a ResolverVars<'a>) -> Self {

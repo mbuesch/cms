@@ -244,6 +244,7 @@ dependencies = [
  "cms-socket-db",
  "cms-socket-post",
  "configparser",
+ "crunchy",
  "html-escape",
  "lru",
  "tokio",
@@ -379,6 +380,11 @@ name = "core-foundation-sys"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
+
+[[package]]
+name = "crunchy"
+version = "0.2.3"
+source = "git+https://github.com/mbuesch/crunchy.git?rev=433a4d08b859031f22d80197931c555c8af7b1fb#433a4d08b859031f22d80197931c555c8af7b1fb"
 
 [[package]]
 name = "futures-core"
