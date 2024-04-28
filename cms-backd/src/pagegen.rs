@@ -34,8 +34,60 @@ impl<'a> PageGen<'a> {
         Self { get, config }
     }
 
-    fn generate_body(&mut self, data: &str, stamp: &DateTime<Utc>) -> String {
-        "".to_string() //TODO
+    fn generate_body(&mut self, title: &str, page_content: &str, stamp: &DateTime<Utc>) -> String {
+        let url_base = self.config.url_base();
+
+        let nav_root_active_begin;
+        let nav_root_active_end;
+        if true {
+            //TODO
+            nav_root_active_begin = r#"<div class="navactive">"#;
+            nav_root_active_end = r#"</div> <!-- class="navactive" -->"#;
+        } else {
+            nav_root_active_begin = "";
+            nav_root_active_end = "";
+        }
+        let nav_home_href = ""; //TODO
+        let nav_home_text = ""; //TODO
+        let nav = ""; //TODO
+
+        let page_stamp = ""; //TODO
+        let page_checker = ""; //TODO
+
+        format!(
+            r#"
+<div class="titlebar">
+    <div class="logo">
+        <a href="{url_base}">
+            <img alt="logo" src="{url_base}/__images/logo.png" />
+        </a>
+    </div>
+    <div class="title">{title}</div>
+</div>
+
+<div class="navbar">
+    <div class="navgroups">
+        <div class="navhome">
+        {nav_root_active_begin}
+            <a href="{nav_home_href}">{nav_home_text}</a>
+        {nav_root_active_end}
+        </div>
+        {nav}
+    </div>
+</div>
+
+<div class="main">
+
+<!-- BEGIN: page content -->
+{page_content}
+<!-- END: page content -->
+
+{page_stamp}
+{page_checker}
+
+</div> <!-- class="main" -->
+"#
+        )
     }
 
     pub fn generate(
@@ -49,7 +101,8 @@ impl<'a> PageGen<'a> {
         let now = now.to_rfc3339_opts(SecondsFormat::Secs, true);
         let title = title.trim();
         let extra_head = ""; //TODO
-        let body = self.generate_body(data, stamp);
+        let body = self.generate_body(title, data, stamp);
+        let body = body.trim();
         let url_base = self.config.url_base();
 
         let html = format!(
@@ -73,7 +126,8 @@ impl<'a> PageGen<'a> {
 <body>
 {body}
 </body>
-</html>"#
+</html>
+"#
         );
 
         CmsReply::ok(
