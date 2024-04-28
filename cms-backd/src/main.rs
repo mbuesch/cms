@@ -82,7 +82,7 @@ async fn process_conn(
                 cookie,
                 query,
             }) => {
-                let path = path.into_cleaned_path().into_checked()?;
+                let path = path.into_cleaned_path().into_checked_sys()?;
 
                 let reply = back
                     .get(&CmsGetArgs {
@@ -144,7 +144,7 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
     let mut sighup = signal(SignalKind::hangup()).unwrap();
 
     let mut sock = CmsSocket::from_systemd_or_path(opts.no_systemd, &opts.rundir.join(SOCK_FILE))?;
-    let config = Arc::new(CmsConfig::new()?);
+    let config = Arc::new(CmsConfig::new().context("backd.conf")?);
 
     //TODO install seccomp filter.
 
