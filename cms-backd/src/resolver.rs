@@ -17,8 +17,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, rc::Rc};
 use crunchy::unroll;
+use std::{collections::HashMap, rc::Rc};
 
 pub type VarName<'a> = &'a str;
 pub type VarFn<'a> = Rc<dyn Fn(&str) -> String + Send + Sync + 'a>;
@@ -119,6 +119,32 @@ impl<'a> Resolver<'a> {
 
     pub fn run(&mut self, input: &str) -> String {
         input.to_string() //TODO
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_escape() {
+        assert_eq!(Resolver::escape(""), "");
+        assert_eq!(Resolver::escape("\\,@$()"), "\\\\\\,\\@\\$\\(\\)");
+        assert_eq!(
+            Resolver::escape("abc\\def,@$x(x)x"),
+            "abc\\\\def\\,\\@\\$x\\(x\\)x"
+        );
+        assert_eq!(
+            Resolver::unescape("abc\\\\def\\,\\@\\$\\(\\)"),
+            "abc\\def,@$()"
+        );
+        assert_eq!(Resolver::unescape("abc\\"), "abc"); // dangling escape
+        assert_eq!(
+            Resolver::unescape(&Resolver::unescape(&Resolver::unescape(&Resolver::escape(
+                &Resolver::escape(&Resolver::escape("\\,@$()abc"))
+            )))),
+            "\\,@$()abc"
+        );
     }
 }
 
