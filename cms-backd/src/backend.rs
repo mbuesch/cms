@@ -276,7 +276,7 @@ impl CmsBack {
             getvar!(get.path.url(UrlComp {
                 protocol: None,
                 domain: None,
-                base: Some(&self.config.url_base()),
+                base: Some(self.config.url_base()),
             })),
         );
         vars.register(
@@ -295,7 +295,9 @@ impl CmsBack {
         data = Resolver::new(&vars).run(&data);
         headers = Resolver::new(&vars).run(&headers);
 
-        PageGen::new(get).generate(&title, &headers, &data, stamp)
+        let now = Utc::now();
+
+        PageGen::new(get, Arc::clone(&self.config)).generate(&title, &headers, &data, &now, &stamp)
     }
 
     async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> CmsReply {
