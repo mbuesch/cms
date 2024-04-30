@@ -87,6 +87,9 @@ impl FromStr for Ident {
 }
 
 impl Ident {
+    /// Ident path of the root `/`.
+    pub const ROOT: Ident = Ident(String::new());
+
     /// Returns a reference to the raw string.
     #[inline]
     fn as_str(&self) -> &str {
@@ -253,6 +256,11 @@ impl Ident {
 /// This can only be constructed via [Ident::into_checked]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CheckedIdent(Ident);
+
+impl CheckedIdent {
+    /// Ident path of the root `/`.
+    pub const ROOT: CheckedIdent = CheckedIdent(Ident::ROOT);
+}
 
 /// A checked wrapper around [Ident].
 ///
