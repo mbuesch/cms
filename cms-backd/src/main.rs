@@ -23,6 +23,7 @@ mod backend;
 mod cache;
 mod config;
 mod cookie;
+mod navtree;
 mod pagegen;
 mod query;
 mod resolver;

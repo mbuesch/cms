@@ -21,6 +21,7 @@ use crate::{
     cache::CmsCache,
     config::CmsConfig,
     cookie::Cookie,
+    navtree::NavTree,
     pagegen::PageGen,
     query::Query,
     resolver::{getvar, Resolver, ResolverVars},
@@ -152,23 +153,19 @@ fn get_query_var(get: &CmsGetArgs, variable_name: &str, escape: bool) -> String 
     Default::default()
 }
 
-pub struct CmsBack {
-    config: Arc<CmsConfig>,
-    #[allow(dead_code)] //TODO
-    cache: Arc<CmsCache>,
+/// Communication with database and post handler.
+pub struct CmsComm {
     sock_path_db: PathBuf,
     sock_path_post: PathBuf,
     sock_db: Option<CmsSocketConn>,
     sock_post: Option<CmsSocketConn>,
 }
 
-impl CmsBack {
-    pub async fn new(config: Arc<CmsConfig>, cache: Arc<CmsCache>, rundir: &Path) -> Self {
+impl CmsComm {
+    fn new(rundir: &Path) -> Self {
         let sock_path_db = rundir.join(SOCK_FILE_DB);
         let sock_path_post = rundir.join(SOCK_FILE_POST);
         Self {
-            config,
-            cache,
             sock_path_db,
             sock_path_post,
             sock_db: None,
@@ -176,21 +173,21 @@ impl CmsBack {
         }
     }
 
-    async fn sock_db(&mut self) -> ah::Result<&mut CmsSocketConn> {
+    pub async fn sock_db(&mut self) -> ah::Result<&mut CmsSocketConn> {
         if self.sock_db.is_none() {
             self.sock_db = Some(CmsSocketConn::connect(&self.sock_path_db).await?);
         }
         Ok(self.sock_db.as_mut().unwrap())
     }
 
-    async fn sock_post(&mut self) -> ah::Result<&mut CmsSocketConn> {
+    pub async fn sock_post(&mut self) -> ah::Result<&mut CmsSocketConn> {
         if self.sock_post.is_none() {
             self.sock_post = Some(CmsSocketConn::connect(&self.sock_path_post).await?);
         }
         Ok(self.sock_post.as_mut().unwrap())
     }
 
-    async fn comm_db(&mut self, request: &MsgDb) -> ah::Result<MsgDb> {
+    pub async fn comm_db(&mut self, request: &MsgDb) -> ah::Result<MsgDb> {
         let sock = self.sock_db().await?;
         sock.send_msg(request).await?;
         if let Some(reply) = sock.recv_msg(MsgDb::try_msg_deserialize).await? {
@@ -200,7 +197,7 @@ impl CmsBack {
         }
     }
 
-    async fn comm_post(&mut self, request: &MsgPost) -> ah::Result<MsgPost> {
+    pub async fn comm_post(&mut self, request: &MsgPost) -> ah::Result<MsgPost> {
         let sock = self.sock_post().await?;
         sock.send_msg(request).await?;
         if let Some(reply) = sock.recv_msg(MsgPost::try_msg_deserialize).await? {
@@ -210,7 +207,7 @@ impl CmsBack {
         }
     }
 
-    async fn get_db_string(&mut self, name: &str) -> ah::Result<Vec<u8>> {
+    pub async fn get_db_string(&mut self, name: &str) -> ah::Result<Vec<u8>> {
         let reply = self
             .comm_db(&MsgDb::GetString {
                 name: name.parse().context("Invalid DB string name")?,
@@ -222,9 +219,27 @@ impl CmsBack {
             Err(err!("String: Invalid db reply."))
         }
     }
+}
+
+pub struct CmsBack {
+    config: Arc<CmsConfig>,
+    #[allow(dead_code)] //TODO
+    cache: Arc<CmsCache>,
+    comm: CmsComm,
+}
+
+impl CmsBack {
+    pub async fn new(config: Arc<CmsConfig>, cache: Arc<CmsCache>, rundir: &Path) -> Self {
+        Self {
+            config,
+            cache,
+            comm: CmsComm::new(rundir),
+        }
+    }
 
     async fn get_page(&mut self, get: &CmsGetArgs) -> CmsReply {
         let reply = self
+            .comm
             .comm_db(&MsgDb::GetPage {
                 path: get.path.downgrade_clone(),
                 get_title: true,
@@ -252,6 +267,7 @@ impl CmsBack {
         let stamp = epoch_stamp(stamp.unwrap_or_default());
 
         let reply = self
+            .comm
             .comm_db(&MsgDb::GetHeaders {
                 path: get.path.downgrade_clone(),
             })
@@ -260,6 +276,8 @@ impl CmsBack {
             return CmsReply::internal_error("GetHeaders: Invalid db reply");
         };
         let mut headers = String::from_utf8(headers).unwrap_or_default();
+
+        let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, &get.path).await;
 
         let mut vars = ResolverVars::new();
         vars.register("PROTOCOL", getvar!(get.protocol_str().to_string()));
@@ -314,7 +332,7 @@ impl CmsBack {
         if let Some(css_name) = get.path.nth_element_str(1) {
             if css_name == "cms.css" {
                 return result_to_reply!(
-                    self.get_db_string("css").await,
+                    self.comm.get_db_string("css").await,
                     "text/css; charset=UTF-8",
                     not_found
                 );
