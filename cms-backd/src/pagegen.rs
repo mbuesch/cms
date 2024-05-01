@@ -23,8 +23,8 @@ use crate::{
     navtree::{NavElem, NavTree},
 };
 use anyhow as ah;
-use chrono::{DateTime, SecondsFormat, Utc};
-use cms_ident::UrlComp;
+use chrono::prelude::*;
+use cms_ident::{CheckedIdent, UrlComp};
 use std::{fmt::Write as _, sync::Arc, writeln as ln};
 
 const DEFAULT_HTML_ALLOC: usize = 1024 * 64;
@@ -110,22 +110,22 @@ impl<'a> PageGen<'a> {
 
     #[rustfmt::skip]
     fn generate_nav(&self, b: &mut String, navtree: &NavTree) -> ah::Result<()> {
-        let nav_home_href = ""; //TODO
+        let c = &self.config;
+        let nav_home_href = CheckedIdent::ROOT.url(UrlComp {
+            protocol: None,
+            domain: None,
+            base: Some(c.url_base()),
+        });
         let nav_home_text = ""; //TODO
 
         ln!(b, r#"<div class="navbar">"#)?;
         ln!(b, r#"    <div class="navgroups">"#)?;
         ln!(b, r#"        <div class="navhome">"#)?;
-        if true {
-            //TODO
+        if self.get.path.is_root() {
             ln!(b, r#"        <div class="navactive">"#)?;
         }
-        ln!(
-            b,
-            r#"            <a href="{nav_home_href}">{nav_home_text}</a>"#
-        )?;
-        if true {
-            //TODO
+        ln!(b, r#"            <a href="{nav_home_href}">{nav_home_text}</a>"#)?;
+        if self.get.path.is_root() {
             ln!(b, r#"        </div>"#)?; // navactive
         }
         ln!(b, r#"        </div>"#)?; // navhome
@@ -148,7 +148,7 @@ impl<'a> PageGen<'a> {
         navtree: &NavTree,
     ) -> ah::Result<()> {
         let c = &self.config;
-        let page_stamp = ""; //TODO
+        let page_stamp = stamp.format("%A %d %B %Y %H:%M");
         let page_checker = ""; //TODO
 
         ln!(b, r#"<div class="titlebar">"#)?;
@@ -166,7 +166,10 @@ impl<'a> PageGen<'a> {
         ln!(b, r#"{page_content}"#)?;
         ln!(b, r#"<!-- END: page content -->"#)?;
         ln!(b)?;
-        ln!(b, r#"{page_stamp}"#)?;
+        ln!(b, r#"<div class="modifystamp">"#)?;
+        ln!(b, r#"Updated: {page_stamp} (UTC)"#)?;
+        ln!(b, r#"</div>"#)?;
+        ln!(b)?;
         ln!(b, r#"{page_checker}"#)?;
         ln!(b)?;
         ln!(b, r#"</div> <!-- class="main" -->"#)?;

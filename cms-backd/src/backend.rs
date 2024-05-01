@@ -27,7 +27,7 @@ use crate::{
     resolver::{getvar, Resolver, ResolverVars},
 };
 use anyhow::{self as ah, format_err as err, Context as _};
-use chrono::{DateTime, Utc};
+use chrono::prelude::*;
 use cms_ident::{CheckedIdent, UrlComp};
 use cms_socket::{CmsSocketConn, MsgSerde as _};
 use cms_socket_db::{Msg as MsgDb, SOCK_FILE as SOCK_FILE_DB};
