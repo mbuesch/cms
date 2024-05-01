@@ -445,7 +445,7 @@ impl CheckedIdent {
             }
         }
 
-        if !url.is_empty() {
+        if !url.is_empty() && !url.ends_with('/') {
             url.push_str(".html");
         }
 
