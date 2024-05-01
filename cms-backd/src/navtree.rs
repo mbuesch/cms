@@ -138,7 +138,7 @@ impl NavTree {
                 continue;
             };
             let sub_prio = prios[i];
-            let sub_active = *active == sub_ident; //TODO: active.starts_with(sub_ident)
+            let sub_active = active.starts_with(sub_ident.as_downgrade_ref());
 
             let sub_children = Self::build_sub(comm, &sub_ident, active, depth + 1).await;
 

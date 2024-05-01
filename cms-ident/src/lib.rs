@@ -96,6 +96,16 @@ impl Ident {
         &self.0
     }
 
+    /// Check if this ident path starts with all elements from another ident path.
+    #[inline]
+    pub fn starts_with(&self, other: &Ident) -> bool {
+        if other.0.is_empty() {
+            false
+        } else {
+            self.0.starts_with(&other.0)
+        }
+    }
+
     /// Get an iterator over all ident path elements.
     ///
     /// Note that this returns an iterator that yields one empty element
