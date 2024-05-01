@@ -109,14 +109,19 @@ impl<'a> PageGen<'a> {
     }
 
     #[rustfmt::skip]
-    fn generate_nav(&self, b: &mut String, navtree: &NavTree) -> ah::Result<()> {
+    fn generate_nav(
+        &self,
+        b: &mut String,
+        navtree: &NavTree,
+        homestr: &str,
+    ) -> ah::Result<()> {
         let c = &self.config;
         let nav_home_href = CheckedIdent::ROOT.url(UrlComp {
             protocol: None,
             domain: None,
             base: Some(c.url_base()),
         });
-        let nav_home_text = ""; //TODO
+        let nav_home_text = homestr.trim();
 
         ln!(b, r#"<div class="navbar">"#)?;
         ln!(b, r#"    <div class="navgroups">"#)?;
@@ -146,6 +151,7 @@ impl<'a> PageGen<'a> {
         page_content: &str,
         stamp: &DateTime<Utc>,
         navtree: &NavTree,
+        homestr: &str,
     ) -> ah::Result<()> {
         let c = &self.config;
         let page_stamp = stamp.format("%A %d %B %Y %H:%M");
@@ -159,7 +165,7 @@ impl<'a> PageGen<'a> {
         ln!(b, r#"    </div>"#)?;
         ln!(b, r#"    <div class="title">{title}</div>"#)?;
         ln!(b, r#"</div>"#)?;
-        self.generate_nav(b, navtree)?;
+        self.generate_nav(b, navtree, homestr)?;
         ln!(b, r#"<div class="main">"#)?;
         ln!(b)?;
         ln!(b, r#"<!-- BEGIN: page content -->"#)?;
@@ -177,6 +183,7 @@ impl<'a> PageGen<'a> {
     }
 
     #[rustfmt::skip]
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_html(
         &self,
         title: &str,
@@ -185,6 +192,7 @@ impl<'a> PageGen<'a> {
         now: &DateTime<Utc>,
         stamp: &DateTime<Utc>,
         navtree: &NavTree,
+        homestr: &str,
     ) -> ah::Result<String> {
         let c = &self.config;
         let mut b = String::with_capacity(DEFAULT_HTML_ALLOC);
@@ -213,12 +221,13 @@ impl<'a> PageGen<'a> {
         ln!(b, r#"    {extra_head}"#)?;
         ln!(b, r#"</head>"#)?;
         ln!(b, r#"<body>"#)?;
-        self.generate_body(&mut b, title, data, stamp, navtree)?;
+        self.generate_body(&mut b, title, data, stamp, navtree, homestr)?;
         ln!(b, r#"</body>"#)?;
         ln!(b, r#"</html>"#)?;
         Ok(b)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn generate(
         &self,
         title: &str,
@@ -227,8 +236,9 @@ impl<'a> PageGen<'a> {
         now: &DateTime<Utc>,
         stamp: &DateTime<Utc>,
         navtree: &NavTree,
+        homestr: &str,
     ) -> CmsReply {
-        if let Ok(b) = self.generate_html(title, headers, data, now, stamp, navtree) {
+        if let Ok(b) = self.generate_html(title, headers, data, now, stamp, navtree, homestr) {
             CmsReply::ok(
                 b.into_bytes(),
                 "application/xhtml+xml; charset=UTF-8".to_string(),

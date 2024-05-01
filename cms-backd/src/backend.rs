@@ -279,6 +279,9 @@ impl CmsBack {
 
         let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, &get.path).await;
 
+        let homestr = self.comm.get_db_string("home").await;
+        let mut homestr = String::from_utf8(homestr.unwrap_or_default()).unwrap_or_default();
+
         let mut vars = ResolverVars::new();
         vars.register("PROTOCOL", getvar!(get.protocol_str().to_string()));
         vars.register(
@@ -312,11 +315,12 @@ impl CmsBack {
         vars.register("TITLE", getvar!(title.clone()));
         data = Resolver::new(&vars).run(&data);
         headers = Resolver::new(&vars).run(&headers);
+        homestr = Resolver::new(&vars).run(&homestr);
 
         let now = Utc::now();
 
         PageGen::new(get, Arc::clone(&self.config))
-            .generate(&title, &headers, &data, &now, &stamp, &navtree)
+            .generate(&title, &headers, &data, &now, &stamp, &navtree, &homestr)
     }
 
     async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> CmsReply {
