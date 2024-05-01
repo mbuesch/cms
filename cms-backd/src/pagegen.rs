@@ -24,6 +24,7 @@ use crate::{
 };
 use anyhow as ah;
 use chrono::{DateTime, SecondsFormat, Utc};
+use cms_ident::UrlComp;
 use std::{fmt::Write as _, sync::Arc, writeln as ln};
 
 const DEFAULT_HTML_ALLOC: usize = 1024 * 64;
@@ -56,6 +57,7 @@ impl<'a> PageGen<'a> {
             return Ok(());
         }
 
+        let c = &self.config;
         let ii = make_indent(indent + 1);
 
         if indent > 0 {
@@ -67,7 +69,11 @@ impl<'a> PageGen<'a> {
             if nav_label.is_empty() {
                 continue;
             }
-            let nav_href = ""; //TODO
+            let nav_href = navelem.path().url(UrlComp {
+                protocol: None,
+                domain: None,
+                base: Some(c.url_base()),
+            });
             let prio = navelem.prio();
 
             let cls = if indent > 0 { "navelem" } else { "navgroup" };

@@ -28,6 +28,7 @@ const MAX_DEPTH: usize = 64;
 pub struct NavElem {
     name: String,
     nav_label: String,
+    path: CheckedIdent,
     prio: u64,
     active: bool,
     children: Vec<NavElem>,
@@ -40,6 +41,10 @@ impl NavElem {
 
     pub fn nav_label(&self) -> &str {
         &self.nav_label
+    }
+
+    pub fn path(&self) -> &CheckedIdent {
+        &self.path
     }
 
     pub fn prio(&self) -> u64 {
@@ -140,6 +145,7 @@ impl NavTree {
             ret.push(NavElem {
                 name: sub_name,
                 nav_label: sub_nav_label,
+                path: sub_ident,
                 prio: sub_prio,
                 active: sub_active,
                 children: sub_children,
