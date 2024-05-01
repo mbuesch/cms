@@ -96,6 +96,12 @@ impl Ident {
         &self.0
     }
 
+    /// Check if this ident path is the root ident.
+    #[inline]
+    pub fn is_root(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Check if this ident path starts with all elements from another ident path.
     #[inline]
     pub fn starts_with(&self, other: &Ident) -> bool {
