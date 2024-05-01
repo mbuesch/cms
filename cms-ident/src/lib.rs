@@ -153,8 +153,11 @@ impl Ident {
 
     /// Clone self and append one element.
     pub fn clone_append(&self, append_elem: &str) -> Ident {
+        assert!(!append_elem.contains(ELEMSEP));
         let mut new = self.clone();
-        new.0.push(ELEMSEP);
+        if !new.0.is_empty() {
+            new.0.push(ELEMSEP);
+        }
         new.0.push_str(append_elem);
         new
     }
