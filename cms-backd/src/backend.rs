@@ -315,7 +315,8 @@ impl CmsBack {
 
         let now = Utc::now();
 
-        PageGen::new(get, Arc::clone(&self.config)).generate(&title, &headers, &data, &now, &stamp)
+        PageGen::new(get, Arc::clone(&self.config))
+            .generate(&title, &headers, &data, &now, &stamp, &navtree)
     }
 
     async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> CmsReply {

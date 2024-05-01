@@ -20,9 +20,19 @@
 use crate::{
     backend::{CmsGetArgs, CmsReply},
     config::CmsConfig,
+    navtree::{NavElem, NavTree},
 };
+use anyhow as ah;
 use chrono::{DateTime, SecondsFormat, Utc};
-use std::sync::Arc;
+use std::{fmt::Write as _, sync::Arc, writeln as ln};
+
+const DEFAULT_HTML_ALLOC: usize = 1024 * 64;
+
+#[inline]
+fn make_indent(indent: usize) -> &'static str {
+    const TEMPLATE: &str = "                                        ";
+    &TEMPLATE[..(indent * 4).min(TEMPLATE.len())]
+}
 
 pub struct PageGen<'a> {
     get: &'a CmsGetArgs,
@@ -34,106 +44,189 @@ impl<'a> PageGen<'a> {
         Self { get, config }
     }
 
-    fn generate_body(&mut self, title: &str, page_content: &str, stamp: &DateTime<Utc>) -> String {
-        let url_base = self.config.url_base();
-
-        let nav_root_active_begin;
-        let nav_root_active_end;
-        if true {
-            //TODO
-            nav_root_active_begin = r#"<div class="navactive">"#;
-            nav_root_active_end = r#"</div> <!-- class="navactive" -->"#;
-        } else {
-            nav_root_active_begin = "";
-            nav_root_active_end = "";
+    #[rustfmt::skip]
+    #[allow(clippy::only_used_in_recursion)]
+    fn generate_navelem(
+        &self,
+        b: &mut String,
+        navelems: &[NavElem],
+        indent: usize,
+    ) -> ah::Result<()> {
+        if navelems.is_empty() {
+            return Ok(());
         }
+
+        let ii = make_indent(indent + 1);
+
+        if indent > 0 {
+            ln!(b, r#"{ii}<div class="navelems">"#)?;
+        }
+
+        for navelem in navelems {
+            let nav_label = navelem.nav_label().trim();
+            if nav_label.is_empty() {
+                continue;
+            }
+            let nav_href = ""; //TODO
+            let prio = navelem.prio();
+
+            let cls = if indent > 0 { "navelem" } else { "navgroup" };
+            ln!(b, r#"{ii}    <div class="{cls}"> <!-- {prio} -->"#)?;
+
+            if indent == 0 {
+                ln!(b, r#"{ii}        <div class="navhead">"#)?;
+            }
+
+            if navelem.active() {
+                ln!(b, r#"{ii}        <div class="navactive">"#)?;
+            }
+
+            ln!(b, r#"{ii}        <a href="{nav_href}">{nav_label}</a>"#)?;
+
+            if navelem.active() {
+                ln!(b, r#"{ii}        </div>"#)?; // navactive
+            }
+
+            if indent == 0 {
+                ln!(b, r#"{ii}        </div>"#)?; // navhead
+            }
+
+            self.generate_navelem(b, navelem.children(), indent + 2)?;
+
+            ln!(b, r#"{ii}    </div>"#)?; // navelem / navgroup
+        }
+
+        if indent > 0 {
+            ln!(b, r#"{ii}</div>"#)?; // navelems
+        }
+        Ok(())
+    }
+
+    #[rustfmt::skip]
+    fn generate_nav(&self, b: &mut String, navtree: &NavTree) -> ah::Result<()> {
         let nav_home_href = ""; //TODO
         let nav_home_text = ""; //TODO
-        let nav = ""; //TODO
 
+        ln!(b, r#"<div class="navbar">"#)?;
+        ln!(b, r#"    <div class="navgroups">"#)?;
+        ln!(b, r#"        <div class="navhome">"#)?;
+        if true {
+            //TODO
+            ln!(b, r#"        <div class="navactive">"#)?;
+        }
+        ln!(
+            b,
+            r#"            <a href="{nav_home_href}">{nav_home_text}</a>"#
+        )?;
+        if true {
+            //TODO
+            ln!(b, r#"        </div>"#)?; // navactive
+        }
+        ln!(b, r#"        </div>"#)?; // navhome
+
+        self.generate_navelem(b, navtree.elems(), 0)?;
+
+        ln!(b, r#"    </div>"#)?; // navgroups
+        ln!(b, r#"</div>"#)?; // navbar
+
+        Ok(())
+    }
+
+    #[rustfmt::skip]
+    fn generate_body(
+        &self,
+        b: &mut String,
+        title: &str,
+        page_content: &str,
+        stamp: &DateTime<Utc>,
+        navtree: &NavTree,
+    ) -> ah::Result<()> {
+        let c = &self.config;
         let page_stamp = ""; //TODO
         let page_checker = ""; //TODO
 
-        format!(
-            r#"
-<div class="titlebar">
-    <div class="logo">
-        <a href="{url_base}">
-            <img alt="logo" src="{url_base}/__images/logo.png" />
-        </a>
-    </div>
-    <div class="title">{title}</div>
-</div>
-
-<div class="navbar">
-    <div class="navgroups">
-        <div class="navhome">
-        {nav_root_active_begin}
-            <a href="{nav_home_href}">{nav_home_text}</a>
-        {nav_root_active_end}
-        </div>
-        {nav}
-    </div>
-</div>
-
-<div class="main">
-
-<!-- BEGIN: page content -->
-{page_content}
-<!-- END: page content -->
-
-{page_stamp}
-{page_checker}
-
-</div> <!-- class="main" -->
-"#
-        )
+        ln!(b, r#"<div class="titlebar">"#)?;
+        ln!(b, r#"    <div class="logo">"#)?;
+        ln!(b, r#"        <a href="{}">"#, c.url_base())?;
+        ln!(b, r#"            <img alt="logo" src="{}/__images/logo.png" />"#, c.url_base())?;
+        ln!(b, r#"        </a>"#)?;
+        ln!(b, r#"    </div>"#)?;
+        ln!(b, r#"    <div class="title">{title}</div>"#)?;
+        ln!(b, r#"</div>"#)?;
+        self.generate_nav(b, navtree)?;
+        ln!(b, r#"<div class="main">"#)?;
+        ln!(b)?;
+        ln!(b, r#"<!-- BEGIN: page content -->"#)?;
+        ln!(b, r#"{page_content}"#)?;
+        ln!(b, r#"<!-- END: page content -->"#)?;
+        ln!(b)?;
+        ln!(b, r#"{page_stamp}"#)?;
+        ln!(b, r#"{page_checker}"#)?;
+        ln!(b)?;
+        ln!(b, r#"</div> <!-- class="main" -->"#)?;
+        Ok(())
     }
 
-    pub fn generate(
-        &mut self,
+    #[rustfmt::skip]
+    pub fn generate_html(
+        &self,
         title: &str,
         headers: &str,
         data: &str,
         now: &DateTime<Utc>,
         stamp: &DateTime<Utc>,
-    ) -> CmsReply {
-        let now = now.to_rfc3339_opts(SecondsFormat::Secs, true);
+        navtree: &NavTree,
+    ) -> ah::Result<String> {
+        let c = &self.config;
+        let mut b = String::with_capacity(DEFAULT_HTML_ALLOC);
+
         let title = title.trim();
+        let now = now.to_rfc3339_opts(SecondsFormat::Secs, true);
         let extra_head = ""; //TODO
-        let body = self.generate_body(title, data, stamp);
-        let body = body.trim();
-        let url_base = self.config.url_base();
 
-        let html = format!(
-            r#"<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
-<head>
-    <!--
-        Generated by: Simple Rust based CMS
-        https://bues.ch/cgit/cms.git/about/
-        https://github.com/mbuesch/cms
-    -->
-    <meta name="generator" content="Simple Rust based CMS" />
-    <meta name="date" content="{now}" />
-    <meta name="robots" content="all" />
-    <title>{title}</title>
-    <link rel="stylesheet" href="{url_base}/__css/cms.css" type="text/css" />
-    <link rel="sitemap" type="application/xml" title="Sitemap" href="{url_base}/__sitemap.xml" />
-    {extra_head}
-</head>
-<body>
-{body}
-</body>
-</html>
-"#
-        );
+        ln!(b, r#"<?xml version="1.0" encoding="UTF-8" ?>"#)?;
+        ln!(b, r#"<!DOCTYPE html>"#)?;
+        ln!(b, r#"<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">"#)?;
+        ln!(b, r#"<head>"#)?;
+        ln!(b, r#"    <!--"#)?;
+        ln!(b, r#"        Generated by: Simple Rust based CMS"#)?;
+        ln!(b, r#"        https://bues.ch/cgit/cms.git/about/"#)?;
+        ln!(b, r#"        https://github.com/mbuesch/cms"#)?;
+        ln!(b, r#"    -->"#)?;
+        ln!(b, r#"    <meta name="generator" content="Simple Rust based CMS" />"#)?;
+        ln!(b, r#"    <meta name="date" content="{now}" />"#)?;
+        ln!(b, r#"    <meta name="robots" content="all" />"#)?;
+        ln!(b, r#"    <title>{title}</title>"#)?;
+        ln!(b, r#"    <link rel="stylesheet" href="{}/__css/cms.css" type="text/css" />"#,
+            c.url_base())?;
+        ln!(b, r#"    <link rel="sitemap" type="application/xml" title="Sitemap" href="{}/__sitemap.xml" />"#,
+            c.url_base())?;
+        ln!(b, r#"    {extra_head}"#)?;
+        ln!(b, r#"</head>"#)?;
+        ln!(b, r#"<body>"#)?;
+        self.generate_body(&mut b, title, data, stamp, navtree)?;
+        ln!(b, r#"</body>"#)?;
+        ln!(b, r#"</html>"#)?;
+        Ok(b)
+    }
 
-        CmsReply::ok(
-            html.into_bytes(),
-            "application/xhtml+xml; charset=UTF-8".to_string(),
-        )
+    pub fn generate(
+        &self,
+        title: &str,
+        headers: &str,
+        data: &str,
+        now: &DateTime<Utc>,
+        stamp: &DateTime<Utc>,
+        navtree: &NavTree,
+    ) -> CmsReply {
+        if let Ok(b) = self.generate_html(title, headers, data, now, stamp, navtree) {
+            CmsReply::ok(
+                b.into_bytes(),
+                "application/xhtml+xml; charset=UTF-8".to_string(),
+            )
+        } else {
+            CmsReply::internal_error("PageGen failed")
+        }
     }
 }
 

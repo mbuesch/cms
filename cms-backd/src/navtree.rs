@@ -29,6 +29,7 @@ pub struct NavElem {
     name: String,
     nav_label: String,
     prio: u64,
+    active: bool,
     children: Vec<NavElem>,
 }
 
@@ -43,6 +44,10 @@ impl NavElem {
 
     pub fn prio(&self) -> u64 {
         self.prio
+    }
+
+    pub fn active(&self) -> bool {
+        self.active
     }
 
     pub fn children(&self) -> &[NavElem] {
@@ -115,16 +120,20 @@ impl NavTree {
 
         let mut ret = Vec::with_capacity(count);
         for i in 0..count {
+            let Ok(sub_nav_label) = String::from_utf8(nav_labels[i].clone()) else {
+                continue;
+            };
+            if sub_nav_label.trim().is_empty() {
+                continue;
+            }
             let Ok(sub_name) = String::from_utf8(names[i].clone()) else {
                 continue;
             };
             let Ok(sub_ident) = base.clone_append(&sub_name).into_checked() else {
                 continue;
             };
-            let Ok(sub_nav_label) = String::from_utf8(nav_labels[i].clone()) else {
-                continue;
-            };
             let sub_prio = prios[i];
+            let sub_active = *active == sub_ident; //TODO: active.starts_with(sub_ident)
 
             let sub_children = Self::build_sub(comm, &sub_ident, active, depth + 1).await;
 
@@ -132,6 +141,7 @@ impl NavTree {
                 name: sub_name,
                 nav_label: sub_nav_label,
                 prio: sub_prio,
+                active: sub_active,
                 children: sub_children,
             });
         }
