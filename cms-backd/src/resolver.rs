@@ -17,7 +17,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::itertools::{iter_cons_until, iter_cons_until_in, iter_cons_until_not_in};
 use crunchy::unroll;
+use multipeek::IteratorExt as _;
 use std::{collections::HashMap, rc::Rc};
 
 pub type VarName<'a> = &'a str;
@@ -31,6 +33,11 @@ macro_rules! getvar {
 pub(crate) use getvar;
 
 const ESCAPE_CHARS: [char; 6] = ['\\', ',', '@', '$', '(', ')'];
+const NUMBER_CHARS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const VARNAME_CHARS: [char; 27] = [
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+    'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_',
+];
 
 pub struct ResolverVars<'a> {
     vars: HashMap<VarName<'a>, VarFn<'a>>,
@@ -117,8 +124,95 @@ impl<'a> Resolver<'a> {
         Self { vars }
     }
 
-    pub fn run(&mut self, input: &str) -> String {
-        input.to_string() //TODO
+    fn expand_stmts(&mut self, data: &str, stop_chars: &[char]) -> String {
+        let mut exp = String::with_capacity(data.len() * 2);
+
+        let mut chars = data.chars().multipeek();
+        'mainloop: while let Some(c) = chars.next() {
+            let mut res: Option<String> = None;
+            match c {
+                '\\' if chars
+                    .peek_nth(0)
+                    .map(|c| ESCAPE_CHARS.contains(&c))
+                    .unwrap_or(false) =>
+                {
+                    // Escaped characters
+                    // Keep escapes. They are removed later.
+                    let mut r = String::with_capacity(2);
+                    r.push(c);
+                    r.push(chars.next().unwrap());
+                    res = Some(r);
+                }
+                '\n' => {
+                    // Newline
+                    //TODO
+                }
+                '<' if chars.peek_nth(0) == Some(&'!')
+                    && chars.peek_nth(1) == Some(&'-')
+                    && chars.peek_nth(2) == Some(&'-')
+                    && chars.peek_nth(3) == Some(&'-') =>
+                {
+                    // Comment
+                    //TODO
+                }
+                _ if stop_chars.contains(&c) => {
+                    // Stop character
+                    break 'mainloop;
+                }
+                '@' => {
+                    // Macro call
+                    match iter_cons_until(&mut chars, '(') {
+                        Ok(macro_name) => {
+                            //TODO
+                        }
+                        Err(tail) => res = Some(tail),
+                    }
+                }
+                '$' if chars.peek_nth(0).map(|c| c.is_numeric()).unwrap_or(false) => {
+                    // Macro argument
+                    match iter_cons_until_not_in(&mut chars, &NUMBER_CHARS) {
+                        Ok(arg_name) => {
+                            //TODO
+                        }
+                        Err(tail) => res = Some(tail),
+                    }
+                }
+                '$' if chars.peek_nth(0) == Some(&'(') => {
+                    // Statement
+                    match iter_cons_until_in(&mut chars, &[' ', ')']) {
+                        Ok(stmt_name) => {
+                            //TODO
+                        }
+                        Err(tail) => res = Some(tail),
+                    }
+                }
+                '$' => {
+                    // Variable
+                    match iter_cons_until_not_in(&mut chars, &VARNAME_CHARS) {
+                        Ok(var_name) => {
+                            //TODO
+                        }
+                        Err(tail) => res = Some(tail),
+                    }
+                }
+                _ => (),
+            }
+            if let Some(res) = res {
+                //TODO
+            } else {
+                exp.push(c);
+            }
+        }
+        exp
+    }
+
+    pub fn run(mut self, input: &str) -> String {
+        if input.is_empty() {
+            return String::new();
+        }
+        let data = self.expand_stmts(input, &[]);
+        //TODO indices
+        data
     }
 }
 
@@ -128,23 +222,30 @@ mod tests {
 
     #[test]
     fn test_escape() {
-        assert_eq!(Resolver::escape(""), "");
-        assert_eq!(Resolver::escape("\\,@$()"), "\\\\\\,\\@\\$\\(\\)");
-        assert_eq!(
-            Resolver::escape("abc\\def,@$x(x)x"),
-            "abc\\\\def\\,\\@\\$x\\(x\\)x"
-        );
-        assert_eq!(
-            Resolver::unescape("abc\\\\def\\,\\@\\$\\(\\)"),
-            "abc\\def,@$()"
-        );
-        assert_eq!(Resolver::unescape("abc\\"), "abc"); // dangling escape
-        assert_eq!(
-            Resolver::unescape(&Resolver::unescape(&Resolver::unescape(&Resolver::escape(
-                &Resolver::escape(&Resolver::escape("\\,@$()abc"))
-            )))),
-            "\\,@$()abc"
-        );
+        let a = "";
+        let b = "";
+        assert_eq!(Resolver::escape(a), b);
+
+        let a = "\\,@$()";
+        let b = "\\\\\\,\\@\\$\\(\\)";
+        assert_eq!(Resolver::escape(a), b);
+
+        let a = "abc\\def,@$x(x)x";
+        let b = "abc\\\\def\\,\\@\\$x\\(x\\)x";
+        assert_eq!(Resolver::escape(a), b);
+
+        let a = "abc\\\\def\\,\\@\\$\\(\\)";
+        let b = "abc\\def,@$()";
+        assert_eq!(Resolver::unescape(a), b);
+
+        let a = "abc\\"; // dangling escape
+        let b = "abc";
+        assert_eq!(Resolver::unescape(a), b);
+
+        let a = "\\,@$()abc";
+        let b = Resolver::escape(&Resolver::escape(&Resolver::escape(a)));
+        let b = Resolver::unescape(&Resolver::unescape(&Resolver::unescape(&b)));
+        assert_eq!(a, b);
     }
 }
 

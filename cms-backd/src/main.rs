@@ -23,6 +23,7 @@ mod backend;
 mod cache;
 mod config;
 mod cookie;
+mod itertools;
 mod navtree;
 mod pagegen;
 mod query;

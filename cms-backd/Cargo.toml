@@ -23,6 +23,7 @@ configparser = "3"
 crunchy = { git = "https://github.com/mbuesch/crunchy.git", rev = "433a4d08b859031f22d80197931c555c8af7b1fb" }
 html-escape = "0.2"
 lru = "0.12"
+multipeek = "0.1"
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros" ] }
 
 # vim: ts=4 sw=4 expandtab
