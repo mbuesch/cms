@@ -32,6 +32,7 @@ export CFLAGS="-O3 -pipe"
 export CPPFLAGS=
 export CXXFLAGS=
 python3 ./setup.py build || die "Python build failed."
+cargo test || die "Cargo test failed."
 cargo auditable build --release || die "Cargo build failed."
 cargo audit bin --deny warnings \
     target/release/cms-backd \
