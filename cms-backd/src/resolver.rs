@@ -133,7 +133,7 @@ impl<'a> Resolver<'a> {
             match c {
                 '\\' if chars
                     .peek_nth(0)
-                    .map(|c| ESCAPE_CHARS.contains(&c))
+                    .map(|c| ESCAPE_CHARS.contains(c))
                     .unwrap_or(false) =>
                 {
                     // Escaped characters
