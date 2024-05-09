@@ -66,6 +66,22 @@ impl ResolverStackElem {
             args,
         }
     }
+
+    pub fn lineno(&self) -> u32 {
+        self.lineno
+    }
+
+    pub fn set_lineno(&mut self, lineno: u32) {
+        self.lineno = lineno;
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn args(&self) -> &[String] {
+        &self.args
+    }
 }
 
 struct ResolverStack {
@@ -74,8 +90,10 @@ struct ResolverStack {
 
 impl ResolverStack {
     pub fn new() -> Self {
+        let mut elems = Vec::with_capacity(MACRO_STACK_SIZE_ALLOC);
+        elems.push(ResolverStackElem::new(1, "content.html", vec![]));
         Self {
-            elems: Vec::with_capacity(MACRO_STACK_SIZE_ALLOC),
+            elems,
         }
     }
 
@@ -88,7 +106,18 @@ impl ResolverStack {
     }
 
     pub fn pop(&mut self) -> Option<ResolverStackElem> {
+        assert!(self.elems.len() > 1); // must not pop the last element.
         self.elems.pop()
+    }
+
+    pub fn top(&self) -> &ResolverStackElem {
+        let len = self.elems.len();
+        &self.elems[len - 1]
+    }
+
+    pub fn top_mut(&mut self) -> &mut ResolverStackElem {
+        let len = self.elems.len();
+        &mut self.elems[len - 1]
     }
 }
 
@@ -238,7 +267,7 @@ impl<'a> Resolver<'a> {
             .get_db_macro(Some(self.parent), &macro_name)
             .await?;
 
-        self.stack.push(ResolverStackElem::new(1, macro_name_str, args)); //TODO lineno
+        self.stack.push(ResolverStackElem::new(1, macro_name_str, args));
         let (data, _) = self.expand_stmts(&mut data.chars().multipeek(), &[]).await?;
         self.stack.pop();
 
@@ -270,7 +299,8 @@ impl<'a> Resolver<'a> {
                 }
                 '\n' => {
                     // Newline
-                    //TODO
+                    let top = self.stack.top_mut();
+                    top.set_lineno(top.lineno() + 1);
                 }
                 '<' if chars.peek_nth(0) == Some(&'!')
                     && chars.peek_nth(1) == Some(&'-')
