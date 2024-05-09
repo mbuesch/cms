@@ -43,7 +43,7 @@ where
 {
     #[inline]
     fn peek_next(&mut self) -> Option<&impl Char> {
-        self.peek_nth(0)
+        self.peek()
     }
 
     #[inline]

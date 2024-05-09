@@ -17,17 +17,23 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::itertools::{iter_cons_until, iter_cons_until_in, iter_cons_until_not_in};
+use crate::{
+    backend::CmsComm,
+    itertools::{iter_cons_until, iter_cons_until_in, iter_cons_until_not_in},
+};
+use anyhow::{self as ah, format_err as err};
+use async_recursion::async_recursion;
+use cms_ident::{CheckedIdent, Ident};
 use crunchy::unroll;
-use multipeek::IteratorExt as _;
-use std::{collections::HashMap, rc::Rc};
+use multipeek::{IteratorExt as _, MultiPeek};
+use std::{collections::HashMap, sync::Arc};
 
 pub type VarName<'a> = &'a str;
-pub type VarFn<'a> = Rc<dyn Fn(&str) -> String + Send + Sync + 'a>;
+pub type VarFn<'a> = Arc<dyn Fn(&str) -> String + Send + Sync + 'a>;
 
 macro_rules! getvar {
     ($expression:expr) => {
-        Rc::new(|_| $expression)
+        Arc::new(|_| $expression)
     };
 }
 pub(crate) use getvar;
@@ -38,6 +44,43 @@ const VARNAME_CHARS: [char; 27] = [
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
     'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_',
 ];
+
+const MACRO_STACK_SIZE_ALLOC: usize = 16;
+const MACRO_STACK_SIZE_MAX: usize = 128;
+const MACRO_NAME_SIZE_MAX: usize = 64;
+const MACRO_NUM_ARGS_MAX: usize = 16;
+
+type CharsIter<'a> = MultiPeek<std::str::Chars<'a>>;
+
+struct ResolverStackElem {
+    lineno: u32,
+    name: String,
+}
+
+impl ResolverStackElem {
+    fn new(lineno: u32, name: &str) -> Self {
+        Self {
+            lineno,
+            name: name.to_string(),
+        }
+    }
+}
+
+struct ResolverStack {
+    elems: Vec<ResolverStackElem>,
+}
+
+impl ResolverStack {
+    fn new() -> Self {
+        Self {
+            elems: Vec::with_capacity(MACRO_STACK_SIZE_ALLOC),
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.elems.len()
+    }
+}
 
 pub struct ResolverVars<'a> {
     vars: HashMap<VarName<'a>, VarFn<'a>>,
@@ -83,7 +126,10 @@ impl<'a> ResolverVars<'a> {
 }
 
 pub struct Resolver<'a> {
+    comm: &'a mut CmsComm,
+    parent: &'a CheckedIdent,
     vars: &'a ResolverVars<'a>,
+    stack: ResolverStack,
 }
 
 impl<'a> Resolver<'a> {
@@ -120,19 +166,83 @@ impl<'a> Resolver<'a> {
         unescaped
     }
 
-    pub fn new(vars: &'a ResolverVars<'a>) -> Self {
-        Self { vars }
+    pub fn new(
+        comm: &'a mut CmsComm,
+        parent: &'a CheckedIdent,
+        vars: &'a ResolverVars<'a>,
+    ) -> Self {
+        Self {
+            comm,
+            parent,
+            vars,
+            stack: ResolverStack::new(),
+        }
     }
 
-    fn expand_stmts(&mut self, data: &str, stop_chars: &[char]) -> String {
-        let mut exp = String::with_capacity(data.len() * 2);
+    #[async_recursion]
+    async fn parse_args(
+        &mut self,
+        chars: &mut CharsIter<'_>,
+        trim: bool,
+    ) -> ah::Result<Vec<String>> {
+        let mut ret = Vec::with_capacity(MACRO_NUM_ARGS_MAX);
+        while chars.peek().is_some() {
+            if ret.len() >= MACRO_NUM_ARGS_MAX {
+                return Err(err!("Too many arguments"));
+            }
+            let (mut arg, tailchar) = self.expand_stmts(chars, &[',', ')']).await?;
+            if trim {
+                arg = arg.trim().to_string();
+            }
+            ret.push(arg);
+            if tailchar == Some(')') {
+                break;
+            }
+        }
+        Ok(ret)
+    }
 
-        let mut chars = data.chars().multipeek();
+    async fn do_macro(
+        &mut self,
+        macro_name: &str,
+        chars: &mut CharsIter<'_>,
+    ) -> ah::Result<String> {
+        if self.stack.len() > MACRO_STACK_SIZE_MAX {
+            return Err(err!("Macro stack overflow"));
+        }
+
+        if macro_name.len() > MACRO_NAME_SIZE_MAX {
+            return Err(err!("Macro name is too long"));
+        }
+        let Ok(macro_name) = macro_name.parse::<Ident>() else {
+            return Err(err!("Macro name is invalid"));
+        };
+        let Ok(macro_name) = macro_name.into_checked_element() else {
+            return Err(err!("Macro name contains invalid characters"));
+        };
+
+        let args = self.parse_args(chars, true).await;
+        let data = self
+            .comm
+            .get_db_macro(Some(self.parent), &macro_name)
+            .await?;
+
+        Ok("".to_string()) //TODO
+    }
+
+    async fn expand_stmts(
+        &mut self,
+        chars: &mut CharsIter<'_>,
+        stop_chars: &[char],
+    ) -> ah::Result<(String, Option<char>)> {
+        let mut exp = String::new();
+        let mut tailchar = None;
         'mainloop: while let Some(c) = chars.next() {
+            tailchar = Some(c);
             let mut res: Option<String> = None;
             match c {
                 '\\' if chars
-                    .peek_nth(0)
+                    .peek()
                     .map(|c| ESCAPE_CHARS.contains(c))
                     .unwrap_or(false) =>
                 {
@@ -161,25 +271,26 @@ impl<'a> Resolver<'a> {
                 }
                 '@' => {
                     // Macro call
-                    match iter_cons_until(&mut chars, '(') {
+                    match iter_cons_until(chars, '(') {
                         Ok(macro_name) => {
-                            //TODO
+                            let _ = chars.next(); // consume '('
+                            res = Some(self.do_macro(&macro_name, chars).await?);
                         }
                         Err(tail) => res = Some(tail),
                     }
                 }
-                '$' if chars.peek_nth(0).map(|c| c.is_numeric()).unwrap_or(false) => {
+                '$' if chars.peek().map(|c| c.is_numeric()).unwrap_or(false) => {
                     // Macro argument
-                    match iter_cons_until_not_in(&mut chars, &NUMBER_CHARS) {
+                    match iter_cons_until_not_in(chars, &NUMBER_CHARS) {
                         Ok(arg_name) => {
                             //TODO
                         }
                         Err(tail) => res = Some(tail),
                     }
                 }
-                '$' if chars.peek_nth(0) == Some(&'(') => {
+                '$' if chars.peek() == Some(&'(') => {
                     // Statement
-                    match iter_cons_until_in(&mut chars, &[' ', ')']) {
+                    match iter_cons_until_in(chars, &[' ', ')']) {
                         Ok(stmt_name) => {
                             //TODO
                         }
@@ -188,7 +299,7 @@ impl<'a> Resolver<'a> {
                 }
                 '$' => {
                     // Variable
-                    match iter_cons_until_not_in(&mut chars, &VARNAME_CHARS) {
+                    match iter_cons_until_not_in(chars, &VARNAME_CHARS) {
                         Ok(var_name) => {
                             //TODO
                         }
@@ -203,14 +314,20 @@ impl<'a> Resolver<'a> {
                 exp.push(c);
             }
         }
-        exp
+        Ok((exp, tailchar))
     }
 
-    pub fn run(mut self, input: &str) -> String {
+    pub async fn run(mut self, input: &str) -> String {
         if input.is_empty() {
             return String::new();
         }
-        let data = self.expand_stmts(input, &[]);
+        let mut chars: CharsIter = input.chars().multipeek();
+        let (data, _) = match self.expand_stmts(&mut chars, &[]).await {
+            Ok(data) => data,
+            Err(e) => {
+                return format!("Resolver error: {e}");
+            }
+        };
         //TODO indices
         data
     }

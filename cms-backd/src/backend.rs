@@ -28,13 +28,12 @@ use crate::{
 };
 use anyhow::{self as ah, format_err as err, Context as _};
 use chrono::prelude::*;
-use cms_ident::{CheckedIdent, UrlComp};
+use cms_ident::{CheckedIdent, CheckedIdentElem, UrlComp};
 use cms_socket::{CmsSocketConn, MsgSerde as _};
 use cms_socket_db::{Msg as MsgDb, SOCK_FILE as SOCK_FILE_DB};
 use cms_socket_post::{Msg as MsgPost, SOCK_FILE as SOCK_FILE_POST};
 use std::{
     path::{Path, PathBuf},
-    rc::Rc,
     sync::Arc,
 };
 
@@ -207,16 +206,34 @@ impl CmsComm {
         }
     }
 
-    pub async fn get_db_string(&mut self, name: &str) -> ah::Result<Vec<u8>> {
+    pub async fn get_db_string(&mut self, name: &str) -> ah::Result<String> {
         let reply = self
             .comm_db(&MsgDb::GetString {
                 name: name.parse().context("Invalid DB string name")?,
             })
             .await;
         if let Ok(MsgDb::String { data }) = reply {
-            Ok(data)
+            Ok(String::from_utf8(data).context("String: Data is not valid UTF-8")?)
         } else {
             Err(err!("String: Invalid db reply."))
+        }
+    }
+
+    pub async fn get_db_macro(
+        &mut self,
+        parent: Option<&CheckedIdent>,
+        name: &CheckedIdentElem,
+    ) -> ah::Result<String> {
+        let reply = self
+            .comm_db(&MsgDb::GetMacro {
+                parent: parent.unwrap_or(&CheckedIdent::ROOT).clone().downgrade(),
+                name: name.clone().downgrade(),
+            })
+            .await;
+        if let Ok(MsgDb::Macro { data }) = reply {
+            Ok(String::from_utf8(data).context("Macro: Data is not valid UTF-8")?)
+        } else {
+            Err(err!("Macro: Invalid db reply."))
         }
     }
 }
@@ -279,8 +296,7 @@ impl CmsBack {
 
         let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, &get.path).await;
 
-        let homestr = self.comm.get_db_string("home").await;
-        let mut homestr = String::from_utf8(homestr.unwrap_or_default()).unwrap_or_default();
+        let mut homestr = self.comm.get_db_string("home").await.unwrap_or_default();
 
         let mut vars = ResolverVars::new();
         vars.register("PROTOCOL", getvar!(get.protocol_str().to_string()));
@@ -308,14 +324,22 @@ impl CmsBack {
             "PAGE",
             getvar!(get.path.nth_element_str(1).unwrap_or("").to_string()),
         );
-        vars.register_prefix("Q", Rc::new(|name| get_query_var(get, name, true)));
-        vars.register_prefix("QRAW", Rc::new(|name| get_query_var(get, name, false)));
+        vars.register_prefix("Q", Arc::new(|name| get_query_var(get, name, true)));
+        vars.register_prefix("QRAW", Arc::new(|name| get_query_var(get, name, false)));
 
-        title = Resolver::new(&vars).run(&title);
+        title = Resolver::new(&mut self.comm, &get.path, &vars)
+            .run(&title)
+            .await;
         vars.register("TITLE", getvar!(title.clone()));
-        data = Resolver::new(&vars).run(&data);
-        headers = Resolver::new(&vars).run(&headers);
-        homestr = Resolver::new(&vars).run(&homestr);
+        data = Resolver::new(&mut self.comm, &get.path, &vars)
+            .run(&data)
+            .await;
+        headers = Resolver::new(&mut self.comm, &get.path, &vars)
+            .run(&headers)
+            .await;
+        homestr = Resolver::new(&mut self.comm, &get.path, &vars)
+            .run(&homestr)
+            .await;
 
         let now = Utc::now();
 
@@ -337,7 +361,7 @@ impl CmsBack {
         if let Some(css_name) = get.path.nth_element_str(1) {
             if css_name == "cms.css" {
                 return result_to_reply!(
-                    self.comm.get_db_string("css").await,
+                    self.comm.get_db_string("css").await.map(|s| s.into_bytes()),
                     "text/css; charset=UTF-8",
                     not_found
                 );
