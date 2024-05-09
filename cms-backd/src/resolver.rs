@@ -92,9 +92,7 @@ impl ResolverStack {
     pub fn new() -> Self {
         let mut elems = Vec::with_capacity(MACRO_STACK_SIZE_ALLOC);
         elems.push(ResolverStackElem::new(1, "content.html", vec![]));
-        Self {
-            elems,
-        }
+        Self { elems }
     }
 
     pub fn len(&self) -> usize {
@@ -267,11 +265,54 @@ impl<'a> Resolver<'a> {
             .get_db_macro(Some(self.parent), &macro_name)
             .await?;
 
-        self.stack.push(ResolverStackElem::new(1, macro_name_str, args));
-        let (data, _) = self.expand_stmts(&mut data.chars().multipeek(), &[]).await?;
+        self.stack
+            .push(ResolverStackElem::new(1, macro_name_str, args));
+        let (data, _) = self
+            .expand_stmts(&mut data.chars().multipeek(), &[])
+            .await?;
         self.stack.pop();
 
         Ok(data)
+    }
+
+    fn expand_macro_arg(&self, arg_name: &str) -> ah::Result<String> {
+        let top = self.stack.top();
+        let args = top.args();
+        let arg_idx = arg_name.parse::<usize>()?;
+
+        if arg_idx == 0 {
+            Ok(top.name().to_string())
+        } else if arg_idx <= args.len() {
+            Ok(args[arg_idx - 1].to_string())
+        } else {
+            Ok(String::new())
+        }
+    }
+
+    fn expand_statement(&self, stmt_name: &str, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        Ok("".to_string()) //TODO
+    }
+
+    fn expand_variable(&self, var_name: &str) -> ah::Result<String> {
+        Ok("".to_string()) //TODO
+    }
+
+    fn skip_comment(&self, chars: &mut CharsIter<'_>) {
+        loop {
+            let Some(c) = chars.next() else {
+                break;
+            };
+            if c == '-'
+                && chars.peek_nth(1) == Some(&'-')
+                && chars.peek_nth(2) == Some(&'-')
+                && chars.peek_nth(3) == Some(&'>')
+            {
+                let _ = chars.next(); // consume '-'
+                let _ = chars.next(); // consume '-'
+                let _ = chars.next(); // consume '>'
+                break;
+            }
+        }
     }
 
     async fn expand_stmts(
@@ -308,7 +349,7 @@ impl<'a> Resolver<'a> {
                     && chars.peek_nth(3) == Some(&'-') =>
                 {
                     // Comment
-                    //TODO
+                    self.skip_comment(chars);
                 }
                 _ if stop_chars.contains(&c) => {
                     // Stop character
@@ -328,7 +369,7 @@ impl<'a> Resolver<'a> {
                     // Macro argument
                     match iter_cons_until_not_in(chars, &NUMBER_CHARS) {
                         Ok(arg_name) => {
-                            //TODO
+                            res = Some(self.expand_macro_arg(&arg_name)?);
                         }
                         Err(tail) => res = Some(tail),
                     }
@@ -337,7 +378,8 @@ impl<'a> Resolver<'a> {
                     // Statement
                     match iter_cons_until_in(chars, &[' ', ')']) {
                         Ok(stmt_name) => {
-                            //TODO
+                            let _ = chars.next(); // consume ' ' or ')'
+                            res = Some(self.expand_statement(&stmt_name, chars)?);
                         }
                         Err(tail) => res = Some(tail),
                     }
@@ -346,7 +388,7 @@ impl<'a> Resolver<'a> {
                     // Variable
                     match iter_cons_until_not_in(chars, &VARNAME_CHARS) {
                         Ok(var_name) => {
-                            //TODO
+                            res = Some(self.expand_variable(&var_name)?);
                         }
                         Err(tail) => res = Some(tail),
                     }
@@ -354,7 +396,7 @@ impl<'a> Resolver<'a> {
                 _ => (),
             }
             if let Some(res) = res {
-                //TODO
+                exp.push_str(&res);
             } else {
                 exp.push(c);
             }
