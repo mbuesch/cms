@@ -55,13 +55,15 @@ type CharsIter<'a> = MultiPeek<std::str::Chars<'a>>;
 struct ResolverStackElem {
     lineno: u32,
     name: String,
+    args: Vec<String>,
 }
 
 impl ResolverStackElem {
-    fn new(lineno: u32, name: &str) -> Self {
+    pub fn new(lineno: u32, name: &str, args: Vec<String>) -> Self {
         Self {
             lineno,
             name: name.to_string(),
+            args,
         }
     }
 }
@@ -71,14 +73,22 @@ struct ResolverStack {
 }
 
 impl ResolverStack {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             elems: Vec::with_capacity(MACRO_STACK_SIZE_ALLOC),
         }
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.elems.len()
+    }
+
+    pub fn push(&mut self, elem: ResolverStackElem) {
+        self.elems.push(elem);
+    }
+
+    pub fn pop(&mut self) -> Option<ResolverStackElem> {
+        self.elems.pop()
     }
 }
 
@@ -202,32 +212,37 @@ impl<'a> Resolver<'a> {
         Ok(ret)
     }
 
+    #[async_recursion]
     async fn do_macro(
         &mut self,
-        macro_name: &str,
+        macro_name_str: &str,
         chars: &mut CharsIter<'_>,
     ) -> ah::Result<String> {
         if self.stack.len() > MACRO_STACK_SIZE_MAX {
             return Err(err!("Macro stack overflow"));
         }
 
-        if macro_name.len() > MACRO_NAME_SIZE_MAX {
+        if macro_name_str.len() > MACRO_NAME_SIZE_MAX {
             return Err(err!("Macro name is too long"));
         }
-        let Ok(macro_name) = macro_name.parse::<Ident>() else {
+        let Ok(macro_name) = macro_name_str.parse::<Ident>() else {
             return Err(err!("Macro name is invalid"));
         };
         let Ok(macro_name) = macro_name.into_checked_element() else {
             return Err(err!("Macro name contains invalid characters"));
         };
 
-        let args = self.parse_args(chars, true).await;
+        let args = self.parse_args(chars, true).await?;
         let data = self
             .comm
             .get_db_macro(Some(self.parent), &macro_name)
             .await?;
 
-        Ok("".to_string()) //TODO
+        self.stack.push(ResolverStackElem::new(1, macro_name_str, args)); //TODO lineno
+        let (data, _) = self.expand_stmts(&mut data.chars().multipeek(), &[]).await?;
+        self.stack.pop();
+
+        Ok(data)
     }
 
     async fn expand_stmts(
@@ -318,9 +333,6 @@ impl<'a> Resolver<'a> {
     }
 
     pub async fn run(mut self, input: &str) -> String {
-        if input.is_empty() {
-            return String::new();
-        }
         let mut chars: CharsIter = input.chars().multipeek();
         let (data, _) = match self.expand_stmts(&mut chars, &[]).await {
             Ok(data) => data,
