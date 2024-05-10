@@ -49,6 +49,7 @@ const MACRO_STACK_SIZE_ALLOC: usize = 16;
 const MACRO_STACK_SIZE_MAX: usize = 128;
 const MACRO_NAME_SIZE_MAX: usize = 64;
 const MACRO_NUM_ARGS_MAX: usize = 16;
+const EXPAND_CAPACITY_DEF: usize = 4096;
 
 type CharsIter<'a> = MultiPeek<std::str::Chars<'a>>;
 
@@ -265,11 +266,11 @@ impl<'a> Resolver<'a> {
             .get_db_macro(Some(self.parent), &macro_name)
             .await?;
 
-        self.stack
-            .push(ResolverStackElem::new(1, macro_name_str, args));
-        let (data, _) = self
-            .expand_stmts(&mut data.chars().multipeek(), &[])
-            .await?;
+        let el = ResolverStackElem::new(1, macro_name_str, args);
+        let mut datachars = data.chars().multipeek();
+
+        self.stack.push(el);
+        let (data, _) = self.expand_stmts(&mut datachars, &[]).await?;
         self.stack.pop();
 
         Ok(data)
@@ -303,9 +304,9 @@ impl<'a> Resolver<'a> {
                 break;
             };
             if c == '-'
+                && chars.peek_nth(0) == Some(&'-')
                 && chars.peek_nth(1) == Some(&'-')
-                && chars.peek_nth(2) == Some(&'-')
-                && chars.peek_nth(3) == Some(&'>')
+                && chars.peek_nth(2) == Some(&'>')
             {
                 let _ = chars.next(); // consume '-'
                 let _ = chars.next(); // consume '-'
@@ -320,7 +321,7 @@ impl<'a> Resolver<'a> {
         chars: &mut CharsIter<'_>,
         stop_chars: &[char],
     ) -> ah::Result<(String, Option<char>)> {
-        let mut exp = String::new();
+        let mut exp = String::with_capacity(EXPAND_CAPACITY_DEF);
         let mut tailchar = None;
         'mainloop: while let Some(c) = chars.next() {
             tailchar = Some(c);
@@ -349,6 +350,10 @@ impl<'a> Resolver<'a> {
                     && chars.peek_nth(3) == Some(&'-') =>
                 {
                     // Comment
+                    let _ = chars.next(); // consume '!'
+                    let _ = chars.next(); // consume '-'
+                    let _ = chars.next(); // consume '-'
+                    let _ = chars.next(); // consume '-'
                     self.skip_comment(chars);
                 }
                 _ if stop_chars.contains(&c) => {
