@@ -423,9 +423,23 @@ impl<'a> Resolver<'a> {
         Ok(result.to_string())
     }
 
+    /// Debug assertion.
+    /// Aborts the program, if any argument is an empty string.
+    ///
+    /// Statement: $(assert A, ...)
+    ///
+    /// Returns an error, if any argument is empty after stripping.
+    /// Returns: An empty string, otherwise.
     async fn expand_statement_assert(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
+        let nargs = args.len();
+        if nargs == 0 {
+            return self.stmterr("ASSERT: missing argument");
+        }
+        let all_nonempty = args.iter().all(|a| !a.trim().is_empty());
+        if !all_nonempty {
+            return self.stmterr("ASSERT: failed");
+        }
         Ok(String::new())
     }
 
