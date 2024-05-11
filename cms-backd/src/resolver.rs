@@ -459,10 +459,35 @@ impl<'a> Resolver<'a> {
         Ok(result)
     }
 
+    /// Select an item from a list.
+    /// Splits the STRING argument into tokens and return the N'th token.
+    /// The token SEPARATOR defaults to whitespace.
+    ///
+    /// Statement: $(item STRING, N)
+    /// Statement: $(item STRING, N, SEPARATOR)
+    ///
+    /// Returns: The N'th token.
     async fn expand_statement_item(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs != 2 && nargs != 3 {
+            return self.stmterr("ITEM: invalid args");
+        }
+        let string = &args[0];
+        let n = &args[1];
+        let Ok(n) = n.trim().parse::<usize>() else {
+            return self.stmterr("ITEM: N is not an integer");
+        };
+        let sep = if nargs == 3 { args[2].trim() } else { "" };
+        if sep.is_empty() {
+            Ok(string
+                .split_ascii_whitespace()
+                .nth(n)
+                .unwrap_or("")
+                .to_string())
+        } else {
+            Ok(string.split(sep).nth(n).unwrap_or("").to_string())
+        }
     }
 
     async fn expand_statement_contains(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
