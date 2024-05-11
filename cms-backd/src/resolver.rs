@@ -407,10 +407,20 @@ impl<'a> Resolver<'a> {
         Ok(String::new())
     }
 
+    /// Logically invert the boolean argument.
+    ///
+    /// Statement: $(not A)
+    ///
+    /// Returns: 1, if the stripped argument A is an empty string.
+    /// Returns: An empty string otherwise.
     async fn expand_statement_not(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs != 1 {
+            return self.stmterr("NOT: invalid args");
+        }
+        let result = if args[0].trim().is_empty() { "1" } else { "" };
+        Ok(result.to_string())
     }
 
     async fn expand_statement_assert(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
