@@ -522,10 +522,37 @@ impl<'a> Resolver<'a> {
         })
     }
 
+    /// Cut a sub string out of the STRING argument.
+    /// START is the first character index of the sub string.
+    /// END is the last character index of the sub string plus 1.
+    /// END defaults to START + 1.
+    ///
+    /// Statement: $(substr STRING, START)
+    /// Statement: $(substr STRING, START, END)
+    ///
+    /// Returns: The sub string of STRING starting at START index up to (but not including) END index.
     async fn expand_statement_substr(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs != 2 && nargs != 3 {
+            return self.stmterr("SUBSTR: invalid args");
+        }
+        let string: Vec<char> = args[0].chars().collect();
+        let Ok(mut start) = args[1].parse::<usize>() else {
+            return self.stmterr("SUBSTR: START is not a valid integer");
+        };
+        let mut end = if nargs == 3 {
+            let Ok(end) = args[2].parse::<usize>() else {
+                return self.stmterr("SUBSTR: END is not a valid integer");
+            };
+            end
+        } else {
+            string.len()
+        };
+        start = start.min(string.len());
+        end = end.min(string.len());
+        let substr = string[start..end].iter().collect();
+        Ok(substr)
     }
 
     /// Sanitize a string.
