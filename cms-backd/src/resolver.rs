@@ -443,10 +443,20 @@ impl<'a> Resolver<'a> {
         Ok(String::new())
     }
 
+    /// Strip whitespace at the start and at the end of all arguments.
+    /// Concatenate all arguments.
+    ///
+    /// Statement: $(strip A, ...)
+    ///
+    /// Returns: All arguments stripped and concatenated.
     async fn expand_statement_strip(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        let mut result = String::with_capacity(if nargs > 0 { args[0].len() } else { 0 });
+        for arg in args {
+            result.push_str(arg.trim());
+        }
+        Ok(result)
     }
 
     async fn expand_statement_item(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
