@@ -51,7 +51,7 @@ const MACRO_NAME_SIZE_MAX: usize = 64;
 const MACRO_NUM_ARGS_MAX: usize = 16;
 const EXPAND_CAPACITY_DEF: usize = 4096;
 
-type CharsIter<'a> = MultiPeek<std::str::Chars<'a>>;
+type Chars<'a> = MultiPeek<std::str::Chars<'a>>;
 
 struct ResolverStackElem {
     lineno: u32,
@@ -218,17 +218,13 @@ impl<'a> Resolver<'a> {
     }
 
     #[async_recursion]
-    async fn parse_args(
-        &mut self,
-        chars: &mut CharsIter<'_>,
-        trim: bool,
-    ) -> ah::Result<Vec<String>> {
+    async fn parse_args(&mut self, chars: &mut Chars<'_>, trim: bool) -> ah::Result<Vec<String>> {
         let mut ret = Vec::with_capacity(MACRO_NUM_ARGS_MAX);
         while chars.peek().is_some() {
             if ret.len() >= MACRO_NUM_ARGS_MAX {
                 return Err(err!("Too many arguments"));
             }
-            let (mut arg, tailchar) = self.expand_stmts(chars, &[',', ')']).await?;
+            let (mut arg, tailchar) = self.expand(chars, &[',', ')']).await?;
             if trim {
                 arg = arg.trim().to_string();
             }
@@ -244,7 +240,7 @@ impl<'a> Resolver<'a> {
     async fn do_macro(
         &mut self,
         macro_name_str: &str,
-        chars: &mut CharsIter<'_>,
+        chars: &mut Chars<'_>,
     ) -> ah::Result<String> {
         if self.stack.len() > MACRO_STACK_SIZE_MAX {
             return Err(err!("Macro stack overflow"));
@@ -270,7 +266,7 @@ impl<'a> Resolver<'a> {
         let mut datachars = data.chars().multipeek();
 
         self.stack.push(el);
-        let (data, _) = self.expand_stmts(&mut datachars, &[]).await?;
+        let (data, _) = self.expand(&mut datachars, &[]).await?;
         self.stack.pop();
 
         Ok(data)
@@ -290,176 +286,176 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn expand_statement_if(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_if(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_eq(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_eq(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_ne(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_ne(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_and(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_and(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_or(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_or(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_not(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_not(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_assert(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_assert(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_strip(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_strip(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_item(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_item(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_contains(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_contains(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_substr(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_substr(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_sanitize(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_sanitize(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_file_exists(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_file_exists(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_file_mdatet(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_file_mdatet(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_index(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_index(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_anchor(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_anchor(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_pagelist(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_pagelist(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_random(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_random(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_randitem(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_randitem(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_add(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_add(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_sub(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_sub(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_mul(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_mul(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_div(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_div(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_mod(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_mod(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
-    fn expand_statement_round(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+    async fn expand_statement_round(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         //TODO
         Ok(String::new())
     }
 
     #[rustfmt::skip]
-    fn expand_statement(
+    async fn expand_statement(
         &mut self,
         stmt_name: &str,
-        chars: &mut CharsIter<'_>,
+        chars: &mut Chars<'_>,
     ) -> ah::Result<String> {
         match stmt_name {
             // conditional / string compare / boolean
-            "if" => self.expand_statement_if(chars),
-            "eq" => self.expand_statement_eq(chars),
-            "ne" => self.expand_statement_ne(chars),
-            "and" => self.expand_statement_and(chars),
-            "or" => self.expand_statement_or(chars),
-            "not" => self.expand_statement_not(chars),
+            "if" => self.expand_statement_if(chars).await,
+            "eq" => self.expand_statement_eq(chars).await,
+            "ne" => self.expand_statement_ne(chars).await,
+            "and" => self.expand_statement_and(chars).await,
+            "or" => self.expand_statement_or(chars).await,
+            "not" => self.expand_statement_not(chars).await,
 
             // debugging
-            "assert" => self.expand_statement_assert(chars),
+            "assert" => self.expand_statement_assert(chars).await,
 
             // string processing
-            "strip" => self.expand_statement_strip(chars),
-            "item" => self.expand_statement_item(chars),
-            "contains" => self.expand_statement_contains(chars),
-            "substr" => self.expand_statement_substr(chars),
-            "sanitize" => self.expand_statement_sanitize(chars),
+            "strip" => self.expand_statement_strip(chars).await,
+            "item" => self.expand_statement_item(chars).await,
+            "contains" => self.expand_statement_contains(chars).await,
+            "substr" => self.expand_statement_substr(chars).await,
+            "sanitize" => self.expand_statement_sanitize(chars).await,
 
             // filesystem access
-            "file_exists" => self.expand_statement_file_exists(chars),
-            "file_mdatet" => self.expand_statement_file_mdatet(chars),
+            "file_exists" => self.expand_statement_file_exists(chars).await,
+            "file_mdatet" => self.expand_statement_file_mdatet(chars).await,
 
             // page index / page info
-            "index" => self.expand_statement_index(chars),
-            "anchor" => self.expand_statement_anchor(chars),
-            "pagelist" => self.expand_statement_pagelist(chars),
+            "index" => self.expand_statement_index(chars).await,
+            "anchor" => self.expand_statement_anchor(chars).await,
+            "pagelist" => self.expand_statement_pagelist(chars).await,
 
             // random numbers
-            "random" => self.expand_statement_random(chars),
-            "randitem" => self.expand_statement_randitem(chars),
+            "random" => self.expand_statement_random(chars).await,
+            "randitem" => self.expand_statement_randitem(chars).await,
 
             // arithmetic
-            "add" => self.expand_statement_add(chars),
-            "sub" => self.expand_statement_sub(chars),
-            "mul" => self.expand_statement_mul(chars),
-            "div" => self.expand_statement_div(chars),
-            "mod" => self.expand_statement_mod(chars),
-            "round" => self.expand_statement_round(chars),
+            "add" => self.expand_statement_add(chars).await,
+            "sub" => self.expand_statement_sub(chars).await,
+            "mul" => self.expand_statement_mul(chars).await,
+            "div" => self.expand_statement_div(chars).await,
+            "mod" => self.expand_statement_mod(chars).await,
+            "round" => self.expand_statement_round(chars).await,
 
             _ => Ok(String::new()),
         }
@@ -469,7 +465,7 @@ impl<'a> Resolver<'a> {
         Ok("".to_string()) //TODO
     }
 
-    fn skip_comment(&self, chars: &mut CharsIter<'_>) {
+    fn skip_comment(&self, chars: &mut Chars<'_>) {
         loop {
             let Some(c) = chars.next() else {
                 break;
@@ -487,9 +483,9 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    async fn expand_stmts(
+    async fn expand(
         &mut self,
-        chars: &mut CharsIter<'_>,
+        chars: &mut Chars<'_>,
         stop_chars: &[char],
     ) -> ah::Result<(String, Option<char>)> {
         let mut exp = String::with_capacity(EXPAND_CAPACITY_DEF);
@@ -556,7 +552,7 @@ impl<'a> Resolver<'a> {
                         Ok(stmt_name) => {
                             let stmt_name = &stmt_name['('.len_utf8()..]; // Remove '('.
                             let _ = chars.next(); // consume ' ' or ')'
-                            res = Some(self.expand_statement(stmt_name, chars)?);
+                            res = Some(self.expand_statement(stmt_name, chars).await?);
                         }
                         Err(tail) => res = Some(tail),
                     }
@@ -582,8 +578,8 @@ impl<'a> Resolver<'a> {
     }
 
     pub async fn run(mut self, input: &str) -> String {
-        let mut chars: CharsIter = input.chars().multipeek();
-        let (data, _) = match self.expand_stmts(&mut chars, &[]).await {
+        let mut chars: Chars = input.chars().multipeek();
+        let (data, _) = match self.expand(&mut chars, &[]).await {
             Ok(data) => data,
             Err(e) => {
                 return format!("Resolver error: {e}");
