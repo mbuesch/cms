@@ -334,9 +334,9 @@ impl<'a> Resolver<'a> {
             let s = if ne { "NE" } else { "EQ" };
             return self.stmterr(&format!("{s}: invalid args"));
         }
-        let mut all_equal = args
+        let all_equal = args
             .iter()
-            .map(|a| Some(a))
+            .map(|a| Some(a.trim()))
             .reduce(|a, b| if a == b { a } else { None })
             .unwrap()
             .is_some();
@@ -369,15 +369,41 @@ impl<'a> Resolver<'a> {
         self.expand_statement_eq_ne(chars, true).await
     }
 
+    /// Compares all arguments with logical AND operation.
+    ///
+    /// Statement: $(and A, B, ...)
+    ///
+    /// Returns: The first stripped argument (A), if all stripped arguments are non-empty strings.
+    /// Returns: An empty string otherwise.
     async fn expand_statement_and(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs < 2 {
+            return self.stmterr("AND: invalid args");
+        }
+        let all_nonempty = args.iter().all(|a| !a.trim().is_empty());
+        let result = if all_nonempty { &args[0] } else { "" };
+        Ok(result.to_string())
     }
 
+    /// Compares all arguments with logical OR operation.
+    ///
+    /// Statement: $(or A, B, ...)
+    ///
+    /// Returns: The first stripped non-empty argument.
+    /// Returns: An empty string, if there is no non-empty argument.
     async fn expand_statement_or(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
+        let nargs = args.len();
+        if nargs < 2 {
+            return self.stmterr("OR: invalid args");
+        }
+        for arg in args {
+            let trimmed = arg.trim();
+            if !trimmed.is_empty() {
+                return Ok(trimmed.to_string());
+            }
+        }
         Ok(String::new())
     }
 
