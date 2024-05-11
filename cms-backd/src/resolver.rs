@@ -48,7 +48,9 @@ const VARNAME_CHARS: [char; 27] = [
 const MACRO_STACK_SIZE_ALLOC: usize = 16;
 const MACRO_STACK_SIZE_MAX: usize = 128;
 const MACRO_NAME_SIZE_MAX: usize = 64;
-const MACRO_NUM_ARGS_MAX: usize = 16;
+const NUM_ARGS_MAX: usize = 128;
+const NUM_ARGS_ALLOC: usize = 16;
+const NUM_ARG_RECURSION_MAX: usize = 128;
 const EXPAND_CAPACITY_DEF: usize = 4096;
 
 type Chars<'a> = MultiPeek<std::str::Chars<'a>>;
@@ -80,8 +82,12 @@ impl ResolverStackElem {
         &self.name
     }
 
-    pub fn args(&self) -> &[String] {
-        &self.args
+    pub fn get_arg(&self, index: usize) -> &str {
+        if index < self.args.len() {
+            self.args[index].trim()
+        } else {
+            ""
+        }
     }
 }
 
@@ -168,6 +174,7 @@ pub struct Resolver<'a> {
     parent: &'a CheckedIdent,
     vars: &'a ResolverVars<'a>,
     stack: ResolverStack,
+    args_recursion: usize,
 }
 
 impl<'a> Resolver<'a> {
@@ -214,20 +221,29 @@ impl<'a> Resolver<'a> {
             parent,
             vars,
             stack: ResolverStack::new(),
+            args_recursion: 0,
         }
     }
 
+    fn stmterr(&self, msg: &str) -> ah::Result<String> {
+        Err(err!("{msg}: TODO")) //TODO
+    }
+
     #[async_recursion]
-    async fn parse_args(&mut self, chars: &mut Chars<'_>, trim: bool) -> ah::Result<Vec<String>> {
-        let mut ret = Vec::with_capacity(MACRO_NUM_ARGS_MAX);
+    async fn parse_args(&mut self, chars: &mut Chars<'_>) -> ah::Result<Vec<String>> {
+        if self.args_recursion > NUM_ARG_RECURSION_MAX {
+            self.stmterr("Argument parsing recursion too deep")?;
+            unreachable!();
+        }
+        let mut ret = Vec::with_capacity(NUM_ARGS_ALLOC);
         while chars.peek().is_some() {
-            if ret.len() >= MACRO_NUM_ARGS_MAX {
-                return Err(err!("Too many arguments"));
+            if ret.len() >= NUM_ARGS_MAX {
+                self.stmterr("Too many arguments")?;
+                unreachable!();
             }
-            let (mut arg, tailchar) = self.expand(chars, &[',', ')']).await?;
-            if trim {
-                arg = arg.trim().to_string();
-            }
+            self.args_recursion += 1;
+            let (arg, tailchar) = self.expand(chars, &[',', ')']).await?;
+            self.args_recursion -= 1;
             ret.push(arg);
             if tailchar == Some(')') {
                 break;
@@ -243,20 +259,20 @@ impl<'a> Resolver<'a> {
         chars: &mut Chars<'_>,
     ) -> ah::Result<String> {
         if self.stack.len() > MACRO_STACK_SIZE_MAX {
-            return Err(err!("Macro stack overflow"));
+            return self.stmterr("Macro stack overflow");
         }
 
         if macro_name_str.len() > MACRO_NAME_SIZE_MAX {
-            return Err(err!("Macro name is too long"));
+            return self.stmterr("Macro name is too long");
         }
         let Ok(macro_name) = macro_name_str.parse::<Ident>() else {
-            return Err(err!("Macro name is invalid"));
+            return self.stmterr("Macro name is invalid");
         };
         let Ok(macro_name) = macro_name.into_checked_element() else {
-            return Err(err!("Macro name contains invalid characters"));
+            return self.stmterr("Macro name contains invalid characters");
         };
 
-        let args = self.parse_args(chars, true).await?;
+        let args = self.parse_args(chars).await?;
         let data = self
             .comm
             .get_db_macro(Some(self.parent), &macro_name)
@@ -274,139 +290,206 @@ impl<'a> Resolver<'a> {
 
     fn expand_macro_arg(&self, arg_name: &str) -> ah::Result<String> {
         let top = self.stack.top();
-        let args = top.args();
         let arg_idx = arg_name.parse::<usize>()?;
-
         if arg_idx == 0 {
             Ok(top.name().to_string())
-        } else if arg_idx <= args.len() {
-            Ok(args[arg_idx - 1].to_string())
         } else {
-            Ok(String::new())
+            Ok(top.get_arg(arg_idx - 1).to_string())
         }
     }
 
+    /// Evaluate a CONDITION and return THEN or ELSE based on the CONDITION.
+    /// If ELSE is not specified, then this statement uses an empty string instead of ELSE.
+    ///
+    /// Statement: $(if CONDITION, THEN, ELSE)
+    /// Statement: $(if CONDITION, THEN)
+    ///
+    /// Returns: THEN if CONDITION is not empty after stripping whitespace.
+    /// Returns: ELSE otherwise.
     async fn expand_statement_if(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        //TODO
-        Ok(String::new())
+        let args = self.parse_args(chars).await?;
+        let nargs = args.len();
+        if nargs != 2 && nargs != 3 {
+            return self.stmterr(&format!("IF: invalid number of arguments ({nargs})"));
+        }
+        let condition = &args[0];
+        let b_then = &args[1];
+        let b_else = if nargs == 3 { &args[2] } else { "" };
+        let result = if condition.trim().is_empty() {
+            b_else
+        } else {
+            b_then
+        };
+        Ok(result.to_string())
     }
 
     async fn expand_statement_eq(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_ne(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_and(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_or(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_not(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_assert(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_strip(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_item(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_contains(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_substr(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
+    /// Sanitize a string.
+    /// Concatenates all arguments with an underscore as separator.
+    /// Replaces all non-alphanumeric characters by an underscore. Forces lower-case.
+    ///
+    /// Statement: $(sanitize STRING, ...)
+    ///
+    /// Returns: The sanitized string.
     async fn expand_statement_sanitize(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        //TODO
-        Ok(String::new())
+        let args = self.parse_args(chars).await?;
+        let nargs = args.len();
+        if nargs == 0 {
+            return self.stmterr("SANITIZE: invalid args");
+        }
+        let mut string = args.join("_");
+        let mut cleaned = String::with_capacity(string.len());
+        string.make_ascii_lowercase();
+        let string = string.chars().map(|c| {
+            if c.is_ascii_lowercase() || c.is_ascii_digit() {
+                c
+            } else {
+                '_'
+            }
+        });
+        let mut prev = None;
+        for c in string {
+            if c != '_' || Some(c) != prev {
+                cleaned.push(c);
+            }
+            prev = Some(c);
+        }
+        Ok(cleaned)
     }
 
     async fn expand_statement_file_exists(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_file_mdatet(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_index(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_anchor(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_pagelist(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_random(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_randitem(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_add(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_sub(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_mul(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_div(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_mod(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
 
     async fn expand_statement_round(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        let args = self.parse_args(chars).await?;
         //TODO
         Ok(String::new())
     }
@@ -457,12 +540,12 @@ impl<'a> Resolver<'a> {
             "mod" => self.expand_statement_mod(chars).await,
             "round" => self.expand_statement_round(chars).await,
 
-            _ => Ok(String::new()),
+            _ => Ok(String::new()),//TODO error
         }
     }
 
     fn expand_variable(&self, var_name: &str) -> ah::Result<String> {
-        Ok("".to_string()) //TODO
+        Ok(self.vars.get(var_name))
     }
 
     fn skip_comment(&self, chars: &mut Chars<'_>) {
