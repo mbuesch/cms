@@ -45,7 +45,7 @@ start_fsd()
 {
     echo "Starting cms-fsd..."
     rm -f "$rundir/cms-fsd.sock"
-    local binary="$basedir/../target/release/cms-fsd"
+    local binary="$target/cms-fsd"
     [ -x "$binary" ] || die "cms-fsd binary $binary not found."
     "$binary" \
         --rundir "$rundir" \
@@ -59,7 +59,7 @@ start_postd()
 {
     echo "Starting cms-postd..."
     rm -f "$rundir/cms-postd.sock"
-    local binary="$basedir/../target/release/cms-postd"
+    local binary="$target/cms-postd"
     [ -x "$binary" ] || die "cms-postd binary $binary not found."
     "$binary" \
         --rundir "$rundir" \
@@ -74,7 +74,7 @@ start_backd()
     if [ $python -eq 0 ]; then
         echo "Starting cms-backd..."
         rm -f "$rundir/cms-backd.sock"
-        local binary="$basedir/../target/release/cms-backd"
+        local binary="$target/cms-backd"
         [ -x "$binary" ] || die "cms-backd binary $binary not found."
         "$binary" \
             --rundir "$rundir" \
@@ -97,8 +97,23 @@ start_backd()
 }
 
 python=1
-[ "$1" = "--no-python" -o "$1" = "-P" ] && python=0
+release="debug"
+while [ $# -ge 1 ]; do
+    case "$1" in
+        --no-python|-P)
+            python=0
+            ;;
+        --release|-r)
+            release="release"
+            ;;
+        *)
+            die "Invalid option: $1"
+            ;;
+    esac
+    shift
+done
 
+target="$basedir/../target/$release"
 rundir="$basedir/run"
 dbdir="$basedir/../example/db"
 pid_fsd=

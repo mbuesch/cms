@@ -24,7 +24,21 @@ die()
     exit 1
 }
 
-binary="$basedir/../target/release/cms-cgi"
+release="debug"
+while [ $# -ge 1 ]; do
+    case "$1" in
+        --release|-r)
+            release="release"
+            ;;
+        *)
+            die "Invalid option: $1"
+            ;;
+    esac
+    shift
+done
+
+target="$basedir/../target/$release"
+binary="$target/cms-cgi"
 [ -x "$binary" ] || die "cms-cgi binary $binary not found."
 
 rundir="$basedir/run"
