@@ -24,6 +24,7 @@ crunchy = { git = "https://github.com/mbuesch/crunchy.git", rev = "433a4d08b8590
 html-escape = "0.2"
 lru = "0.12"
 multipeek = "0.1"
+rand = "0.8"
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros" ] }
 
 # vim: ts=4 sw=4 expandtab

@@ -26,6 +26,7 @@ use async_recursion::async_recursion;
 use cms_ident::{CheckedIdent, Ident};
 use crunchy::unroll;
 use multipeek::{IteratorExt as _, MultiPeek};
+use rand::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
 pub type VarName<'a> = &'a str;
@@ -508,12 +509,9 @@ impl<'a> Resolver<'a> {
         let needle = args[1].trim();
         let sep = if nargs == 3 { args[2].trim() } else { "" };
         let result = if sep.is_empty() {
-            haystack
-                .split_ascii_whitespace()
-                .find(|x| *x == needle)
-                .is_some()
+            haystack.split_ascii_whitespace().any(|x| x == needle)
         } else {
-            haystack.split(sep).find(|x| *x == needle).is_some()
+            haystack.split(sep).any(|x| x == needle)
         };
         Ok(if result {
             needle.to_string()
@@ -618,10 +616,39 @@ impl<'a> Resolver<'a> {
         Ok(String::new())
     }
 
+    /// Generate a random number.
+    /// BEGIN defaults to 0.
+    /// END defaults to 65535.
+    ///
+    /// Statement: $(random)
+    /// Statement: $(random BEGIN)
+    /// Statement: $(random BEGIN, END)
+    ///
+    /// Returns: A random integer in the range from BEGIN to END (including both end points).
     async fn expand_statement_random(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs > 2 {
+            return self.stmterr("RANDOM: invalid args");
+        }
+        let begin: i64 = if nargs >= 1 {
+            let Ok(begin) = args[0].parse::<i64>() else {
+                return self.stmterr("RANDOM: invalid BEGIN");
+            };
+            begin
+        } else {
+            0
+        };
+        let end: i64 = if nargs >= 2 {
+            let Ok(end) = args[1].parse::<i64>() else {
+                return self.stmterr("RANDOM: invalid END");
+            };
+            end
+        } else {
+            65535
+        };
+        let random: i64 = thread_rng().gen_range(begin..=end);
+        Ok(format!("{random}"))
     }
 
     async fn expand_statement_randitem(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
