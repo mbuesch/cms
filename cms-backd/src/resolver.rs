@@ -290,8 +290,179 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn expand_statement(&self, stmt_name: &str, chars: &mut CharsIter<'_>) -> ah::Result<String> {
-        Ok("".to_string()) //TODO
+    fn expand_statement_if(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_eq(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_ne(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_and(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_or(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_not(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_assert(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_strip(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_item(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_contains(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_substr(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_sanitize(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_file_exists(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_file_mdatet(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_index(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_anchor(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_pagelist(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_random(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_randitem(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_add(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_sub(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_mul(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_div(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_mod(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    fn expand_statement_round(&mut self, chars: &mut CharsIter<'_>) -> ah::Result<String> {
+        //TODO
+        Ok(String::new())
+    }
+
+    #[rustfmt::skip]
+    fn expand_statement(
+        &mut self,
+        stmt_name: &str,
+        chars: &mut CharsIter<'_>,
+    ) -> ah::Result<String> {
+        match stmt_name {
+            // conditional / string compare / boolean
+            "if" => self.expand_statement_if(chars),
+            "eq" => self.expand_statement_eq(chars),
+            "ne" => self.expand_statement_ne(chars),
+            "and" => self.expand_statement_and(chars),
+            "or" => self.expand_statement_or(chars),
+            "not" => self.expand_statement_not(chars),
+
+            // debugging
+            "assert" => self.expand_statement_assert(chars),
+
+            // string processing
+            "strip" => self.expand_statement_strip(chars),
+            "item" => self.expand_statement_item(chars),
+            "contains" => self.expand_statement_contains(chars),
+            "substr" => self.expand_statement_substr(chars),
+            "sanitize" => self.expand_statement_sanitize(chars),
+
+            // filesystem access
+            "file_exists" => self.expand_statement_file_exists(chars),
+            "file_mdatet" => self.expand_statement_file_mdatet(chars),
+
+            // page index / page info
+            "index" => self.expand_statement_index(chars),
+            "anchor" => self.expand_statement_anchor(chars),
+            "pagelist" => self.expand_statement_pagelist(chars),
+
+            // random numbers
+            "random" => self.expand_statement_random(chars),
+            "randitem" => self.expand_statement_randitem(chars),
+
+            // arithmetic
+            "add" => self.expand_statement_add(chars),
+            "sub" => self.expand_statement_sub(chars),
+            "mul" => self.expand_statement_mul(chars),
+            "div" => self.expand_statement_div(chars),
+            "mod" => self.expand_statement_mod(chars),
+            "round" => self.expand_statement_round(chars),
+
+            _ => Ok(String::new()),
+        }
     }
 
     fn expand_variable(&self, var_name: &str) -> ah::Result<String> {
@@ -383,8 +554,9 @@ impl<'a> Resolver<'a> {
                     // Statement
                     match iter_cons_until_in(chars, &[' ', ')']) {
                         Ok(stmt_name) => {
+                            let stmt_name = &stmt_name['('.len_utf8()..]; // Remove '('.
                             let _ = chars.next(); // consume ' ' or ')'
-                            res = Some(self.expand_statement(&stmt_name, chars)?);
+                            res = Some(self.expand_statement(stmt_name, chars)?);
                         }
                         Err(tail) => res = Some(tail),
                     }
