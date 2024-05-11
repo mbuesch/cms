@@ -323,16 +323,50 @@ impl<'a> Resolver<'a> {
         Ok(result.to_string())
     }
 
-    async fn expand_statement_eq(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+    async fn expand_statement_eq_ne(
+        &mut self,
+        chars: &mut Chars<'_>,
+        ne: bool,
+    ) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs < 2 {
+            let s = if ne { "NE" } else { "EQ" };
+            return self.stmterr(&format!("{s}: invalid args"));
+        }
+        let mut all_equal = args
+            .iter()
+            .map(|a| Some(a))
+            .reduce(|a, b| if a == b { a } else { None })
+            .unwrap()
+            .is_some();
+        let cond = if ne { !all_equal } else { all_equal };
+        let result = if cond {
+            "1".to_string()
+        } else {
+            "".to_string()
+        };
+        Ok(result)
     }
 
+    /// Compares two or more strings for equality.
+    ///
+    /// Statement: $(eq A, B, ...)
+    ///
+    /// Returns: 1, if all stripped arguments are equal.
+    /// Returns: An empty string otherwise.
+    async fn expand_statement_eq(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
+        self.expand_statement_eq_ne(chars, false).await
+    }
+
+    /// Compares two or more strings for inequality.
+    ///
+    /// Statement: $(ne A, B, ...)
+    ///
+    /// Returns: 1, if not all stripped arguments are equal.
+    /// Returns: An empty string otherwise.
     async fn expand_statement_ne(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        self.expand_statement_eq_ne(chars, true).await
     }
 
     async fn expand_statement_and(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
