@@ -490,10 +490,36 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Check if a list contains an item.
+    /// HAYSTACK is a list separated by SEPARATOR.
+    /// SEPARATOR defaults to whitespace.
+    ///
+    /// Statement: $(contains HAYSTACK, NEEDLE)
+    /// Statement: $(contains HAYSTACK, NEEDLE, SEPARATOR)
+    ///
+    /// Returns: NEEDLE, if HAYSTACK contains the stripped NEEDLE.
     async fn expand_statement_contains(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs != 2 && nargs != 3 {
+            return self.stmterr("CONTAINS: invalid args");
+        }
+        let haystack = &args[0];
+        let needle = args[1].trim();
+        let sep = if nargs == 3 { args[2].trim() } else { "" };
+        let result = if sep.is_empty() {
+            haystack
+                .split_ascii_whitespace()
+                .find(|x| *x == needle)
+                .is_some()
+        } else {
+            haystack.split(sep).find(|x| *x == needle).is_some()
+        };
+        Ok(if result {
+            needle.to_string()
+        } else {
+            "".to_string()
+        })
     }
 
     async fn expand_statement_substr(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
