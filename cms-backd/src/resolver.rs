@@ -671,34 +671,98 @@ impl<'a> Resolver<'a> {
         Ok(item.to_string())
     }
 
+    async fn expand_statement_arithmetic<F>(
+        &mut self,
+        chars: &mut Chars<'_>,
+        op: &str,
+        f: F,
+    ) -> ah::Result<String>
+    where
+        F: FnOnce(f64, f64) -> f64,
+    {
+        let args = self.parse_args(chars).await?;
+        let nargs = args.len();
+        if nargs != 2 {
+            return self.stmterr(&format!("{op}: invalid args"));
+        }
+        let a = args[0].parse::<f64>().unwrap_or(0.0);
+        let b = args[1].parse::<f64>().unwrap_or(0.0);
+        let res = f(a, b);
+        if res.is_finite() {
+            let rounded = res.round();
+            const EPSILON: f64 = 1e-6;
+            if (res - rounded).abs() >= EPSILON
+                || rounded < i64::MIN as f64
+                || rounded > i64::MAX as f64
+            {
+                Ok(format!("{res}"))
+            } else {
+                let as_int = rounded as i64;
+                Ok(format!("{as_int}"))
+            }
+        } else {
+            self.stmterr(&format!("{op}: Arithmetic error: Result is {res}"))
+        }
+    }
+
+    /// Add two numbers (integer or float).
+    /// Returns the result as an integer, if it is representable as an integer.
+    /// Otherwise returns the result as a floating point number.
+    ///
+    /// Statement: $(add A, B)
+    ///
+    /// Returns: The result of A + B
     async fn expand_statement_add(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        self.expand_statement_arithmetic(chars, "ADD", |a, b| a + b)
+            .await
     }
 
+    /// Subtract two numbers (integer or float).
+    /// Returns the result as an integer, if it is representable as an integer.
+    /// Otherwise returns the result as a floating point number.
+    ///
+    /// Statement: $(sub A, B)
+    ///
+    /// Returns: The result of A - B
     async fn expand_statement_sub(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        self.expand_statement_arithmetic(chars, "SUB", |a, b| a - b)
+            .await
     }
 
+    /// Multiply two numbers (integer or float).
+    /// Returns the result as an integer, if it is representable as an integer.
+    /// Otherwise returns the result as a floating point number.
+    ///
+    /// Statement: $(mul A, B)
+    ///
+    /// Returns: The result of A * B
     async fn expand_statement_mul(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        self.expand_statement_arithmetic(chars, "MUL", |a, b| a * b)
+            .await
     }
 
+    /// Divide two numbers (integer or float).
+    /// Returns the result as an integer, if it is representable as an integer.
+    /// Otherwise returns the result as a floating point number.
+    ///
+    /// Statement: $(div A, B)
+    ///
+    /// Returns: The result of A / B
     async fn expand_statement_div(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        self.expand_statement_arithmetic(chars, "DIV", |a, b| a / b)
+            .await
     }
 
+    /// Divide two numbers (integer or float) and get the remainder.
+    /// Returns the result as an integer, if it is representable as an integer.
+    /// Otherwise returns the result as a floating point number.
+    ///
+    /// Statement: $(mod A, B)
+    ///
+    /// Returns: The result of remainder(A / B)
     async fn expand_statement_mod(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        self.expand_statement_arithmetic(chars, "MOD", |a, b| a % b)
+            .await
     }
 
     async fn expand_statement_round(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
