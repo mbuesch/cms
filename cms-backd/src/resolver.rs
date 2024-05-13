@@ -54,6 +54,7 @@ const NUM_ARG_RECURSION_MAX: usize = 128;
 const EXPAND_CAPACITY_DEF: usize = 4096;
 
 fn parse_i64(s: &str) -> ah::Result<i64> {
+    let s = s.trim();
     if let Some(s) = s.strip_prefix("0x") {
         Ok(i64::from_str_radix(s, 16)?)
     } else {
@@ -639,7 +640,7 @@ impl<'a> Resolver<'a> {
             return self.stmterr("RANDOM: invalid args");
         }
         let begin = if nargs >= 1 && !args[0].trim().is_empty() {
-            let Ok(begin) = parse_i64(args[0].trim()) else {
+            let Ok(begin) = parse_i64(&args[0]) else {
                 return self.stmterr("RANDOM: invalid BEGIN");
             };
             begin
@@ -647,7 +648,7 @@ impl<'a> Resolver<'a> {
             0
         };
         let end = if nargs >= 2 && !args[1].trim().is_empty() {
-            let Ok(end) = parse_i64(args[1].trim()) else {
+            let Ok(end) = parse_i64(&args[1]) else {
                 return self.stmterr("RANDOM: invalid END");
             };
             end
@@ -685,8 +686,8 @@ impl<'a> Resolver<'a> {
         if nargs != 2 {
             return self.stmterr(&format!("{op}: invalid args"));
         }
-        let a = args[0].parse::<f64>().unwrap_or(0.0);
-        let b = args[1].parse::<f64>().unwrap_or(0.0);
+        let a = args[0].trim().parse::<f64>().unwrap_or(0.0);
+        let b = args[1].trim().parse::<f64>().unwrap_or(0.0);
         let res = f(a, b);
         if res.is_finite() {
             let rounded = res.round();
@@ -765,10 +766,31 @@ impl<'a> Resolver<'a> {
             .await
     }
 
+    /// Round a floating point number to the next integer.
+    /// If NDIGITS is specified, then round to this number of decimal digits.
+    ///
+    /// Statement: $(round A)
+    /// Statement: $(round A, NDIGITS)
+    ///
+    /// Returns: Argument A rounded.
     async fn expand_statement_round(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs != 1 && nargs != 2 {
+            return self.stmterr("ROUND: invalid args");
+        }
+        let a = args[0].trim().parse::<f64>().unwrap_or(0.0);
+        let b = if nargs >= 2 {
+            parse_i64(&args[1]).unwrap_or(0).clamp(0, 64) as usize
+        } else {
+            0
+        };
+        if b == 0 {
+            let rounded = a.round().clamp(i64::MIN as f64, i64::MAX as f64) as i64;
+            Ok(format!("{rounded}"))
+        } else {
+            Ok(format!("{:.1$}", a, b))
+        }
     }
 
     #[rustfmt::skip]
