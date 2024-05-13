@@ -54,6 +54,14 @@ const NUM_ARGS_ALLOC: usize = 16;
 const NUM_ARG_RECURSION_MAX: usize = 128;
 const EXPAND_CAPACITY_DEF: usize = 4096;
 
+fn parse_i64(s: &str) -> ah::Result<i64> {
+    if let Some(s) = s.strip_prefix("0x") {
+        Ok(i64::from_str_radix(s, 16)?)
+    } else {
+        Ok(s.parse::<i64>()?)
+    }
+}
+
 type Chars<'a> = MultiPeek<std::str::Chars<'a>>;
 
 struct ResolverStackElem {
@@ -632,7 +640,7 @@ impl<'a> Resolver<'a> {
             return self.stmterr("RANDOM: invalid args");
         }
         let begin: i64 = if nargs >= 1 {
-            let Ok(begin) = args[0].parse::<i64>() else {
+            let Ok(begin) = parse_i64(&args[0]) else {
                 return self.stmterr("RANDOM: invalid BEGIN");
             };
             begin
@@ -640,7 +648,7 @@ impl<'a> Resolver<'a> {
             0
         };
         let end: i64 = if nargs >= 2 {
-            let Ok(end) = args[1].parse::<i64>() else {
+            let Ok(end) = parse_i64(&args[1]) else {
                 return self.stmterr("RANDOM: invalid END");
             };
             end
