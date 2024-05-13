@@ -45,7 +45,6 @@ const VARNAME_CHARS: [char; 27] = [
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
     'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_',
 ];
-
 const MACRO_STACK_SIZE_ALLOC: usize = 16;
 const MACRO_STACK_SIZE_MAX: usize = 128;
 const MACRO_NAME_SIZE_MAX: usize = 64;
@@ -639,16 +638,16 @@ impl<'a> Resolver<'a> {
         if nargs > 2 {
             return self.stmterr("RANDOM: invalid args");
         }
-        let begin: i64 = if nargs >= 1 {
-            let Ok(begin) = parse_i64(&args[0]) else {
+        let begin = if nargs >= 1 && !args[0].trim().is_empty() {
+            let Ok(begin) = parse_i64(args[0].trim()) else {
                 return self.stmterr("RANDOM: invalid BEGIN");
             };
             begin
         } else {
             0
         };
-        let end: i64 = if nargs >= 2 {
-            let Ok(end) = parse_i64(&args[1]) else {
+        let end = if nargs >= 2 && !args[1].trim().is_empty() {
+            let Ok(end) = parse_i64(args[1].trim()) else {
                 return self.stmterr("RANDOM: invalid END");
             };
             end
@@ -659,10 +658,17 @@ impl<'a> Resolver<'a> {
         Ok(format!("{random}"))
     }
 
+    /// Select a random item.
+    ///
+    /// Statement: $(randitem ITEM0, ...)
+    ///
+    /// Returns: One random item of its arguments.
     async fn expand_statement_randitem(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let Some(item) = args.choose(&mut thread_rng()) else {
+            return self.stmterr("RANDITEM: too few args");
+        };
+        Ok(item.to_string())
     }
 
     async fn expand_statement_add(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
