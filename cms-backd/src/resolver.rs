@@ -300,11 +300,24 @@ impl<'a> Resolver<'a> {
             .get_db_macro(Some(self.parent), &macro_name)
             .await?;
 
+        // Remove empty lines
+        let mut cleaned_data = String::with_capacity(data.len());
+        let mut first = true;
+        for line in data.lines() {
+            if !line.trim().is_empty() {
+                if !first {
+                    cleaned_data.push('\n');
+                }
+                cleaned_data.push_str(line);
+                first = false;
+            }
+        }
+
+        let mut data = cleaned_data.chars().multipeek();
         let el = ResolverStackElem::new(1, macro_name_str, args);
-        let mut datachars = data.chars().multipeek();
 
         self.stack.push(el);
-        let (data, _) = self.expand(&mut datachars, &[]).await?;
+        let (data, _) = self.expand(&mut data, &[]).await?;
         self.stack.pop();
 
         Ok(data)
