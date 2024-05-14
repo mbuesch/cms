@@ -995,7 +995,7 @@ impl<'a> Resolver<'a> {
             }
         };
         //TODO indices
-        data
+        Self::unescape(&data)
     }
 }
 
