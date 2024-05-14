@@ -53,6 +53,15 @@ const NUM_ARGS_ALLOC: usize = 16;
 const NUM_ARG_RECURSION_MAX: usize = 128;
 const EXPAND_CAPACITY_DEF: usize = 4096;
 
+fn parse_usize(s: &str) -> ah::Result<usize> {
+    let s = s.trim();
+    if let Some(s) = s.strip_prefix("0x") {
+        Ok(usize::from_str_radix(s, 16)?)
+    } else {
+        Ok(s.parse::<usize>()?)
+    }
+}
+
 fn parse_i64(s: &str) -> ah::Result<i64> {
     let s = s.trim();
     if let Some(s) = s.strip_prefix("0x") {
@@ -60,6 +69,10 @@ fn parse_i64(s: &str) -> ah::Result<i64> {
     } else {
         Ok(s.parse::<i64>()?)
     }
+}
+
+fn parse_f64(s: &str) -> ah::Result<f64> {
+    Ok(s.trim().parse::<f64>()?)
 }
 
 type Chars<'a> = MultiPeek<std::str::Chars<'a>>;
@@ -299,7 +312,7 @@ impl<'a> Resolver<'a> {
 
     fn expand_macro_arg(&self, arg_name: &str) -> ah::Result<String> {
         let top = self.stack.top();
-        let arg_idx = arg_name.parse::<usize>()?;
+        let arg_idx = parse_usize(arg_name)?;
         if arg_idx == 0 {
             Ok(top.name().to_string())
         } else {
@@ -484,7 +497,7 @@ impl<'a> Resolver<'a> {
         }
         let string = &args[0];
         let n = &args[1];
-        let Ok(n) = n.trim().parse::<usize>() else {
+        let Ok(n) = parse_usize(n) else {
             return self.stmterr("ITEM: N is not an integer");
         };
         let sep = if nargs == 3 { args[2].trim() } else { "" };
@@ -544,11 +557,11 @@ impl<'a> Resolver<'a> {
             return self.stmterr("SUBSTR: invalid args");
         }
         let string: Vec<char> = args[0].chars().collect();
-        let Ok(mut start) = args[1].parse::<usize>() else {
+        let Ok(mut start) = parse_usize(&args[1]) else {
             return self.stmterr("SUBSTR: START is not a valid integer");
         };
         let mut end = if nargs == 3 {
-            let Ok(end) = args[2].parse::<usize>() else {
+            let Ok(end) = parse_usize(&args[2]) else {
                 return self.stmterr("SUBSTR: END is not a valid integer");
             };
             end
@@ -686,8 +699,8 @@ impl<'a> Resolver<'a> {
         if nargs != 2 {
             return self.stmterr(&format!("{op}: invalid args"));
         }
-        let a = args[0].trim().parse::<f64>().unwrap_or(0.0);
-        let b = args[1].trim().parse::<f64>().unwrap_or(0.0);
+        let a = parse_f64(&args[0]).unwrap_or(0.0);
+        let b = parse_f64(&args[1]).unwrap_or(0.0);
         let res = f(a, b);
         if res.is_finite() {
             let rounded = res.round();
@@ -779,7 +792,7 @@ impl<'a> Resolver<'a> {
         if nargs != 1 && nargs != 2 {
             return self.stmterr("ROUND: invalid args");
         }
-        let a = args[0].trim().parse::<f64>().unwrap_or(0.0);
+        let a = parse_f64(&args[0]).unwrap_or(0.0);
         let b = if nargs >= 2 {
             parse_i64(&args[1]).unwrap_or(0).clamp(0, 64) as usize
         } else {
