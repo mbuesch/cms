@@ -925,6 +925,7 @@ impl<'a> Resolver<'a> {
                     && chars.peek_nth(3) == Some(&'-') =>
                 {
                     // Comment
+                    res = Some("".to_string()); // drop '<'
                     let _ = chars.next(); // consume '!'
                     let _ = chars.next(); // consume '-'
                     let _ = chars.next(); // consume '-'
