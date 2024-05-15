@@ -17,9 +17,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use multipeek::MultiPeek;
-use std::iter::Peekable;
-
 pub trait Char {
     fn get(&self) -> char;
 }
@@ -36,10 +33,11 @@ pub trait Peek {
     fn cons_next(&mut self) -> Option<impl Char>;
 }
 
-impl<I> Peek for MultiPeek<I>
+impl<I, const A: usize, const B: usize> Peek for peekable_fwd_bwd::Peekable<I, A, B>
 where
     I: Iterator,
     I::Item: Char,
+    I::Item: Clone,
 {
     #[inline]
     fn peek_next(&mut self) -> Option<&impl Char> {
@@ -52,7 +50,7 @@ where
     }
 }
 
-impl<I> Peek for Peekable<I>
+impl<I> Peek for std::iter::Peekable<I>
 where
     I: Iterator,
     I::Item: Char,
@@ -101,16 +99,16 @@ pub fn iter_cons_until<P: Peek>(iter: &mut P, ch: char) -> Result<String, String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use multipeek::IteratorExt as _;
+    type Peekable<'a> = peekable_fwd_bwd::Peekable<std::str::Chars<'a>, 1, 8>;
 
     #[test]
     fn test_iter_cons_until() {
-        let mut it = "abc(def".chars().multipeek();
+        let mut it = Peekable::new("abc(def".chars());
         let a = iter_cons_until(&mut it, '(');
         assert_eq!(a, Ok("abc".to_string()));
         assert_eq!(it.next(), Some('('));
 
-        let mut it = "abcdef".chars().multipeek();
+        let mut it = Peekable::new("abcdef".chars());
         let a = iter_cons_until(&mut it, '(');
         assert_eq!(a, Err("abcdef".to_string()));
         assert_eq!(it.next(), None);
@@ -118,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_iter_cons_until_in() {
-        let mut it = "abc()def".chars().multipeek();
+        let mut it = Peekable::new("abc()def".chars());
         let a = iter_cons_until_in(&mut it, &['(', ')']);
         assert_eq!(a, Ok("abc".to_string()));
         assert_eq!(it.next(), Some('('));
@@ -126,7 +124,7 @@ mod tests {
         assert_eq!(a, Ok("".to_string()));
         assert_eq!(it.next(), Some(')'));
 
-        let mut it = "abcdef".chars().multipeek();
+        let mut it = Peekable::new("abcdef".chars());
         let a = iter_cons_until_in(&mut it, &['(', ')']);
         assert_eq!(a, Err("abcdef".to_string()));
         assert_eq!(it.next(), None);
@@ -134,12 +132,12 @@ mod tests {
 
     #[test]
     fn test_iter_cons_until_not_in() {
-        let mut it = "abc(def".chars().multipeek();
+        let mut it = Peekable::new("abc(def".chars());
         let a = iter_cons_until_not_in(&mut it, &['a', 'b', 'c', 'd', 'e', 'f']);
         assert_eq!(a, Ok("abc".to_string()));
         assert_eq!(it.next(), Some('('));
 
-        let mut it = "abcdef".chars().multipeek();
+        let mut it = Peekable::new("abcdef".chars());
         let a = iter_cons_until_not_in(&mut it, &['a', 'b', 'c', 'd', 'e', 'f']);
         assert_eq!(a, Err("abcdef".to_string()));
         assert_eq!(it.next(), None);

@@ -25,7 +25,7 @@ use anyhow::{self as ah, format_err as err};
 use async_recursion::async_recursion;
 use cms_ident::{CheckedIdent, Ident};
 use crunchy::unroll;
-use multipeek::{IteratorExt as _, MultiPeek};
+use peekable_fwd_bwd::Peekable;
 use rand::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
@@ -75,7 +75,7 @@ fn parse_f64(s: &str) -> ah::Result<f64> {
     Ok(s.trim().parse::<f64>()?)
 }
 
-type Chars<'a> = MultiPeek<std::str::Chars<'a>>;
+type Chars<'a> = Peekable<std::str::Chars<'a>, 2, 4>;
 
 struct ResolverStackElem {
     lineno: u32,
@@ -313,7 +313,7 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        let mut data = cleaned_data.chars().multipeek();
+        let mut data = Chars::new(cleaned_data.chars());
         let el = ResolverStackElem::new(1, macro_name_str, args);
 
         self.stack.push(el);
@@ -931,6 +931,7 @@ impl<'a> Resolver<'a> {
                     let _ = chars.next(); // consume '-'
                     let _ = chars.next(); // consume '-'
                     self.skip_comment(chars);
+                    //TODO: If comment is on a line of its own, remove the line.
                 }
                 _ if stop_chars.contains(&c) => {
                     // Stop character
@@ -987,7 +988,7 @@ impl<'a> Resolver<'a> {
     }
 
     pub async fn run(mut self, input: &str) -> String {
-        let mut chars: Chars = input.chars().multipeek();
+        let mut chars = Chars::new(input.chars());
         let (data, _) = match self.expand(&mut chars, &[]).await {
             Ok(data) => data,
             Err(e) => {
