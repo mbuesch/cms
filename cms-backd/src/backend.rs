@@ -255,6 +255,8 @@ impl CmsBack {
     }
 
     async fn get_page(&mut self, get: &CmsGetArgs) -> CmsReply {
+        let debug = true; //TODO
+
         let reply = self
             .comm
             .comm_db(&MsgDb::GetPage {
@@ -327,17 +329,17 @@ impl CmsBack {
         vars.register_prefix("Q", Arc::new(|name| get_query_var(get, name, true)));
         vars.register_prefix("QRAW", Arc::new(|name| get_query_var(get, name, false)));
 
-        title = Resolver::new(&mut self.comm, &get.path, &vars)
+        title = Resolver::new(&mut self.comm, &get.path, &vars, debug)
             .run(&title)
             .await;
         vars.register("TITLE", getvar!(title.clone()));
-        data = Resolver::new(&mut self.comm, &get.path, &vars)
+        data = Resolver::new(&mut self.comm, &get.path, &vars, debug)
             .run(&data)
             .await;
-        headers = Resolver::new(&mut self.comm, &get.path, &vars)
+        headers = Resolver::new(&mut self.comm, &get.path, &vars, debug)
             .run(&headers)
             .await;
-        homestr = Resolver::new(&mut self.comm, &get.path, &vars)
+        homestr = Resolver::new(&mut self.comm, &get.path, &vars, debug)
             .run(&homestr)
             .await;
 

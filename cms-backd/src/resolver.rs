@@ -209,6 +209,7 @@ pub struct Resolver<'a> {
     args_recursion: usize,
     char_index: usize,
     index_refs: Vec<IndexRef>,
+    debug: bool,
 }
 
 impl<'a> Resolver<'a> {
@@ -249,6 +250,7 @@ impl<'a> Resolver<'a> {
         comm: &'a mut CmsComm,
         parent: &'a CheckedIdent,
         vars: &'a ResolverVars<'a>,
+        debug: bool,
     ) -> Self {
         Self {
             comm,
@@ -258,6 +260,7 @@ impl<'a> Resolver<'a> {
             args_recursion: 0,
             char_index: 0,
             index_refs: vec![],
+            debug,
         }
     }
 
@@ -274,9 +277,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn stmterr(&self, msg: &str) -> ah::Result<String> {
-        let e = if true
-        /* TODO */
-        {
+        let e = if self.debug {
             let top = self.stack.top();
             err!("{}:{}: {}", top.name(), top.lineno(), msg)
         } else {
@@ -913,7 +914,13 @@ impl<'a> Resolver<'a> {
             "mod" => self.expand_statement_mod(chars).await,
             "round" => self.expand_statement_round(chars).await,
 
-            _ => Ok(String::new()),//TODO error
+            stmt => {
+                if self.debug {
+                    self.stmterr(&format!("Unknown statement: {stmt}"))
+                } else {
+                    self.stmterr("Unknown statement")
+                }
+            }
         }
     }
 
