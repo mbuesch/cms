@@ -874,6 +874,15 @@ impl<'a> Resolver<'a> {
     }
 
     fn skip_comment(&self, chars: &mut Chars<'_>) {
+        let prev = chars.peek_bwd_nth(1).cloned();
+
+        // Consume prefix.
+        let _ = chars.next(); // consume '!'
+        let _ = chars.next(); // consume '-'
+        let _ = chars.next(); // consume '-'
+        let _ = chars.next(); // consume '-'
+
+        // Consume comment body.
         loop {
             let Some(c) = chars.next() else {
                 break;
@@ -883,11 +892,18 @@ impl<'a> Resolver<'a> {
                 && chars.peek_nth(1) == Some(&'-')
                 && chars.peek_nth(2) == Some(&'>')
             {
+                // Consume suffix.
                 let _ = chars.next(); // consume '-'
                 let _ = chars.next(); // consume '-'
                 let _ = chars.next(); // consume '>'
                 break;
             }
+        }
+
+        /* If the comment is on a line of its own, remove the line. */
+        let next = chars.peek();
+        if (prev.is_none() || prev == Some('\n')) && next == Some(&'\n') {
+            let _ = chars.next(); // consume '\n'
         }
     }
 
@@ -926,12 +942,7 @@ impl<'a> Resolver<'a> {
                 {
                     // Comment
                     res = Some("".to_string()); // drop '<'
-                    let _ = chars.next(); // consume '!'
-                    let _ = chars.next(); // consume '-'
-                    let _ = chars.next(); // consume '-'
-                    let _ = chars.next(); // consume '-'
-                    self.skip_comment(chars);
-                    //TODO: If comment is on a line of its own, remove the line.
+                    self.skip_comment(chars); // consume comment
                 }
                 _ if stop_chars.contains(&c) => {
                     // Stop character
