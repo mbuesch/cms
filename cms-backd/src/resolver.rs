@@ -77,6 +77,16 @@ fn parse_f64(s: &str) -> ah::Result<f64> {
 
 type Chars<'a> = Peekable<std::str::Chars<'a>, 2, 4>;
 
+struct IndexRef {
+    char_index: usize,
+}
+
+impl IndexRef {
+    pub fn new(char_index: usize) -> Self {
+        Self { char_index }
+    }
+}
+
 struct ResolverStackElem {
     lineno: u32,
     name: String,
@@ -197,6 +207,8 @@ pub struct Resolver<'a> {
     vars: &'a ResolverVars<'a>,
     stack: ResolverStack,
     args_recursion: usize,
+    char_index: usize,
+    index_refs: Vec<IndexRef>,
 }
 
 impl<'a> Resolver<'a> {
@@ -244,6 +256,8 @@ impl<'a> Resolver<'a> {
             vars,
             stack: ResolverStack::new(),
             args_recursion: 0,
+            char_index: 0,
+            index_refs: vec![],
         }
     }
 
@@ -258,17 +272,22 @@ impl<'a> Resolver<'a> {
             unreachable!();
         }
         let mut ret = Vec::with_capacity(NUM_ARGS_ALLOC);
-        while chars.peek().is_some() {
-            if ret.len() >= NUM_ARGS_MAX {
-                self.stmterr("Too many arguments")?;
-                unreachable!();
-            }
-            self.args_recursion += 1;
-            let (arg, tailchar) = self.expand(chars, &[',', ')']).await?;
-            self.args_recursion -= 1;
-            ret.push(arg);
-            if tailchar == Some(')') {
-                break;
+        if chars.peek_bwd() == Some(&')') {
+            // no arg
+            ret.push("".to_string());
+        } else {
+            while chars.peek().is_some() {
+                if ret.len() >= NUM_ARGS_MAX {
+                    self.stmterr("Too many arguments")?;
+                    unreachable!();
+                }
+                self.args_recursion += 1;
+                let arg = self.expand(chars, &[',', ')']).await?;
+                self.args_recursion -= 1;
+                ret.push(arg);
+                if chars.peek_bwd() == Some(&')') {
+                    break;
+                }
             }
         }
         Ok(ret)
@@ -317,7 +336,7 @@ impl<'a> Resolver<'a> {
         let el = ResolverStackElem::new(1, macro_name_str, args);
 
         self.stack.push(el);
-        let (data, _) = self.expand(&mut data, &[]).await?;
+        let data = self.expand(&mut data, &[]).await?;
         self.stack.pop();
 
         Ok(data)
@@ -632,9 +651,18 @@ impl<'a> Resolver<'a> {
         Ok(String::new())
     }
 
+    /// Generate the site index.
+    ///
+    /// Statement: $(index)
+    ///
+    /// Returns: The site index.
     async fn expand_statement_index(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
+        let nargs = args.len();
+        if nargs != 1 || !args[0].trim().is_empty() {
+            return self.stmterr("INDEX: invalid args");
+        }
+        self.index_refs.push(IndexRef::new(self.char_index));
         Ok(String::new())
     }
 
@@ -907,15 +935,9 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    async fn expand(
-        &mut self,
-        chars: &mut Chars<'_>,
-        stop_chars: &[char],
-    ) -> ah::Result<(String, Option<char>)> {
+    async fn expand(&mut self, chars: &mut Chars<'_>, stop_chars: &[char]) -> ah::Result<String> {
         let mut exp = String::with_capacity(EXPAND_CAPACITY_DEF);
-        let mut tailchar = None;
         'mainloop: while let Some(c) = chars.next() {
-            tailchar = Some(c);
             let mut res: Option<String> = None;
             match c {
                 '\\' if chars
@@ -990,17 +1012,20 @@ impl<'a> Resolver<'a> {
                 _ => (),
             }
             if let Some(res) = res {
+                self.char_index += res.len();
                 exp.push_str(&res);
             } else {
+                self.char_index += c.len_utf8();
                 exp.push(c);
             }
         }
-        Ok((exp, tailchar))
+        self.char_index -= exp.len();
+        Ok(exp)
     }
 
     pub async fn run(mut self, input: &str) -> String {
         let mut chars = Chars::new(input.chars());
-        let (data, _) = match self.expand(&mut chars, &[]).await {
+        let data = match self.expand(&mut chars, &[]).await {
             Ok(data) => data,
             Err(e) => {
                 return format!("Resolver error: {e}");
