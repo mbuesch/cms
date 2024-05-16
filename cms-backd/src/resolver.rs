@@ -261,8 +261,28 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn next(&mut self, chars: &mut Chars<'_>) -> Option<char> {
+        if let Some(c) = chars.next() {
+            if c == '\n' {
+                let top = self.stack.top_mut();
+                top.set_lineno(top.lineno() + 1);
+            }
+            Some(c)
+        } else {
+            None
+        }
+    }
+
     fn stmterr(&self, msg: &str) -> ah::Result<String> {
-        Err(err!("{msg}: TODO")) //TODO
+        let e = if true
+        /* TODO */
+        {
+            let top = self.stack.top();
+            err!("{}:{}: {}", top.name(), top.lineno(), msg)
+        } else {
+            err!("{msg}")
+        };
+        Err(e)
     }
 
     #[async_recursion]
@@ -901,18 +921,18 @@ impl<'a> Resolver<'a> {
         Ok(self.vars.get(var_name))
     }
 
-    fn skip_comment(&self, chars: &mut Chars<'_>) {
+    fn skip_comment(&mut self, chars: &mut Chars<'_>) {
         let prev = chars.peek_bwd_nth(1).cloned();
 
         // Consume prefix.
-        let _ = chars.next(); // consume '!'
-        let _ = chars.next(); // consume '-'
-        let _ = chars.next(); // consume '-'
-        let _ = chars.next(); // consume '-'
+        let _ = self.next(chars); // consume '!'
+        let _ = self.next(chars); // consume '-'
+        let _ = self.next(chars); // consume '-'
+        let _ = self.next(chars); // consume '-'
 
         // Consume comment body.
         loop {
-            let Some(c) = chars.next() else {
+            let Some(c) = self.next(chars) else {
                 break;
             };
             if c == '-'
@@ -921,9 +941,9 @@ impl<'a> Resolver<'a> {
                 && chars.peek_nth(2) == Some(&'>')
             {
                 // Consume suffix.
-                let _ = chars.next(); // consume '-'
-                let _ = chars.next(); // consume '-'
-                let _ = chars.next(); // consume '>'
+                let _ = self.next(chars); // consume '-'
+                let _ = self.next(chars); // consume '-'
+                let _ = self.next(chars); // consume '>'
                 break;
             }
         }
@@ -931,13 +951,13 @@ impl<'a> Resolver<'a> {
         /* If the comment is on a line of its own, remove the line. */
         let next = chars.peek();
         if (prev.is_none() || prev == Some('\n')) && next == Some(&'\n') {
-            let _ = chars.next(); // consume '\n'
+            let _ = self.next(chars); // consume '\n'
         }
     }
 
     async fn expand(&mut self, chars: &mut Chars<'_>, stop_chars: &[char]) -> ah::Result<String> {
         let mut exp = String::with_capacity(EXPAND_CAPACITY_DEF);
-        'mainloop: while let Some(c) = chars.next() {
+        'mainloop: while let Some(c) = self.next(chars) {
             let mut res: Option<String> = None;
             match c {
                 '\\' if chars
@@ -949,13 +969,8 @@ impl<'a> Resolver<'a> {
                     // Keep escapes. They are removed later.
                     let mut r = String::with_capacity(2);
                     r.push(c);
-                    r.push(chars.next().unwrap());
+                    r.push(self.next(chars).unwrap());
                     res = Some(r);
-                }
-                '\n' => {
-                    // Newline
-                    let top = self.stack.top_mut();
-                    top.set_lineno(top.lineno() + 1);
                 }
                 '<' if chars.peek_nth(0) == Some(&'!')
                     && chars.peek_nth(1) == Some(&'-')
@@ -974,7 +989,7 @@ impl<'a> Resolver<'a> {
                     // Macro call
                     match iter_cons_until(chars, '(') {
                         Ok(macro_name) => {
-                            let _ = chars.next(); // consume '('
+                            let _ = self.next(chars); // consume '('
                             res = Some(self.do_macro(&macro_name, chars).await?);
                         }
                         Err(tail) => res = Some(tail),
@@ -994,7 +1009,7 @@ impl<'a> Resolver<'a> {
                     match iter_cons_until_in(chars, &[' ', ')']) {
                         Ok(stmt_name) => {
                             let stmt_name = &stmt_name['('.len_utf8()..]; // Remove '('.
-                            let _ = chars.next(); // consume ' ' or ')'
+                            let _ = self.next(chars); // consume ' ' or ')'
                             res = Some(self.expand_statement(stmt_name, chars).await?);
                         }
                         Err(tail) => res = Some(tail),
@@ -1028,7 +1043,7 @@ impl<'a> Resolver<'a> {
         let data = match self.expand(&mut chars, &[]).await {
             Ok(data) => data,
             Err(e) => {
-                return format!("Resolver error: {e}");
+                return format!("Resolver error: {e}"); //TODO return error?
             }
         };
         //TODO indices
