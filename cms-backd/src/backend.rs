@@ -18,12 +18,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
+    args::{get_query_var, CmsGetArgs, CmsPostArgs},
     cache::CmsCache,
     config::CmsConfig,
-    cookie::Cookie,
     navtree::NavTree,
     pagegen::PageGen,
-    query::Query,
+    reply::{result_to_reply, CmsReply, HttpStatus},
     resolver::{getvar, Resolver, ResolverVars},
 };
 use anyhow::{self as ah, format_err as err, Context as _};
@@ -37,130 +37,8 @@ use std::{
     sync::Arc,
 };
 
-fn html_safe_escape(text: &str) -> String {
-    html_escape::encode_safe(text).to_string()
-}
-
 fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
     DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
-}
-
-pub struct CmsGetArgs {
-    pub host: String,
-    pub path: CheckedIdent,
-    pub _cookie: Cookie,
-    pub query: Query,
-    pub https: bool,
-}
-
-impl CmsGetArgs {
-    pub fn protocol_str(&self) -> &str {
-        if self.https {
-            "https"
-        } else {
-            "http"
-        }
-    }
-}
-
-pub struct CmsPostArgs {
-    pub body: Vec<u8>,
-    pub body_mime: String,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-#[repr(u32)]
-pub enum HttpStatus {
-    Ok = 200,
-    BadRequest = 400,
-    NotFound = 404,
-    #[default]
-    InternalServerError = 500,
-}
-
-impl From<HttpStatus> for u32 {
-    fn from(status: HttpStatus) -> Self {
-        status as Self
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
-pub struct CmsReply {
-    status: HttpStatus,
-    body: Vec<u8>,
-    mime: String,
-    extra_headers: Vec<String>,
-}
-
-impl CmsReply {
-    pub fn ok(body: Vec<u8>, mime: String) -> Self {
-        Self {
-            status: HttpStatus::Ok,
-            body,
-            mime,
-            ..Default::default()
-        }
-    }
-
-    pub fn not_found(_msg: &str) -> Self {
-        //TODO msg
-        Self {
-            status: HttpStatus::NotFound,
-            ..Default::default()
-        }
-    }
-
-    pub fn internal_error(_msg: &str) -> Self {
-        //TODO msg
-        Self {
-            status: HttpStatus::InternalServerError,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<ah::Result<CmsReply>> for CmsReply {
-    fn from(reply: ah::Result<CmsReply>) -> Self {
-        match reply {
-            Ok(reply) => reply,
-            Err(err) => Self::internal_error(&format!("{err}")),
-        }
-    }
-}
-
-impl From<CmsReply> for cms_socket_back::Msg {
-    fn from(reply: CmsReply) -> Self {
-        cms_socket_back::Msg::Reply {
-            status: reply.status.into(),
-            body: reply.body,
-            mime: reply.mime,
-            extra_headers: reply.extra_headers,
-        }
-    }
-}
-
-macro_rules! result_to_reply {
-    ($result:expr, $mime:expr, $err_ctor:ident) => {
-        match $result {
-            Err(e) => CmsReply::$err_ctor(&format!("{e}")),
-            Ok(body) => CmsReply::ok(body, $mime.to_string()),
-        }
-    };
-}
-
-fn get_query_var(get: &CmsGetArgs, variable_name: &str, escape: bool) -> String {
-    if let Some(index) = variable_name.find('_') {
-        let qname = &variable_name[index + 1..];
-        if !qname.is_empty() {
-            let qvalue = get.query.get_str(qname).unwrap_or_default();
-            if escape {
-                return html_safe_escape(&qvalue);
-            } else {
-                return qvalue;
-            }
-        }
-    }
-    Default::default()
 }
 
 /// Communication with database and post handler.
@@ -402,7 +280,7 @@ impl CmsBack {
             Some("__css") if count == 2 => self.get_css(get).await,
             _ => self.get_page(get).await.into(),
         };
-        if reply.status == HttpStatus::InternalServerError {
+        if reply.status() == HttpStatus::InternalServerError {
             //TODO reduce information, if not debugging
         }
         reply
