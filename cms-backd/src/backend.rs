@@ -168,7 +168,7 @@ impl CmsBack {
                 get_title: true,
                 get_data: true,
                 get_stamp: true,
-                get_prio: true,
+                get_prio: false,
                 get_redirect: true,
                 get_nav_stop: false,
                 get_nav_label: false,
@@ -178,13 +178,18 @@ impl CmsBack {
             title,
             data,
             stamp,
-            prio,
             redirect,
             ..
         }) = reply
         else {
             return Ok(CmsReply::internal_error("GetPage: Invalid db reply"));
         };
+
+        let redirect = String::from_utf8(redirect.unwrap_or_default()).unwrap_or_default();
+        if !redirect.is_empty() {
+            return Ok(CmsReply::redirect(&redirect));
+        }
+
         let mut title = String::from_utf8(title.unwrap_or_default()).unwrap_or_default();
         let mut data = String::from_utf8(data.unwrap_or_default()).unwrap_or_default();
         let stamp = epoch_stamp(stamp.unwrap_or_default());

@@ -22,6 +22,7 @@ use anyhow as ah;
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum HttpStatus {
     Ok = 200,
+    MovedPermanently = 301,
     BadRequest = 400,
     NotFound = 404,
     #[default]
@@ -39,7 +40,8 @@ pub struct CmsReply {
     status: HttpStatus,
     body: Vec<u8>,
     mime: String,
-    extra_headers: Vec<String>,
+    extra_http_headers: Vec<String>,
+    extra_html_headers: Vec<String>,
 }
 
 impl CmsReply {
@@ -57,6 +59,21 @@ impl CmsReply {
         Self {
             status: HttpStatus::NotFound,
             ..Default::default()
+        }
+    }
+
+    pub fn redirect(location: &str) -> Self {
+        Self {
+            status: HttpStatus::MovedPermanently,
+            body: format!(
+                r#"<p style="font-size: large;">Moved permanently to <a href="{location}">{location}</a></p>"#
+            )
+            .into_bytes(),
+            mime: "text/html".to_string(),
+            extra_http_headers: vec![format!(r#"Location: {location}"#)],
+            extra_html_headers: vec![format!(
+                r#"<meta http-equiv="refresh" content="0; URL={location}" />"#
+            )],
         }
     }
 
@@ -88,7 +105,7 @@ impl From<CmsReply> for cms_socket_back::Msg {
             status: reply.status.into(),
             body: reply.body,
             mime: reply.mime,
-            extra_headers: reply.extra_headers,
+            extra_headers: reply.extra_http_headers,
         }
     }
 }
