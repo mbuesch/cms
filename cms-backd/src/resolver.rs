@@ -18,10 +18,13 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
+    anchor::Anchor,
     backend::{CmsComm, CmsGetArgs},
     config::CmsConfig,
+    index::IndexRef,
     itertools::{iter_cons_until, iter_cons_until_in, iter_cons_until_not_in},
     navtree::NavTree,
+    numparse::{parse_f64, parse_i64, parse_usize},
     pagegen::PageGen,
 };
 use anyhow::{self as ah, format_err as err};
@@ -56,63 +59,7 @@ const NUM_ARGS_ALLOC: usize = 16;
 const NUM_ARG_RECURSION_MAX: usize = 128;
 const EXPAND_CAPACITY_DEF: usize = 4096;
 
-fn parse_usize(s: &str) -> ah::Result<usize> {
-    let s = s.trim();
-    if let Some(s) = s.strip_prefix("0x") {
-        Ok(usize::from_str_radix(s, 16)?)
-    } else {
-        Ok(s.parse::<usize>()?)
-    }
-}
-
-fn parse_i64(s: &str) -> ah::Result<i64> {
-    let s = s.trim();
-    if let Some(s) = s.strip_prefix("0x") {
-        Ok(i64::from_str_radix(s, 16)?)
-    } else {
-        Ok(s.parse::<i64>()?)
-    }
-}
-
-fn parse_f64(s: &str) -> ah::Result<f64> {
-    Ok(s.trim().parse::<f64>()?)
-}
-
 type Chars<'a> = Peekable<std::str::Chars<'a>, 2, 4>;
-
-struct Anchor {
-    name: String,
-    text: String,
-    indent: i64,
-    no_index: bool,
-}
-
-impl Anchor {
-    pub fn new(name: &str, text: &str, indent: i64, no_index: bool) -> Self {
-        Self {
-            name: name.to_string(),
-            text: text.to_string(),
-            indent,
-            no_index,
-        }
-    }
-
-    pub fn make_url(&self, resolver: &Resolver) -> ah::Result<String> {
-        let ident = resolver.expand_variable("CMS_PAGEIDENT")?;
-        let name = &self.name;
-        Ok(format!("{ident}#{name}"))
-    }
-}
-
-struct IndexRef {
-    char_index: usize,
-}
-
-impl IndexRef {
-    pub fn new(char_index: usize) -> Self {
-        Self { char_index }
-    }
-}
 
 struct ResolverStackElem {
     lineno: u32,
@@ -1012,7 +959,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn expand_variable(&self, var_name: &str) -> ah::Result<String> {
+    pub fn expand_variable(&self, var_name: &str) -> ah::Result<String> {
         Ok(self.vars.get(var_name))
     }
 
@@ -1133,16 +1080,34 @@ impl<'a> Resolver<'a> {
         Ok(exp)
     }
 
-    pub async fn run(mut self, input: &str) -> String {
+    fn create_index(&self) -> ah::Result<String> {
+        //TODO
+        Ok("".to_string())
+    }
+
+    fn insert_indices(&self, mut data: String) -> ah::Result<String> {
+        let mut offs = 0;
+        for index_ref in &self.index_refs {
+            let idx_data = self.create_index()?;
+            let cur_offs = offs + index_ref.char_index();
+            let a = &data[0..cur_offs];
+            let b = &data[cur_offs..];
+            data = format!("{a}{idx_data}{b}");
+            offs += idx_data.len();
+        }
+        Ok(data)
+    }
+
+    pub async fn run(mut self, input: &str) -> ah::Result<String> {
         let mut chars = Chars::new(input.chars());
-        let data = match self.expand(&mut chars, &[]).await {
-            Ok(data) => data,
-            Err(e) => {
-                return format!("Resolver error: {e}"); //TODO return error?
-            }
-        };
-        //TODO indices
-        Self::unescape(&data)
+        let data = self
+            .expand(&mut chars, &[])
+            .await
+            .map_err(|e| err!("Resolver expand error: {e}"))?;
+        let data = self
+            .insert_indices(data)
+            .map_err(|e| err!("Resolver index error: {e}"))?;
+        Ok(Self::unescape(&data))
     }
 }
 

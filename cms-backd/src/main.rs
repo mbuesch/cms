@@ -19,12 +19,15 @@
 
 #![forbid(unsafe_code)]
 
+mod anchor;
 mod backend;
 mod cache;
 mod config;
 mod cookie;
+mod index;
 mod itertools;
 mod navtree;
+mod numparse;
 mod pagegen;
 mod query;
 mod resolver;

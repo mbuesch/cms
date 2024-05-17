@@ -103,6 +103,7 @@ impl CmsReply {
     }
 
     pub fn not_found(_msg: &str) -> Self {
+        //TODO msg
         Self {
             status: HttpStatus::NotFound,
             ..Default::default()
@@ -110,9 +111,19 @@ impl CmsReply {
     }
 
     pub fn internal_error(_msg: &str) -> Self {
+        //TODO msg
         Self {
             status: HttpStatus::InternalServerError,
             ..Default::default()
+        }
+    }
+}
+
+impl From<ah::Result<CmsReply>> for CmsReply {
+    fn from(reply: ah::Result<CmsReply>) -> Self {
+        match reply {
+            Ok(reply) => reply,
+            Err(err) => Self::internal_error(&format!("{err}")),
         }
     }
 }
@@ -249,7 +260,7 @@ macro_rules! resolve {
             $debug,
         )
         .run(&$text)
-        .await
+        .await?
     };
 }
 
@@ -269,7 +280,7 @@ impl CmsBack {
         }
     }
 
-    async fn get_page(&mut self, get: &CmsGetArgs) -> CmsReply {
+    async fn get_page(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
         let debug = true; //TODO
 
         let reply = self
@@ -294,7 +305,7 @@ impl CmsBack {
             ..
         }) = reply
         else {
-            return CmsReply::internal_error("GetPage: Invalid db reply");
+            return Ok(CmsReply::internal_error("GetPage: Invalid db reply"));
         };
         let mut title = String::from_utf8(title.unwrap_or_default()).unwrap_or_default();
         let mut data = String::from_utf8(data.unwrap_or_default()).unwrap_or_default();
@@ -307,7 +318,7 @@ impl CmsBack {
             })
             .await;
         let Ok(MsgDb::Headers { data: headers }) = reply else {
-            return CmsReply::internal_error("GetHeaders: Invalid db reply");
+            return Ok(CmsReply::internal_error("GetHeaders: Invalid db reply"));
         };
         let mut headers = String::from_utf8(headers).unwrap_or_default();
 
@@ -354,8 +365,8 @@ impl CmsBack {
 
         let now = Utc::now();
 
-        PageGen::new(get, Arc::clone(&self.config))
-            .generate(&title, &headers, &data, &now, &stamp, &navtree, &homestr)
+        Ok(PageGen::new(get, Arc::clone(&self.config))
+            .generate(&title, &headers, &data, &now, &stamp, &navtree, &homestr))
     }
 
     async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> CmsReply {
@@ -389,7 +400,7 @@ impl CmsBack {
             Some("__images") if count == 2 => self.get_image(get, false).await,
             Some("__sitemap") | Some("__sitemap.xml") if count == 1 => self.get_sitemap(get).await,
             Some("__css") if count == 2 => self.get_css(get).await,
-            _ => self.get_page(get).await,
+            _ => self.get_page(get).await.into(),
         };
         if reply.status == HttpStatus::InternalServerError {
             //TODO reduce information, if not debugging
