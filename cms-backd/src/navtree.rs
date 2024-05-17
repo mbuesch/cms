@@ -17,7 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::backend::CmsComm;
+use crate::comm::CmsComm;
 use async_recursion::async_recursion;
 use cms_ident::CheckedIdent;
 use cms_socket_db::Msg as MsgDb;

@@ -20,111 +20,22 @@
 use crate::{
     args::{get_query_var, CmsGetArgs, CmsPostArgs},
     cache::CmsCache,
+    comm::CmsComm,
     config::CmsConfig,
     navtree::NavTree,
     pagegen::PageGen,
     reply::{result_to_reply, CmsReply, HttpStatus},
     resolver::{getvar, Resolver, ResolverVars},
 };
-use anyhow::{self as ah, format_err as err, Context as _};
+use anyhow as ah;
 use chrono::prelude::*;
-use cms_ident::{CheckedIdent, CheckedIdentElem, UrlComp};
-use cms_socket::{CmsSocketConn, MsgSerde as _};
-use cms_socket_db::{Msg as MsgDb, SOCK_FILE as SOCK_FILE_DB};
-use cms_socket_post::{Msg as MsgPost, SOCK_FILE as SOCK_FILE_POST};
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use cms_ident::{CheckedIdent, UrlComp};
+use cms_socket_db::Msg as MsgDb;
+use cms_socket_post::Msg as MsgPost;
+use std::{path::Path, sync::Arc};
 
 fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
     DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
-}
-
-/// Communication with database and post handler.
-pub struct CmsComm {
-    sock_path_db: PathBuf,
-    sock_path_post: PathBuf,
-    sock_db: Option<CmsSocketConn>,
-    sock_post: Option<CmsSocketConn>,
-}
-
-impl CmsComm {
-    fn new(rundir: &Path) -> Self {
-        let sock_path_db = rundir.join(SOCK_FILE_DB);
-        let sock_path_post = rundir.join(SOCK_FILE_POST);
-        Self {
-            sock_path_db,
-            sock_path_post,
-            sock_db: None,
-            sock_post: None,
-        }
-    }
-
-    pub async fn sock_db(&mut self) -> ah::Result<&mut CmsSocketConn> {
-        if self.sock_db.is_none() {
-            self.sock_db = Some(CmsSocketConn::connect(&self.sock_path_db).await?);
-        }
-        Ok(self.sock_db.as_mut().unwrap())
-    }
-
-    pub async fn sock_post(&mut self) -> ah::Result<&mut CmsSocketConn> {
-        if self.sock_post.is_none() {
-            self.sock_post = Some(CmsSocketConn::connect(&self.sock_path_post).await?);
-        }
-        Ok(self.sock_post.as_mut().unwrap())
-    }
-
-    pub async fn comm_db(&mut self, request: &MsgDb) -> ah::Result<MsgDb> {
-        let sock = self.sock_db().await?;
-        sock.send_msg(request).await?;
-        if let Some(reply) = sock.recv_msg(MsgDb::try_msg_deserialize).await? {
-            Ok(reply)
-        } else {
-            Err(err!("cms-fsd disconnected"))
-        }
-    }
-
-    pub async fn comm_post(&mut self, request: &MsgPost) -> ah::Result<MsgPost> {
-        let sock = self.sock_post().await?;
-        sock.send_msg(request).await?;
-        if let Some(reply) = sock.recv_msg(MsgPost::try_msg_deserialize).await? {
-            Ok(reply)
-        } else {
-            Err(err!("cms-postd disconnected"))
-        }
-    }
-
-    pub async fn get_db_string(&mut self, name: &str) -> ah::Result<String> {
-        let reply = self
-            .comm_db(&MsgDb::GetString {
-                name: name.parse().context("Invalid DB string name")?,
-            })
-            .await;
-        if let Ok(MsgDb::String { data }) = reply {
-            Ok(String::from_utf8(data).context("String: Data is not valid UTF-8")?)
-        } else {
-            Err(err!("String: Invalid db reply."))
-        }
-    }
-
-    pub async fn get_db_macro(
-        &mut self,
-        parent: Option<&CheckedIdent>,
-        name: &CheckedIdentElem,
-    ) -> ah::Result<String> {
-        let reply = self
-            .comm_db(&MsgDb::GetMacro {
-                parent: parent.unwrap_or(&CheckedIdent::ROOT).clone().downgrade(),
-                name: name.clone().downgrade(),
-            })
-            .await;
-        if let Ok(MsgDb::Macro { data }) = reply {
-            Ok(String::from_utf8(data).context("Macro: Data is not valid UTF-8")?)
-        } else {
-            Err(err!("Macro: Invalid db reply."))
-        }
-    }
 }
 
 macro_rules! resolve {

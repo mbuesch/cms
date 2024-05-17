@@ -23,6 +23,7 @@ mod anchor;
 mod args;
 mod backend;
 mod cache;
+mod comm;
 mod config;
 mod cookie;
 mod index;
