@@ -20,6 +20,7 @@
 use crate::resolver::Resolver;
 use anyhow as ah;
 
+#[derive(Clone, Debug)]
 pub struct Anchor {
     name: String,
     text: String,
@@ -58,10 +59,21 @@ impl Anchor {
         self.no_index
     }
 
-    pub fn make_url(&self, resolver: &Resolver) -> ah::Result<String> {
+    fn make_url(&self, resolver: &Resolver) -> ah::Result<String> {
         let ident = resolver.expand_variable("CMS_PAGEIDENT")?;
         let name = self.name();
         Ok(format!("{ident}#{name}"))
+    }
+
+    pub fn make_html(&self, resolver: &Resolver, with_id: bool) -> ah::Result<String> {
+        let name = self.name();
+        let text = self.text();
+        let url = self.make_url(resolver)?;
+        if with_id {
+            Ok(format!(r#"<a id="{name}" href="{url}">{text}</a>"#))
+        } else {
+            Ok(format!(r#"<a href="{url}">{text}</a>"#))
+        }
     }
 }
 

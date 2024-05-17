@@ -18,16 +18,20 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
+    anchor::Anchor,
     backend::{CmsGetArgs, CmsReply},
     config::CmsConfig,
     navtree::{NavElem, NavTree},
+    resolver::Resolver,
 };
-use anyhow as ah;
+use anyhow::{self as ah, format_err as err};
 use chrono::prelude::*;
 use cms_ident::{CheckedIdent, UrlComp};
 use std::{fmt::Write as _, sync::Arc, writeln as ln};
 
 const DEFAULT_HTML_ALLOC: usize = 1024 * 64;
+const DEFAULT_INDEX_HTML_ALLOC: usize = 1024 * 4;
+const MAX_INDENT: usize = 1024;
 
 #[inline]
 fn make_indent(indent: usize) -> &'static str {
@@ -43,6 +47,48 @@ pub struct PageGen<'a> {
 impl<'a> PageGen<'a> {
     pub fn new(get: &'a CmsGetArgs, config: Arc<CmsConfig>) -> Self {
         Self { get, config }
+    }
+
+    #[allow(clippy::comparison_chain)]
+    pub fn generate_index(&self, anchors: &[Anchor], resolver: &Resolver) -> ah::Result<String> {
+        let mut html = String::with_capacity(DEFAULT_INDEX_HTML_ALLOC);
+
+        ln!(html, r#"{}<ul>"#, make_indent(1))?;
+        let mut indent = 0;
+
+        for anchor in anchors {
+            if anchor.no_index() || anchor.text().is_empty() {
+                continue;
+            }
+            if let Some(aindent) = anchor.indent() {
+                // Adjust indent.
+                if aindent > indent {
+                    if aindent > MAX_INDENT {
+                        return Err(err!("Anchor indent too big"));
+                    }
+                    for _ in 0..(aindent - indent) {
+                        indent += 1;
+                        ln!(html, r#"{}<ul>"#, make_indent(indent + 1))?;
+                    }
+                } else if aindent < indent {
+                    for _ in 0..(indent - aindent) {
+                        ln!(html, r#"{}</ul>"#, make_indent(indent + 1))?;
+                        indent -= 1;
+                    }
+                }
+            }
+            // Anchor data.
+            ln!(
+                html,
+                r#"{}<li>{}</li>"#,
+                make_indent(indent + 2),
+                anchor.make_html(resolver, false)?,
+            )?;
+        }
+        for _ in 0..(indent + 1) {
+            ln!(html, r#"{}</ul>"#, make_indent(indent + 1))?;
+        }
+        Ok(html)
     }
 
     #[rustfmt::skip]

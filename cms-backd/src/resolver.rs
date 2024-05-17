@@ -171,7 +171,7 @@ impl<'a> ResolverVars<'a> {
             }
         }
         // No variable found.
-        Default::default()
+        String::new()
     }
 }
 
@@ -698,11 +698,11 @@ impl<'a> Resolver<'a> {
         };
         let no_index = nargs >= 4 && !args[3].trim().is_empty();
         let anchor = Anchor::new(name, text, indent, no_index);
-        let url = anchor.make_url(self)?;
+        let html = anchor.make_html(self, true)?;
         // Cache anchor for index creation.
         self.anchors.push(anchor);
         // Create the anchor HTML.
-        Ok(format!(r#"<a id="{name}" href="{url}">{text}</a>"#))
+        Ok(html)
     }
 
     /// Get the navigation elements html code of all sub-page names in the page.
@@ -1081,14 +1081,15 @@ impl<'a> Resolver<'a> {
     }
 
     fn create_index(&self) -> ah::Result<String> {
-        //TODO
-        Ok("".to_string())
+        let pagegen = PageGen::new(self.get, Arc::clone(&self.config));
+        pagegen.generate_index(&self.anchors, self)
     }
 
     fn insert_indices(&self, mut data: String) -> ah::Result<String> {
         let mut offs = 0;
         for index_ref in &self.index_refs {
             let idx_data = self.create_index()?;
+            let idx_data = idx_data.trim_end();
             let cur_offs = offs + index_ref.char_index();
             let a = &data[0..cur_offs];
             let b = &data[cur_offs..];
