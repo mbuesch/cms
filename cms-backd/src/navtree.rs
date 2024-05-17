@@ -69,7 +69,7 @@ impl NavTree {
     pub async fn build(
         comm: &mut CmsComm,
         root_page: &CheckedIdent,
-        active_page: &CheckedIdent,
+        active_page: Option<&CheckedIdent>,
     ) -> Self {
         let tree = Self::build_sub(comm, root_page, active_page, 0).await;
         Self { tree }
@@ -79,7 +79,7 @@ impl NavTree {
     async fn build_sub(
         comm: &mut CmsComm,
         base: &CheckedIdent,
-        active: &CheckedIdent,
+        active: Option<&CheckedIdent>,
         depth: usize,
     ) -> Vec<NavElem> {
         if depth >= MAX_DEPTH {
@@ -138,7 +138,9 @@ impl NavTree {
                 continue;
             };
             let sub_prio = prios[i];
-            let sub_active = active.starts_with(sub_ident.as_downgrade_ref());
+            let sub_active = active
+                .map(|a| a.starts_with(sub_ident.as_downgrade_ref()))
+                .unwrap_or(false);
 
             let sub_children = Self::build_sub(comm, &sub_ident, active, depth + 1).await;
 

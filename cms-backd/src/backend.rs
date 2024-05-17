@@ -238,6 +238,21 @@ impl CmsComm {
     }
 }
 
+macro_rules! resolve {
+    ($comm:expr, $get:expr, $config:expr, $vars:expr, $debug:expr, $text:expr) => {
+        Resolver::new(
+            &mut $comm,
+            $get,
+            Arc::clone(&$config),
+            &$get.path,
+            &$vars,
+            $debug,
+        )
+        .run(&$text)
+        .await
+    };
+}
+
 pub struct CmsBack {
     config: Arc<CmsConfig>,
     #[allow(dead_code)] //TODO
@@ -296,7 +311,7 @@ impl CmsBack {
         };
         let mut headers = String::from_utf8(headers).unwrap_or_default();
 
-        let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, &get.path).await;
+        let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, Some(&get.path)).await;
 
         let mut homestr = self.comm.get_db_string("home").await.unwrap_or_default();
 
@@ -329,19 +344,13 @@ impl CmsBack {
         vars.register_prefix("Q", Arc::new(|name| get_query_var(get, name, true)));
         vars.register_prefix("QRAW", Arc::new(|name| get_query_var(get, name, false)));
 
-        title = Resolver::new(&mut self.comm, &get.path, &vars, debug)
-            .run(&title)
-            .await;
+        title = resolve!(self.comm, get, self.config, vars, debug, title);
+
         vars.register("TITLE", getvar!(title.clone()));
-        data = Resolver::new(&mut self.comm, &get.path, &vars, debug)
-            .run(&data)
-            .await;
-        headers = Resolver::new(&mut self.comm, &get.path, &vars, debug)
-            .run(&headers)
-            .await;
-        homestr = Resolver::new(&mut self.comm, &get.path, &vars, debug)
-            .run(&homestr)
-            .await;
+
+        data = resolve!(self.comm, get, self.config, vars, debug, data);
+        headers = resolve!(self.comm, get, self.config, vars, debug, headers);
+        homestr = resolve!(self.comm, get, self.config, vars, debug, homestr);
 
         let now = Utc::now();
 

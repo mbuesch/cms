@@ -18,8 +18,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-    backend::CmsComm,
+    backend::{CmsComm, CmsGetArgs},
+    config::CmsConfig,
     itertools::{iter_cons_until, iter_cons_until_in, iter_cons_until_not_in},
+    navtree::NavTree,
+    pagegen::PageGen,
 };
 use anyhow::{self as ah, format_err as err};
 use async_recursion::async_recursion;
@@ -227,6 +230,8 @@ impl<'a> ResolverVars<'a> {
 
 pub struct Resolver<'a> {
     comm: &'a mut CmsComm,
+    get: &'a CmsGetArgs,
+    config: Arc<CmsConfig>,
     parent: &'a CheckedIdent,
     vars: &'a ResolverVars<'a>,
     stack: ResolverStack,
@@ -273,12 +278,16 @@ impl<'a> Resolver<'a> {
 
     pub fn new(
         comm: &'a mut CmsComm,
+        get: &'a CmsGetArgs,
+        config: Arc<CmsConfig>,
         parent: &'a CheckedIdent,
         vars: &'a ResolverVars<'a>,
         debug: bool,
     ) -> Self {
         Self {
             comm,
+            get,
+            config,
             parent,
             vars,
             stack: ResolverStack::new(),
@@ -749,10 +758,33 @@ impl<'a> Resolver<'a> {
         Ok(format!(r#"<a id="{name}" href="{url}">{text}</a>"#))
     }
 
+    /// Get the navigation elements html code of all sub-page names in the page.
+    ///
+    /// Statement: $(pagelist BASEPAGE)
+    ///
+    /// Returns: The navigation elements html code.
     async fn expand_statement_pagelist(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs != 1 {
+            return self.stmterr("PAGELIST: no base page argument");
+        }
+        let Ok(base_page_ident) = args[0].parse::<Ident>() else {
+            return self.stmterr("PAGELIST: invalid base page name");
+        };
+        let Ok(base_page_ident) = base_page_ident.into_cleaned_path().into_checked() else {
+            return self.stmterr("PAGELIST: invalid base page name");
+        };
+        let navtree = NavTree::build(self.comm, &base_page_ident, None).await;
+        let pagegen = PageGen::new(self.get, Arc::clone(&self.config));
+        let mut html = String::with_capacity(4096);
+        if pagegen
+            .generate_navelem(&mut html, navtree.elems(), 1)
+            .is_err()
+        {
+            return self.stmterr("PAGELIST: failed to generate nav tree html");
+        }
+        Ok(html)
     }
 
     /// Generate a random number.

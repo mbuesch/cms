@@ -47,7 +47,7 @@ impl<'a> PageGen<'a> {
 
     #[rustfmt::skip]
     #[allow(clippy::only_used_in_recursion)]
-    fn generate_navelem(
+    pub fn generate_navelem(
         &self,
         b: &mut String,
         navelems: &[NavElem],
