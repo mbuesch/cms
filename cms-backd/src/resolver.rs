@@ -77,6 +77,30 @@ fn parse_f64(s: &str) -> ah::Result<f64> {
 
 type Chars<'a> = Peekable<std::str::Chars<'a>, 2, 4>;
 
+struct Anchor {
+    name: String,
+    text: String,
+    indent: i64,
+    no_index: bool,
+}
+
+impl Anchor {
+    pub fn new(name: &str, text: &str, indent: i64, no_index: bool) -> Self {
+        Self {
+            name: name.to_string(),
+            text: text.to_string(),
+            indent,
+            no_index,
+        }
+    }
+
+    pub fn make_url(&self, resolver: &Resolver) -> ah::Result<String> {
+        let ident = resolver.expand_variable("CMS_PAGEIDENT")?;
+        let name = &self.name;
+        Ok(format!("{ident}#{name}"))
+    }
+}
+
 struct IndexRef {
     char_index: usize,
 }
@@ -209,6 +233,7 @@ pub struct Resolver<'a> {
     args_recursion: usize,
     char_index: usize,
     index_refs: Vec<IndexRef>,
+    anchors: Vec<Anchor>,
     debug: bool,
 }
 
@@ -260,6 +285,7 @@ impl<'a> Resolver<'a> {
             args_recursion: 0,
             char_index: 0,
             index_refs: vec![],
+            anchors: vec![],
             debug,
         }
     }
@@ -385,7 +411,7 @@ impl<'a> Resolver<'a> {
         let args = self.parse_args(chars).await?;
         let nargs = args.len();
         if nargs != 2 && nargs != 3 {
-            return self.stmterr(&format!("IF: invalid number of arguments ({nargs})"));
+            return self.stmterr("IF: invalid number of args");
         }
         let condition = &args[0];
         let b_then = &args[1];
@@ -406,8 +432,10 @@ impl<'a> Resolver<'a> {
         let args = self.parse_args(chars).await?;
         let nargs = args.len();
         if nargs < 2 {
-            let s = if ne { "NE" } else { "EQ" };
-            return self.stmterr(&format!("{s}: invalid args"));
+            if ne {
+                return self.stmterr("NE: invalid args");
+            }
+            return self.stmterr("EQ: invalid args");
         }
         let all_equal = args
             .iter()
@@ -687,10 +715,38 @@ impl<'a> Resolver<'a> {
         Ok(String::new())
     }
 
+    /// Set an new site index anchor.
+    /// NAME is the html-id of the new anchor.
+    /// TEXT is the html-text of the new anchor.
+    ///
+    /// Statement: $(anchor NAME, TEXT)
+    /// Statement: $(anchor NAME, TEXT, INDENT_LEVEL)
+    /// Statement: $(anchor NAME, TEXT, INDENT_LEVEL, NO_INDEX)
+    ///
+    /// Returns: The site index anchor HTML code.
     async fn expand_statement_anchor(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
+        let nargs = args.len();
+        if nargs != 2 && nargs != 3 && nargs != 4 {
+            return self.stmterr("ANCHOR: invalid args");
+        }
+        let name = args[0].trim();
+        let text = args[1].trim();
+        let indent = if nargs >= 3 && !args[2].trim().is_empty() {
+            let Ok(indent) = parse_i64(&args[2]) else {
+                return self.stmterr("ANCHOR: indent level is not an integer");
+            };
+            indent
+        } else {
+            -1
+        };
+        let no_index = nargs >= 4 && !args[3].trim().is_empty();
+        let anchor = Anchor::new(name, text, indent, no_index);
+        let url = anchor.make_url(self)?;
+        // Cache anchor for index creation.
+        self.anchors.push(anchor);
+        // Create the anchor HTML.
+        Ok(format!(r#"<a id="{name}" href="{url}">{text}</a>"#))
     }
 
     async fn expand_statement_pagelist(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
@@ -731,7 +787,7 @@ impl<'a> Resolver<'a> {
             65535
         };
         let random: i64 = thread_rng().gen_range(begin..=end);
-        Ok(format!("{random}"))
+        Ok(random.to_string())
     }
 
     /// Select a random item.
@@ -771,10 +827,10 @@ impl<'a> Resolver<'a> {
                 || rounded < i64::MIN as f64
                 || rounded > i64::MAX as f64
             {
-                Ok(format!("{res}"))
+                Ok(res.to_string())
             } else {
                 let as_int = rounded as i64;
-                Ok(format!("{as_int}"))
+                Ok(as_int.to_string())
             }
         } else {
             self.stmterr(&format!("{op}: Arithmetic error: Result is {res}"))
@@ -862,7 +918,7 @@ impl<'a> Resolver<'a> {
         };
         if b == 0 {
             let rounded = a.round().clamp(i64::MIN as f64, i64::MAX as f64) as i64;
-            Ok(format!("{rounded}"))
+            Ok(rounded.to_string())
         } else {
             Ok(format!("{:.1$}", a, b))
         }
