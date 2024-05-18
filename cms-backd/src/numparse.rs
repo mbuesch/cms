@@ -17,7 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use anyhow as ah;
+use anyhow::{self as ah, format_err as err};
 
 pub fn parse_usize(s: &str) -> ah::Result<usize> {
     let s = s.trim();
@@ -39,6 +39,16 @@ pub fn parse_i64(s: &str) -> ah::Result<i64> {
 
 pub fn parse_f64(s: &str) -> ah::Result<f64> {
     Ok(s.trim().parse::<f64>()?)
+}
+
+pub fn parse_bool(s: &str) -> ah::Result<bool> {
+    let s = s.to_lowercase();
+    let s = s.trim();
+    match s {
+        "true" | "1" | "yes" | "on" => Ok(true),
+        "false" | "0" | "no" | "off" => Ok(false),
+        _ => Err(err!("Invalid boolean string")),
+    }
 }
 
 // vim: ts=4 sw=4 expandtab
