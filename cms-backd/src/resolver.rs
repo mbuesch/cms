@@ -642,6 +642,7 @@ impl<'a> Resolver<'a> {
             }
             prev = Some(c);
         }
+        let cleaned = cleaned.trim_matches('_').to_string();
         Ok(cleaned)
     }
 
