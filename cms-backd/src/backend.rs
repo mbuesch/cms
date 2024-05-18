@@ -38,18 +38,61 @@ fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
     DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
 }
 
+macro_rules! make_resolver_vars {
+    ($get:expr, $config:expr) => {{
+        let mut vars = ResolverVars::new();
+        vars.register(
+            "PAGEIDENT",
+            getvar!($get.path.url(UrlComp {
+                protocol: None,
+                domain: None,
+                base: None,
+            })),
+        );
+        vars.register(
+            "CMS_PAGEIDENT",
+            getvar!($get.path.url(UrlComp {
+                protocol: None,
+                domain: None,
+                base: Some($config.url_base()),
+            })),
+        );
+        vars.register("PROTOCOL", getvar!($get.protocol_str().to_string()));
+        vars.register(
+            "GROUP",
+            getvar!($get.path.nth_element_str(0).unwrap_or("").to_string()),
+        );
+        vars.register(
+            "PAGE",
+            getvar!($get.path.nth_element_str(1).unwrap_or("").to_string()),
+        );
+        vars.register("DOMAIN", getvar!($config.domain().to_string()));
+        vars.register("CMS_BASE", getvar!($config.url_base().to_string()));
+        vars.register(
+            "IMAGES_DIR",
+            getvar!(format!("{}/__images", $config.url_base())),
+        );
+        vars.register(
+            "THUMBS_DIR",
+            getvar!(format!("{}/__thumbs", $config.url_base())),
+        );
+        vars.register(
+            "DEBUG",
+            getvar!(if $config.debug() { "1" } else { "" }.to_string()),
+        );
+
+        vars.register_prefix("Q", Arc::new(|name| get_query_var($get, name, true)));
+        vars.register_prefix("QRAW", Arc::new(|name| get_query_var($get, name, false)));
+
+        vars
+    }};
+}
+
 macro_rules! resolve {
-    ($comm:expr, $get:expr, $config:expr, $vars:expr, $debug:expr, $text:expr) => {
-        Resolver::new(
-            &mut $comm,
-            $get,
-            Arc::clone(&$config),
-            &$get.path,
-            &$vars,
-            $debug,
-        )
-        .run(&$text)
-        .await?
+    ($comm:expr, $get:expr, $config:expr, $vars:expr, $text:expr) => {
+        Resolver::new(&mut $comm, $get, Arc::clone(&$config), &$get.path, &$vars)
+            .run(&$text)
+            .await?
     };
 }
 
@@ -70,8 +113,6 @@ impl CmsBack {
     }
 
     async fn get_page(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
-        let debug = true; //TODO
-
         let reply = self
             .comm
             .comm_db(&MsgDb::GetPage {
@@ -118,63 +159,19 @@ impl CmsBack {
         let Ok(MsgDb::Headers { data: headers }) = reply else {
             return Ok(CmsReply::internal_error("GetHeaders: Invalid db reply"));
         };
+
         let mut headers = String::from_utf8(headers).unwrap_or_default();
-
         let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, Some(&get.path)).await;
-
         let mut homestr = self.comm.get_db_string("home").await.unwrap_or_default();
 
-        let mut vars = ResolverVars::new();
-        vars.register("PROTOCOL", getvar!(get.protocol_str().to_string()));
-        vars.register(
-            "PAGEIDENT",
-            getvar!(get.path.url(UrlComp {
-                protocol: None,
-                domain: None,
-                base: None,
-            })),
-        );
-        vars.register(
-            "CMS_PAGEIDENT",
-            getvar!(get.path.url(UrlComp {
-                protocol: None,
-                domain: None,
-                base: Some(self.config.url_base()),
-            })),
-        );
-        vars.register(
-            "GROUP",
-            getvar!(get.path.nth_element_str(0).unwrap_or("").to_string()),
-        );
-        vars.register(
-            "PAGE",
-            getvar!(get.path.nth_element_str(1).unwrap_or("").to_string()),
-        );
-        vars.register("DOMAIN", getvar!(self.config.domain().to_string()));
-        vars.register("CMS_BASE", getvar!(self.config.url_base().to_string()));
-        vars.register(
-            "IMAGES_DIR",
-            getvar!(format!("{}/__images", self.config.url_base())),
-        );
-        vars.register(
-            "THUMBS_DIR",
-            getvar!(format!("{}/__thumbs", self.config.url_base())),
-        );
-        vars.register("DEBUG", getvar!(if debug { "1" } else { "" }.to_string()));
-
-        vars.register_prefix("Q", Arc::new(|name| get_query_var(get, name, true)));
-        vars.register_prefix("QRAW", Arc::new(|name| get_query_var(get, name, false)));
-
-        title = resolve!(self.comm, get, self.config, vars, debug, title);
-
+        let mut vars = make_resolver_vars!(get, self.config);
+        title = resolve!(self.comm, get, self.config, vars, title);
         vars.register("TITLE", getvar!(title.clone()));
-
-        data = resolve!(self.comm, get, self.config, vars, debug, data);
-        headers = resolve!(self.comm, get, self.config, vars, debug, headers);
-        homestr = resolve!(self.comm, get, self.config, vars, debug, homestr);
+        data = resolve!(self.comm, get, self.config, vars, data);
+        headers = resolve!(self.comm, get, self.config, vars, headers);
+        homestr = resolve!(self.comm, get, self.config, vars, homestr);
 
         let now = Utc::now();
-
         Ok(PageGen::new(get, Arc::clone(&self.config))
             .generate(&title, &headers, &data, &now, &stamp, &navtree, &homestr))
     }

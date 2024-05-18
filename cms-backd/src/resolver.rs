@@ -187,7 +187,6 @@ pub struct Resolver<'a> {
     char_index: usize,
     index_refs: Vec<IndexRef>,
     anchors: Vec<Anchor>,
-    debug: bool,
 }
 
 impl<'a> Resolver<'a> {
@@ -230,7 +229,6 @@ impl<'a> Resolver<'a> {
         config: Arc<CmsConfig>,
         parent: &'a CheckedIdent,
         vars: &'a ResolverVars<'a>,
-        debug: bool,
     ) -> Self {
         Self {
             comm,
@@ -243,7 +241,6 @@ impl<'a> Resolver<'a> {
             char_index: 0,
             index_refs: vec![],
             anchors: vec![],
-            debug,
         }
     }
 
@@ -260,7 +257,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn stmterr(&self, msg: &str) -> ah::Result<String> {
-        let e = if self.debug {
+        let e = if self.config.debug() {
             let top = self.stack.top();
             err!("{}:{}: {}", top.name(), top.lineno(), msg)
         } else {
@@ -952,7 +949,7 @@ impl<'a> Resolver<'a> {
             "round" => self.expand_statement_round(chars).await,
 
             stmt => {
-                if self.debug {
+                if self.config.debug() {
                     self.stmterr(&format!("Unknown statement: {stmt}"))
                 } else {
                     self.stmterr("Unknown statement")
