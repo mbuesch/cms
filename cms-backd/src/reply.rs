@@ -105,6 +105,10 @@ impl CmsReply {
         self.status
     }
 
+    pub fn is_ok(&self) -> bool {
+        self.status() == HttpStatus::Ok
+    }
+
     pub fn set_status_as_body(&mut self) {
         self.body = format!("<h1>{}</h1>", self.status).into_bytes();
         self.mime = "text/html".to_string();

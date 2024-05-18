@@ -38,6 +38,7 @@ fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
     DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
 }
 
+#[rustfmt::skip]
 macro_rules! make_resolver_vars {
     ($get:expr, $config:expr) => {{
         let mut vars = ResolverVars::new();
@@ -58,28 +59,13 @@ macro_rules! make_resolver_vars {
             })),
         );
         vars.register("PROTOCOL", getvar!($get.protocol_str().to_string()));
-        vars.register(
-            "GROUP",
-            getvar!($get.path.nth_element_str(0).unwrap_or("").to_string()),
-        );
-        vars.register(
-            "PAGE",
-            getvar!($get.path.nth_element_str(1).unwrap_or("").to_string()),
-        );
+        vars.register("GROUP", getvar!($get.path.nth_element_str(0).unwrap_or("").to_string()));
+        vars.register("PAGE", getvar!($get.path.nth_element_str(1).unwrap_or("").to_string()));
         vars.register("DOMAIN", getvar!($config.domain().to_string()));
         vars.register("CMS_BASE", getvar!($config.url_base().to_string()));
-        vars.register(
-            "IMAGES_DIR",
-            getvar!(format!("{}/__images", $config.url_base())),
-        );
-        vars.register(
-            "THUMBS_DIR",
-            getvar!(format!("{}/__thumbs", $config.url_base())),
-        );
-        vars.register(
-            "DEBUG",
-            getvar!(if $config.debug() { "1" } else { "" }.to_string()),
-        );
+        vars.register("IMAGES_DIR", getvar!(format!("{}/__images", $config.url_base())));
+        vars.register("THUMBS_DIR", getvar!(format!("{}/__thumbs", $config.url_base())));
+        vars.register("DEBUG", getvar!(if $config.debug() { "1" } else { "" }.to_string()));
 
         vars.register_prefix("Q", Arc::new(|name| get_query_var($get, name, true)));
         vars.register_prefix("QRAW", Arc::new(|name| get_query_var($get, name, false)));
@@ -250,31 +236,51 @@ impl CmsBack {
         Ok(CmsReply::not_found("Invalid CSS name"))
     }
 
+    #[rustfmt::skip]
     pub async fn get(&mut self, get: &CmsGetArgs) -> CmsReply {
         let count = get.path.element_count();
         let first = get.path.first_element_str();
+
         let mut reply: CmsReply = match first {
-            Some("__thumbs") if count == 2 => self.get_image(get, true).await.into(),
-            Some("__images") if count == 2 => self.get_image(get, false).await.into(),
+            Some("__thumbs") if count == 2 => {
+                self.get_image(get, true).await.into()
+            }
+            Some("__images") if count == 2 => {
+                self.get_image(get, false).await.into()
+            }
             Some("__sitemap") | Some("__sitemap.xml") if count == 1 => {
                 self.get_sitemap(get).await.into()
             }
-            Some("__css") if count == 2 => self.get_css(get).await.into(),
-            _ => self.get_page(get).await.into(),
+            Some("__css") if count == 2 => {
+                self.get_css(get).await.into()
+            }
+            _ => {
+                self.get_page(get).await.into()
+            }
         };
 
-        // Remove detailed error information, if not debugging.
-        if reply.status() == HttpStatus::InternalServerError && !self.config.debug() {
-            reply.set_status_as_body();
+        // Generate a human readable error page.
+        if !reply.is_ok() {
+            reply = self.get_error_page(get, reply).await;
         }
 
-        //TODO error page
         reply
     }
 
     pub async fn post(&mut self, get: &CmsGetArgs, post: &CmsPostArgs) -> CmsReply {
         //TODO
         Default::default()
+    }
+
+    async fn get_error_page(&mut self, get: &CmsGetArgs, mut error: CmsReply) -> CmsReply {
+        // Remove detailed error information, if not debugging.
+        if error.status() == HttpStatus::InternalServerError && !self.config.debug() {
+            error.set_status_as_body();
+        }
+
+        //TODO
+
+        error
     }
 }
 
