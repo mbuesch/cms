@@ -24,7 +24,7 @@ use crate::{
     config::CmsConfig,
     navtree::NavTree,
     pagegen::PageGen,
-    reply::{result_to_reply, CmsReply, HttpStatus},
+    reply::{CmsReply, HttpStatus},
     resolver::{getvar, Resolver, ResolverVars},
 };
 use anyhow as ah;
@@ -163,37 +163,42 @@ impl CmsBack {
             .generate(&title, &headers, &data, &now, &stamp, &navtree, &homestr))
     }
 
-    async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> CmsReply {
+    async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> ah::Result<CmsReply> {
+        let Some(image_name) = get.path.nth_element(1) else {
+            return Ok(CmsReply::not_found("Invalid image path"));
+        };
         //TODO
-        Default::default()
+        Ok(Default::default())
     }
 
-    async fn get_sitemap(&mut self, get: &CmsGetArgs) -> CmsReply {
+    async fn get_sitemap(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
         //TODO
-        Default::default()
+        Ok(Default::default())
     }
 
-    async fn get_css(&mut self, get: &CmsGetArgs) -> CmsReply {
+    async fn get_css(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
         if let Some(css_name) = get.path.nth_element_str(1) {
             if css_name == "cms.css" {
-                return result_to_reply!(
-                    self.comm.get_db_string("css").await.map(|s| s.into_bytes()),
-                    "text/css; charset=UTF-8",
-                    not_found
-                );
+                let css = self.comm.get_db_string("css").await;
+                return Ok(match css {
+                    Ok(body) => CmsReply::ok(body.into_bytes(), "text/css; charset=UTF-8"),
+                    Err(e) => CmsReply::not_found(&e.to_string()),
+                });
             }
         }
-        CmsReply::not_found("Invalid CSS name")
+        Ok(CmsReply::not_found("Invalid CSS name"))
     }
 
     pub async fn get(&mut self, get: &CmsGetArgs) -> CmsReply {
         let count = get.path.element_count();
         let first = get.path.first_element_str();
-        let reply = match first {
-            Some("__thumbs") if count == 2 => self.get_image(get, true).await,
-            Some("__images") if count == 2 => self.get_image(get, false).await,
-            Some("__sitemap") | Some("__sitemap.xml") if count == 1 => self.get_sitemap(get).await,
-            Some("__css") if count == 2 => self.get_css(get).await,
+        let reply: CmsReply = match first {
+            Some("__thumbs") if count == 2 => self.get_image(get, true).await.into(),
+            Some("__images") if count == 2 => self.get_image(get, false).await.into(),
+            Some("__sitemap") | Some("__sitemap.xml") if count == 1 => {
+                self.get_sitemap(get).await.into()
+            }
+            Some("__css") if count == 2 => self.get_css(get).await.into(),
             _ => self.get_page(get).await.into(),
         };
         if reply.status() == HttpStatus::InternalServerError {

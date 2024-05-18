@@ -286,10 +286,7 @@ impl<'a> PageGen<'a> {
         homestr: &str,
     ) -> CmsReply {
         if let Ok(b) = self.generate_html(title, headers, data, now, stamp, navtree, homestr) {
-            CmsReply::ok(
-                b.into_bytes(),
-                "application/xhtml+xml; charset=UTF-8".to_string(),
-            )
+            CmsReply::ok(b.into_bytes(), "application/xhtml+xml; charset=UTF-8")
         } else {
             CmsReply::internal_error("PageGen failed")
         }

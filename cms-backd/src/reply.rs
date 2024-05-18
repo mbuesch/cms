@@ -45,11 +45,11 @@ pub struct CmsReply {
 }
 
 impl CmsReply {
-    pub fn ok(body: Vec<u8>, mime: String) -> Self {
+    pub fn ok(body: Vec<u8>, mime: &str) -> Self {
         Self {
             status: HttpStatus::Ok,
             body,
-            mime,
+            mime: mime.to_string(),
             ..Default::default()
         }
     }
@@ -109,15 +109,5 @@ impl From<CmsReply> for cms_socket_back::Msg {
         }
     }
 }
-
-macro_rules! result_to_reply {
-    ($result:expr, $mime:expr, $err_ctor:ident) => {
-        match $result {
-            Err(e) => CmsReply::$err_ctor(&format!("{e}")),
-            Ok(body) => CmsReply::ok(body, $mime.to_string()),
-        }
-    };
-}
-pub(crate) use result_to_reply;
 
 // vim: ts=4 sw=4 expandtab
