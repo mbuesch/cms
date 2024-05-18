@@ -157,6 +157,18 @@ impl Ident {
         }
     }
 
+    /// Get the n'th path element as an Indent.
+    ///
+    /// Returns None, if this identifier has zero elements.
+    #[inline]
+    pub fn nth_element(&self, n: usize) -> Option<Self> {
+        if let Some(s) = self.nth_element_str(n) {
+            s.parse::<Ident>().ok()
+        } else {
+            None
+        }
+    }
+
     /// Get the number of path elements.
     #[inline]
     pub fn element_count(&self) -> usize {
