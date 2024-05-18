@@ -116,6 +116,8 @@ class CMSDatabase(object):
 		redirect = self.__decode(reply.redirect).strip()
 		if redirect:
 			raise CMSException301(redirect)
+		if reply.data is None:
+			raise CMSException(404)
 		title = self.__decode(reply.title)
 		data = self.__decode(reply.data)
 		stamp = datetime.utcfromtimestamp(reply.stamp or 0)

@@ -71,43 +71,37 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 get_nav_stop,
                 get_nav_label,
             }) => {
-                //TODO: Cleaning should be done in the backd.
-                let path = path.into_cleaned_path().into_checked()?;
+                let mut title = None;
+                let mut data = None;
+                let mut stamp = None;
+                let mut prio = None;
+                let mut redirect = None;
+                let mut nav_stop = None;
+                let mut nav_label = None;
 
-                let title = if get_title {
-                    Some(db.get_page_title(&path).await)
-                } else {
-                    None
-                };
-                let data = if get_data {
-                    Some(db.get_page(&path).await)
-                } else {
-                    None
-                };
-                let stamp = if get_stamp {
-                    Some(db.get_page_stamp(&path).await)
-                } else {
-                    None
-                };
-                let prio = if get_prio {
-                    Some(db.get_page_prio(&path).await)
-                } else {
-                    None
-                };
-                let redirect = if get_redirect {
-                    Some(db.get_page_redirect(&path).await)
-                } else {
-                    None
-                };
-                let nav_stop = if get_nav_stop {
-                    Some(db.get_nav_stop(&path).await)
-                } else {
-                    None
-                };
-                let nav_label = if get_nav_label {
-                    Some(db.get_nav_label(&path).await)
-                } else {
-                    None
+                //TODO: Cleaning should be done in the backd.
+                if let Ok(path) = path.into_cleaned_path().into_checked() {
+                    if get_title {
+                        title = Some(db.get_page_title(&path).await);
+                    }
+                    if get_data {
+                        data = Some(db.get_page(&path).await);
+                    }
+                    if get_stamp {
+                        stamp = Some(db.get_page_stamp(&path).await);
+                    }
+                    if get_prio {
+                        prio = Some(db.get_page_prio(&path).await);
+                    }
+                    if get_redirect {
+                        redirect = Some(db.get_page_redirect(&path).await);
+                    }
+                    if get_nav_stop {
+                        nav_stop = Some(db.get_nav_stop(&path).await);
+                    }
+                    if get_nav_label {
+                        nav_label = Some(db.get_nav_label(&path).await);
+                    }
                 };
 
                 let reply = Msg::Page {
@@ -123,26 +117,35 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
             }
             Some(Msg::GetHeaders { path }) => {
                 //TODO: Cleaning should be done in the backd.
-                let path = path.into_cleaned_path().into_checked()?;
-
-                let data = db.get_headers(&path).await;
+                let data;
+                if let Ok(path) = path.into_cleaned_path().into_checked() {
+                    data = db.get_headers(&path).await;
+                } else {
+                    data = Default::default();
+                }
 
                 let reply = Msg::Headers { data };
                 conn.send_msg(&reply).await?;
             }
             Some(Msg::GetSubPages { path }) => {
                 //TODO: Cleaning should be done in the backd.
-                let path = path.into_cleaned_path().into_checked()?;
-
-                let mut infos = db.get_subpages(&path).await;
-
-                let mut names = Vec::with_capacity(infos.len());
-                let mut nav_labels = Vec::with_capacity(infos.len());
-                let mut prios = Vec::with_capacity(infos.len());
-                for info in infos.drain(..) {
-                    names.push(info.name);
-                    nav_labels.push(info.nav_label);
-                    prios.push(info.prio);
+                let mut names;
+                let mut nav_labels;
+                let mut prios;
+                if let Ok(path) = path.into_cleaned_path().into_checked() {
+                    let mut infos = db.get_subpages(&path).await;
+                    names = Vec::with_capacity(infos.len());
+                    nav_labels = Vec::with_capacity(infos.len());
+                    prios = Vec::with_capacity(infos.len());
+                    for info in infos.drain(..) {
+                        names.push(info.name);
+                        nav_labels.push(info.nav_label);
+                        prios.push(info.prio);
+                    }
+                } else {
+                    names = vec![];
+                    nav_labels = vec![];
+                    prios = vec![];
                 }
 
                 let reply = Msg::SubPages {
@@ -154,18 +157,27 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
             }
             Some(Msg::GetMacro { parent, name }) => {
                 //TODO: Cleaning should be done in the backd.
-                let parent = parent.into_cleaned_path().into_checked()?;
-                let name = name.into_checked_element()?;
-
-                let data = db.get_macro(&parent, &name).await;
+                let data;
+                if let Ok(parent) = parent.into_cleaned_path().into_checked() {
+                    if let Ok(name) = name.into_checked_element() {
+                        data = db.get_macro(&parent, &name).await;
+                    } else {
+                        data = Default::default();
+                    }
+                } else {
+                    data = Default::default();
+                }
 
                 let reply = Msg::Macro { data };
                 conn.send_msg(&reply).await?;
             }
             Some(Msg::GetString { name }) => {
-                let name = name.into_checked_element()?;
-
-                let data = db.get_string(&name).await;
+                let data;
+                if let Ok(name) = name.into_checked_element() {
+                    data = db.get_string(&name).await;
+                } else {
+                    data = Default::default();
+                }
 
                 let reply = Msg::String { data };
                 conn.send_msg(&reply).await?;
@@ -174,9 +186,12 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 //TODO: We should support a hierarchy of identifiers for images,
                 //      just as we do for pages. In the db we should probably place
                 //      these hierarchial images into the page directory.
-                let name = name.into_checked_element()?;
-
-                let data = db.get_image(&name).await;
+                let data;
+                if let Ok(name) = name.into_checked_element() {
+                    data = db.get_image(&name).await;
+                } else {
+                    data = Default::default();
+                }
 
                 let reply = Msg::Image { data };
                 conn.send_msg(&reply).await?;
