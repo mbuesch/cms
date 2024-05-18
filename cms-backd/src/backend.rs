@@ -32,7 +32,7 @@ use chrono::prelude::*;
 use cms_ident::{CheckedIdent, UrlComp};
 use cms_socket_db::Msg as MsgDb;
 use cms_socket_post::Msg as MsgPost;
-use std::{path::Path, sync::Arc};
+use std::{io::Cursor, path::Path, sync::Arc};
 
 fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
     DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
@@ -101,6 +101,10 @@ impl CmsBack {
             return Ok(CmsReply::redirect(&redirect));
         }
 
+        if data.is_none() {
+            return Ok(CmsReply::not_found("GetPage: Page not available"));
+        }
+
         let mut title = String::from_utf8(title.unwrap_or_default()).unwrap_or_default();
         let mut data = String::from_utf8(data.unwrap_or_default()).unwrap_or_default();
         let stamp = epoch_stamp(stamp.unwrap_or_default());
@@ -146,6 +150,18 @@ impl CmsBack {
             "PAGE",
             getvar!(get.path.nth_element_str(1).unwrap_or("").to_string()),
         );
+        vars.register("DOMAIN", getvar!(self.config.domain().to_string()));
+        vars.register("CMS_BASE", getvar!(self.config.url_base().to_string()));
+        vars.register(
+            "IMAGES_DIR",
+            getvar!(format!("{}/__images", self.config.url_base())),
+        );
+        vars.register(
+            "THUMBS_DIR",
+            getvar!(format!("{}/__thumbs", self.config.url_base())),
+        );
+        vars.register("DEBUG", getvar!(if debug { "1" } else { "" }.to_string()));
+
         vars.register_prefix("Q", Arc::new(|name| get_query_var(get, name, true)));
         vars.register_prefix("QRAW", Arc::new(|name| get_query_var(get, name, false)));
 
@@ -164,11 +180,59 @@ impl CmsBack {
     }
 
     async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> ah::Result<CmsReply> {
-        let Some(image_name) = get.path.nth_element(1) else {
+        let Some(img_name) = get.path.nth_element(1) else {
             return Ok(CmsReply::not_found("Invalid image path"));
         };
-        //TODO
-        Ok(Default::default())
+        let Ok(img_name) = img_name.into_checked_element() else {
+            return Ok(CmsReply::not_found("Invalid image path"));
+        };
+        let img_data = match self.comm.get_db_image(&img_name).await {
+            Ok(img_data) => img_data,
+            Err(_) => return Ok(CmsReply::not_found("Image not found")),
+        };
+        if img_name.ends_with(".svg") {
+            Ok(CmsReply::ok(img_data, "image/svg+xml"))
+        } else {
+            let img_cursor = Cursor::new(&img_data);
+            let image = match image::io::Reader::new(img_cursor).with_guessed_format() {
+                Ok(image) => image,
+                Err(_) => return Ok(CmsReply::not_found("Invalid image format")),
+            };
+            let mime = match image.format() {
+                Some(image::ImageFormat::Png) => "image/png",
+                Some(image::ImageFormat::Gif) => "image/gif",
+                Some(image::ImageFormat::WebP) => "image/webp",
+                Some(image::ImageFormat::Jpeg) => "image/jpeg",
+                _ => return Ok(CmsReply::not_found("Unsupported image format")),
+            };
+            if thumb {
+                let image = match image.decode() {
+                    Ok(image) => image,
+                    Err(_) => return Ok(CmsReply::not_found("Image decode failed")),
+                };
+                let width = get.query.get_int("w").unwrap_or(300);
+                let height = get.query.get_int("h").unwrap_or(300);
+                let quality = match get.query.get_int("q").unwrap_or(1).clamp(0, 3) {
+                    0 => 65,
+                    1 => 75,
+                    2 => 85,
+                    _ => 95,
+                };
+                let image = image.thumbnail(
+                    width.clamp(0, 1024 * 64).try_into().unwrap(),
+                    height.clamp(0, 1024 * 64).try_into().unwrap(),
+                );
+                let mut img_data = Vec::with_capacity(img_data.len());
+                let mut enc =
+                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut img_data, quality);
+                if enc.encode_image(&image).is_err() {
+                    return Ok(CmsReply::internal_error("Thumbnail encoding failed"));
+                };
+                Ok(CmsReply::ok(img_data, "image/jpeg"))
+            } else {
+                Ok(CmsReply::ok(img_data, mime))
+            }
+        }
     }
 
     async fn get_sitemap(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
@@ -204,6 +268,7 @@ impl CmsBack {
         if reply.status() == HttpStatus::InternalServerError {
             //TODO reduce information, if not debugging
         }
+        //TODO error page
         reply
     }
 

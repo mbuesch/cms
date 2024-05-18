@@ -17,6 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::numparse::parse_i64;
 use std::collections::HashMap;
 
 pub struct Query {
@@ -35,6 +36,14 @@ impl Query {
     pub fn get_str(&self, name: &str) -> Option<String> {
         if let Some(v) = self.get(name) {
             String::from_utf8(v).ok()
+        } else {
+            None
+        }
+    }
+
+    pub fn get_int(&self, name: &str) -> Option<i64> {
+        if let Some(v) = self.get_str(name) {
+            parse_i64(&v).ok()
         } else {
             None
         }

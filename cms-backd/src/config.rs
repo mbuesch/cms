@@ -23,6 +23,18 @@ use configparser::ini::Ini;
 const CONF_PATH: &str = "/opt/cms/etc/cms/backd.conf";
 const SECT: &str = "CMS-BACKD";
 
+fn get_domain(ini: &Ini) -> ah::Result<String> {
+    if let Some(domain) = ini.get(SECT, "domain") {
+        for c in domain.chars() {
+            if !c.is_ascii_alphanumeric() && c != '.' && c != '-' {
+                return Err(err!("'domain' has an invalid value."));
+            }
+        }
+        return Ok(domain);
+    }
+    Ok("example.com".to_string())
+}
+
 fn get_url_base(ini: &Ini) -> ah::Result<String> {
     if let Some(url_base) = ini.get(SECT, "url-base") {
         for c in url_base.chars() {
@@ -36,6 +48,7 @@ fn get_url_base(ini: &Ini) -> ah::Result<String> {
 }
 
 pub struct CmsConfig {
+    domain: String,
     url_base: String,
 }
 
@@ -46,9 +59,14 @@ impl CmsConfig {
             return Err(err!("Failed to load configuration {CONF_PATH}: {e}"));
         };
 
+        let domain = get_domain(&ini)?;
         let url_base = get_url_base(&ini)?;
 
-        Ok(Self { url_base })
+        Ok(Self { domain, url_base })
+    }
+
+    pub fn domain(&self) -> &str {
+        &self.domain
     }
 
     pub fn url_base(&self) -> &str {

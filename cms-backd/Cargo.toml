@@ -22,6 +22,7 @@ cms-socket-post = { path = "../cms-socket-post" }
 configparser = "3"
 crunchy = { git = "https://github.com/mbuesch/crunchy.git", rev = "433a4d08b859031f22d80197931c555c8af7b1fb" }
 html-escape = "0.2"
+image = { version = "0.25", default-features = false, features = [ "jpeg", "png", "gif", "webp" ] }
 lru = "0.12"
 peekable-fwd-bwd = "1"
 rand = "0.8"
