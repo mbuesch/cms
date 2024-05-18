@@ -142,13 +142,13 @@ impl CmsBack {
             return Ok(CmsReply::redirect(&redirect));
         }
 
-        if data.is_none() {
-            return Ok(CmsReply::not_found("GetPage: Page not available"));
-        }
-
         let mut title = String::from_utf8(title.unwrap_or_default()).unwrap_or_default();
         let mut data = String::from_utf8(data.unwrap_or_default()).unwrap_or_default();
         let stamp = epoch_stamp(stamp.unwrap_or_default());
+
+        if data.is_empty() {
+            return Ok(CmsReply::not_found("GetPage: Page not available"));
+        }
 
         let reply = self
             .comm
@@ -253,7 +253,7 @@ impl CmsBack {
     pub async fn get(&mut self, get: &CmsGetArgs) -> CmsReply {
         let count = get.path.element_count();
         let first = get.path.first_element_str();
-        let reply: CmsReply = match first {
+        let mut reply: CmsReply = match first {
             Some("__thumbs") if count == 2 => self.get_image(get, true).await.into(),
             Some("__images") if count == 2 => self.get_image(get, false).await.into(),
             Some("__sitemap") | Some("__sitemap.xml") if count == 1 => {
@@ -262,9 +262,12 @@ impl CmsBack {
             Some("__css") if count == 2 => self.get_css(get).await.into(),
             _ => self.get_page(get).await.into(),
         };
-        if reply.status() == HttpStatus::InternalServerError {
-            //TODO reduce information, if not debugging
+
+        // Remove detailed error information, if not debugging.
+        if reply.status() == HttpStatus::InternalServerError && !self.config.debug() {
+            reply.set_status_as_body();
         }
+
         //TODO error page
         reply
     }

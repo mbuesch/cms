@@ -18,6 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use anyhow as ah;
+use std::fmt;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum HttpStatus {
@@ -32,6 +33,19 @@ pub enum HttpStatus {
 impl From<HttpStatus> for u32 {
     fn from(status: HttpStatus) -> Self {
         status as Self
+    }
+}
+
+impl fmt::Display for HttpStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        let text = match self {
+            Self::Ok => "Ok",
+            Self::MovedPermanently => "Moved Permanently",
+            Self::BadRequest => "Bad Request",
+            Self::NotFound => "Not Found",
+            Self::InternalServerError => "Internal Server Error",
+        };
+        write!(f, "{} {}", *self as u16, text)
     }
 }
 
@@ -54,10 +68,11 @@ impl CmsReply {
         }
     }
 
-    pub fn not_found(_msg: &str) -> Self {
-        //TODO msg
+    pub fn not_found(msg: &str) -> Self {
         Self {
             status: HttpStatus::NotFound,
+            body: format!("<h1>{}: {}</h1>", HttpStatus::NotFound, msg).into_bytes(),
+            mime: "text/html".to_string(),
             ..Default::default()
         }
     }
@@ -77,16 +92,22 @@ impl CmsReply {
         }
     }
 
-    pub fn internal_error(_msg: &str) -> Self {
-        //TODO msg
+    pub fn internal_error(msg: &str) -> Self {
         Self {
             status: HttpStatus::InternalServerError,
+            body: format!("<h1>{}: {}</h1>", HttpStatus::InternalServerError, msg).into_bytes(),
+            mime: "text/html".to_string(),
             ..Default::default()
         }
     }
 
     pub fn status(&self) -> HttpStatus {
         self.status
+    }
+
+    pub fn set_status_as_body(&mut self) {
+        self.body = format!("<h1>{}</h1>", self.status).into_bytes();
+        self.mime = "text/html".to_string();
     }
 }
 
