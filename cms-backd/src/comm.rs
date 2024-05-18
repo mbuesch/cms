@@ -98,14 +98,27 @@ impl CmsComm {
     ) -> ah::Result<String> {
         let reply = self
             .comm_db(&MsgDb::GetMacro {
-                parent: parent.unwrap_or(&CheckedIdent::ROOT).clone().downgrade(),
-                name: name.clone().downgrade(),
+                parent: parent.unwrap_or(&CheckedIdent::ROOT).downgrade_clone(),
+                name: name.downgrade_clone(),
             })
             .await;
         if let Ok(MsgDb::Macro { data }) = reply {
             Ok(String::from_utf8(data).context("Macro: Data is not valid UTF-8")?)
         } else {
             Err(err!("Macro: Invalid db reply."))
+        }
+    }
+
+    pub async fn get_db_image(&mut self, name: &CheckedIdentElem) -> ah::Result<Vec<u8>> {
+        let reply = self
+            .comm_db(&MsgDb::GetImage {
+                name: name.downgrade_clone(),
+            })
+            .await;
+        if let Ok(MsgDb::Image { data }) = reply {
+            Ok(data)
+        } else {
+            Err(err!("Image: Invalid db reply."))
         }
     }
 }
