@@ -17,11 +17,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::numparse::parse_bool;
 use anyhow::{self as ah, format_err as err};
 use configparser::ini::Ini;
 
 const CONF_PATH: &str = "/opt/cms/etc/cms/backd.conf";
 const SECT: &str = "CMS-BACKD";
+
+fn get_debug(ini: &Ini) -> ah::Result<bool> {
+    if let Some(debug) = ini.get(SECT, "debug") {
+        return parse_bool(&debug);
+    }
+    Ok(false)
+}
 
 fn get_domain(ini: &Ini) -> ah::Result<String> {
     if let Some(domain) = ini.get(SECT, "domain") {
@@ -48,6 +56,7 @@ fn get_url_base(ini: &Ini) -> ah::Result<String> {
 }
 
 pub struct CmsConfig {
+    debug: bool,
     domain: String,
     url_base: String,
 }
@@ -59,10 +68,19 @@ impl CmsConfig {
             return Err(err!("Failed to load configuration {CONF_PATH}: {e}"));
         };
 
+        let debug = get_debug(&ini)?;
         let domain = get_domain(&ini)?;
         let url_base = get_url_base(&ini)?;
 
-        Ok(Self { domain, url_base })
+        Ok(Self {
+            debug,
+            domain,
+            url_base,
+        })
+    }
+
+    pub fn debug(&self) -> bool {
+        self.debug
     }
 
     pub fn domain(&self) -> &str {
