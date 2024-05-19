@@ -601,7 +601,7 @@ impl<'a> Resolver<'a> {
             };
             end
         } else {
-            string.len()
+            start.saturating_add(1)
         };
         start = start.min(string.len());
         end = end.min(string.len());
