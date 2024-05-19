@@ -99,6 +99,7 @@ impl CmsBack {
     }
 
     async fn get_page(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
+        // Get the page data.
         let reply = self
             .comm
             .comm_db(&MsgDb::GetPage {
@@ -128,10 +129,12 @@ impl CmsBack {
             return Ok(CmsReply::redirect(&redirect));
         }
 
+        // Convert data to strings.
         let mut title = String::from_utf8(title.unwrap_or_default()).unwrap_or_default();
         let mut data = String::from_utf8(data.unwrap_or_default()).unwrap_or_default();
         let stamp = epoch_stamp(stamp.unwrap_or_default());
 
+        // Page not found?
         if data.is_empty() {
             return Ok(CmsReply::not_found("Page not available"));
         }
@@ -150,6 +153,7 @@ impl CmsBack {
         let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, Some(&get.path)).await;
         let mut homestr = self.comm.get_db_string("home").await.unwrap_or_default();
 
+        // Resolve all data and strings.
         let mut vars = make_resolver_vars!(get, self.config);
         title = resolve!(self.comm, get, self.config, vars, title)?;
         vars.register("TITLE", getvar!(title.clone()));
@@ -157,6 +161,7 @@ impl CmsBack {
         headers = resolve!(self.comm, get, self.config, vars, headers)?;
         homestr = resolve!(self.comm, get, self.config, vars, homestr)?;
 
+        // Generate the page.
         let now = Utc::now();
         Ok(PageGen::new(get, Arc::clone(&self.config))
             .generate(&title, &headers, &data, &now, &stamp, &navtree, &homestr))
@@ -294,9 +299,11 @@ impl CmsBack {
             error_msg.clone_from(&http_status_code_str);
         }
         error_msg = html_safe_escape(&error_msg);
+        let title = error.status().to_string();
         let mut vars = make_resolver_vars!(get, self.config);
         vars.register("GROUP", getvar!("_error_".to_string()));
         vars.register("PAGE", getvar!("_error_".to_string()));
+        vars.register("TITLE", getvar!(title.clone()));
         vars.register("HTTP_STATUS", getvar!(http_status_str.clone()));
         vars.register("HTTP_STATUS_CODE", getvar!(http_status_code_str.clone()));
         vars.register("ERROR_MESSAGE", getvar!(error_msg.clone()));
@@ -316,7 +323,6 @@ impl CmsBack {
         let homestr = self.comm.get_db_string("home").await.unwrap_or_default();
         let homestr = resolve!(self.comm, get, self.config, vars, homestr).unwrap_or_default();
         let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, Some(&get.path)).await;
-        let title = error.status().to_string();
         let now = Utc::now();
         error = PageGen::new(get, Arc::clone(&self.config)).generate(
             &title,
