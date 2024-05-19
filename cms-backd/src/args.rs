@@ -20,7 +20,7 @@
 use crate::{cookie::Cookie, query::Query};
 use cms_ident::CheckedIdent;
 
-fn html_safe_escape(text: &str) -> String {
+pub fn html_safe_escape(text: &str) -> String {
     html_escape::encode_safe(text).to_string()
 }
 

@@ -56,6 +56,7 @@ pub struct CmsReply {
     mime: String,
     extra_http_headers: Vec<String>,
     extra_html_headers: Vec<String>,
+    error_msg: String,
 }
 
 impl CmsReply {
@@ -71,8 +72,14 @@ impl CmsReply {
     pub fn not_found(msg: &str) -> Self {
         Self {
             status: HttpStatus::NotFound,
-            body: format!("<h1>{}: {}</h1>", HttpStatus::NotFound, msg).into_bytes(),
+            body: format!(
+                r#"<p style="font-size: large;">{}: {}</p>"#,
+                HttpStatus::NotFound,
+                msg
+            )
+            .into_bytes(),
             mime: "text/html".to_string(),
+            error_msg: msg.to_string(),
             ..Default::default()
         }
     }
@@ -89,14 +96,21 @@ impl CmsReply {
             extra_html_headers: vec![format!(
                 r#"<meta http-equiv="refresh" content="0; URL={location}" />"#
             )],
+            ..Default::default()
         }
     }
 
     pub fn internal_error(msg: &str) -> Self {
         Self {
             status: HttpStatus::InternalServerError,
-            body: format!("<h1>{}: {}</h1>", HttpStatus::InternalServerError, msg).into_bytes(),
+            body: format!(
+                r#"<p style="font-size: large;">{}: {}</p>"#,
+                HttpStatus::InternalServerError,
+                msg
+            )
+            .into_bytes(),
             mime: "text/html".to_string(),
+            error_msg: msg.to_string(),
             ..Default::default()
         }
     }
@@ -109,9 +123,21 @@ impl CmsReply {
         self.status() == HttpStatus::Ok
     }
 
+    pub fn error_msg(&self) -> &str {
+        &self.error_msg
+    }
+
+    pub fn extra_html_headers(&self) -> &[String] {
+        &self.extra_html_headers
+    }
+
     pub fn set_status_as_body(&mut self) {
-        self.body = format!("<h1>{}</h1>", self.status).into_bytes();
+        self.body = format!(r#"<p style="font-size: large;">{}</p>"#, self.status).into_bytes();
         self.mime = "text/html".to_string();
+    }
+
+    pub fn remove_error_msg(&mut self) {
+        self.error_msg.clear();
     }
 }
 

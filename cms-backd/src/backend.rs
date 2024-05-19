@@ -18,7 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-    args::{get_query_var, CmsGetArgs, CmsPostArgs},
+    args::{get_query_var, html_safe_escape, CmsGetArgs, CmsPostArgs},
     cache::CmsCache,
     comm::CmsComm,
     config::CmsConfig,
@@ -78,7 +78,7 @@ macro_rules! resolve {
     ($comm:expr, $get:expr, $config:expr, $vars:expr, $text:expr) => {
         Resolver::new(&mut $comm, $get, Arc::clone(&$config), &$get.path, &$vars)
             .run(&$text)
-            .await?
+            .await
     };
 }
 
@@ -120,7 +120,7 @@ impl CmsBack {
             ..
         }) = reply
         else {
-            return Ok(CmsReply::internal_error("GetPage: Invalid db reply"));
+            return Ok(CmsReply::internal_error("Invalid database reply"));
         };
 
         let redirect = String::from_utf8(redirect.unwrap_or_default()).unwrap_or_default();
@@ -133,7 +133,7 @@ impl CmsBack {
         let stamp = epoch_stamp(stamp.unwrap_or_default());
 
         if data.is_empty() {
-            return Ok(CmsReply::not_found("GetPage: Page not available"));
+            return Ok(CmsReply::not_found("Page not available"));
         }
 
         let reply = self
@@ -151,11 +151,11 @@ impl CmsBack {
         let mut homestr = self.comm.get_db_string("home").await.unwrap_or_default();
 
         let mut vars = make_resolver_vars!(get, self.config);
-        title = resolve!(self.comm, get, self.config, vars, title);
+        title = resolve!(self.comm, get, self.config, vars, title)?;
         vars.register("TITLE", getvar!(title.clone()));
-        data = resolve!(self.comm, get, self.config, vars, data);
-        headers = resolve!(self.comm, get, self.config, vars, headers);
-        homestr = resolve!(self.comm, get, self.config, vars, homestr);
+        data = resolve!(self.comm, get, self.config, vars, data)?;
+        headers = resolve!(self.comm, get, self.config, vars, headers)?;
+        homestr = resolve!(self.comm, get, self.config, vars, homestr)?;
 
         let now = Utc::now();
         Ok(PageGen::new(get, Arc::clone(&self.config))
@@ -276,9 +276,57 @@ impl CmsBack {
         // Remove detailed error information, if not debugging.
         if error.status() == HttpStatus::InternalServerError && !self.config.debug() {
             error.set_status_as_body();
+            error.remove_error_msg();
         }
 
-        //TODO
+        // Get the error page HTML code.
+        let error_page_html = self.comm.get_db_string("http-error-page").await;
+        let mut error_page_html = error_page_html.unwrap_or_default();
+        if error_page_html.trim().is_empty() {
+            error_page_html = format!(r#"<p style="font-size: large;">{}</p>"#, error.status());
+        }
+
+        // Prepare the resolver.
+        let http_status_str = error.status().to_string();
+        let http_status_code_str = (error.status() as u16).to_string();
+        let mut error_msg = error.error_msg().to_string();
+        if error_msg.is_empty() {
+            error_msg.clone_from(&http_status_code_str);
+        }
+        error_msg = html_safe_escape(&error_msg);
+        let mut vars = make_resolver_vars!(get, self.config);
+        vars.register("GROUP", getvar!("_error_".to_string()));
+        vars.register("PAGE", getvar!("_error_".to_string()));
+        vars.register("HTTP_STATUS", getvar!(http_status_str.clone()));
+        vars.register("HTTP_STATUS_CODE", getvar!(http_status_code_str.clone()));
+        vars.register("ERROR_MESSAGE", getvar!(error_msg.clone()));
+
+        // Get html headers.
+        let html_headers = error.extra_html_headers().join("\n");
+        let html_headers =
+            resolve!(self.comm, get, self.config, vars, html_headers).unwrap_or_default();
+
+        // Resolve the body.
+        let Ok(error_page_html) = resolve!(self.comm, get, self.config, vars, error_page_html)
+        else {
+            return error;
+        };
+
+        // Generate the page.
+        let homestr = self.comm.get_db_string("home").await.unwrap_or_default();
+        let homestr = resolve!(self.comm, get, self.config, vars, homestr).unwrap_or_default();
+        let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, Some(&get.path)).await;
+        let title = error.status().to_string();
+        let now = Utc::now();
+        error = PageGen::new(get, Arc::clone(&self.config)).generate(
+            &title,
+            &html_headers,
+            &error_page_html,
+            &now,
+            &now,
+            &navtree,
+            &homestr,
+        );
 
         error
     }
