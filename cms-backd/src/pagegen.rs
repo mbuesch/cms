@@ -246,7 +246,16 @@ impl<'a> PageGen<'a> {
 
         let title = title.trim();
         let now = now.to_rfc3339_opts(SecondsFormat::Secs, true);
-        let extra_head = ""; //TODO
+
+        let headers = headers
+            .lines()
+            .fold(
+                String::with_capacity(headers.len() * 2),
+                |mut buf, line| {
+                    let _ = ln!(buf, r#"    {line}"#);
+                    buf
+                }
+            );
 
         ln!(b, r#"<?xml version="1.0" encoding="UTF-8" ?>"#)?;
         ln!(b, r#"<!DOCTYPE html>"#)?;
@@ -265,7 +274,8 @@ impl<'a> PageGen<'a> {
             c.url_base())?;
         ln!(b, r#"    <link rel="sitemap" type="application/xml" title="Sitemap" href="{}/__sitemap.xml" />"#,
             c.url_base())?;
-        ln!(b, r#"    {extra_head}"#)?;
+        ln!(b, r#"    <!-- extra headers: -->"#)?;
+        ln!(b, r#"{headers}"#)?;
         ln!(b, r#"</head>"#)?;
         ln!(b, r#"<body>"#)?;
         self.generate_body(&mut b, title, data, stamp, navtree, homestr)?;
