@@ -86,6 +86,13 @@ impl FromStr for Ident {
     }
 }
 
+impl Default for Ident {
+    #[inline]
+    fn default() -> Self {
+        Self::ROOT.clone()
+    }
+}
+
 impl Ident {
     /// Ident path of the root `/`.
     pub const ROOT: Ident = Ident(String::new());
@@ -293,6 +300,13 @@ impl CheckedIdent {
     pub const ROOT: CheckedIdent = CheckedIdent(Ident::ROOT);
 }
 
+impl Default for CheckedIdent {
+    #[inline]
+    fn default() -> Self {
+        Self::ROOT.clone()
+    }
+}
+
 /// A checked wrapper around [Ident].
 ///
 /// The [Ident] path contained herein has been checked and found to
@@ -302,6 +316,13 @@ impl CheckedIdent {
 /// This can only be constructed via [Ident::into_checked_element]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CheckedIdentElem(Ident);
+
+impl Default for CheckedIdentElem {
+    #[inline]
+    fn default() -> Self {
+        Self(Ident(String::new()))
+    }
+}
 
 /// Number of elements to strip off the path elements.
 pub enum Strip {
