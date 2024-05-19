@@ -28,7 +28,7 @@ use crate::{
 use anyhow::{self as ah, format_err as err};
 use chrono::prelude::*;
 use cms_ident::{CheckedIdent, UrlComp};
-use std::{fmt::Write as _, sync::Arc, writeln as ln};
+use std::{fmt::Write as _, sync::Arc, write as wr, writeln as ln};
 
 const DEFAULT_HTML_ALLOC: usize = 1024 * 64;
 const DEFAULT_INDEX_HTML_ALLOC: usize = 1024 * 4;
@@ -191,9 +191,11 @@ impl<'a> PageGen<'a> {
     }
 
     #[rustfmt::skip]
+    #[allow(clippy::too_many_arguments)]
     fn generate_body(
         &self,
         b: &mut String,
+        path: Option<&CheckedIdent>,
         title: &str,
         page_content: &str,
         stamp: &DateTime<Utc>,
@@ -202,7 +204,6 @@ impl<'a> PageGen<'a> {
     ) -> ah::Result<()> {
         let c = &self.config;
         let page_stamp = stamp.format("%A %d %B %Y %H:%M");
-        let page_checker = ""; //TODO
 
         ln!(b, r#"<div class="titlebar">"#)?;
         ln!(b, r#"    <div class="logo">"#)?;
@@ -220,10 +221,27 @@ impl<'a> PageGen<'a> {
         ln!(b, r#"<!-- END: page content -->"#)?;
         ln!(b)?;
         ln!(b, r#"<div class="modifystamp">"#)?;
-        ln!(b, r#"Updated: {page_stamp} (UTC)"#)?;
+        ln!(b, r#"    Updated: {page_stamp} (UTC)"#)?;
         ln!(b, r#"</div>"#)?;
         ln!(b)?;
-        ln!(b, r#"{page_checker}"#)?;
+        if let Some(path) = path {
+            let url = path.url(UrlComp {
+                protocol: Some("https"),
+                domain: Some(self.config.domain()),
+                base: Some(self.config.url_base()),
+            });
+            let mut url_enc = String::with_capacity(url.len() * 4);
+            let url = url_escape::encode_component_to_string(url, &mut url_enc);
+
+            ln!(b, r#"<div class="checker">"#)?;
+            wr!(b, r#"    <a href="https://validator.w3.org/nu/"#)?;
+            ln!(b, r#"?showsource=yes&amp;doc={url}">xhtml</a>"#)?;
+            ln!(b, r#"    /"#)?;
+            wr!(b, r#"    <a href="https://jigsaw.w3.org/css-validator/validator"#)?;
+            wr!(b, r#"?uri={url}&amp;profile=css3svg&amp;usermedium=all&amp;warning=1"#)?;
+            ln!(b, r#"&amp;vextwarning=&amp;lang=en">css</a>"#)?;
+            ln!(b, r#"</div>"#)?;
+        }
         ln!(b)?;
         ln!(b, r#"</div> <!-- class="main" -->"#)?;
         Ok(())
@@ -233,6 +251,7 @@ impl<'a> PageGen<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate_html(
         &self,
+        path: Option<&CheckedIdent>,
         title: &str,
         headers: &str,
         data: &str,
@@ -278,7 +297,7 @@ impl<'a> PageGen<'a> {
         ln!(b, r#"{headers}"#)?;
         ln!(b, r#"</head>"#)?;
         ln!(b, r#"<body>"#)?;
-        self.generate_body(&mut b, title, data, stamp, navtree, homestr)?;
+        self.generate_body(&mut b, path, title, data, stamp, navtree, homestr)?;
         ln!(b, r#"</body>"#)?;
         ln!(b, r#"</html>"#)?;
         Ok(b)
@@ -287,6 +306,7 @@ impl<'a> PageGen<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         &self,
+        path: Option<&CheckedIdent>,
         title: &str,
         headers: &str,
         data: &str,
@@ -295,7 +315,8 @@ impl<'a> PageGen<'a> {
         navtree: &NavTree,
         homestr: &str,
     ) -> CmsReply {
-        if let Ok(b) = self.generate_html(title, headers, data, now, stamp, navtree, homestr) {
+        if let Ok(b) = self.generate_html(path, title, headers, data, now, stamp, navtree, homestr)
+        {
             CmsReply::ok(b.into_bytes(), "application/xhtml+xml; charset=UTF-8")
         } else {
             CmsReply::internal_error("PageGen failed")

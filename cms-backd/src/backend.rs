@@ -155,8 +155,16 @@ impl CmsBack {
 
         // Generate the page.
         let now = Utc::now();
-        Ok(PageGen::new(get, Arc::clone(&self.config))
-            .generate(&title, &headers, &data, &now, &stamp, &navtree, &homestr))
+        Ok(PageGen::new(get, Arc::clone(&self.config)).generate(
+            Some(&get.path),
+            &title,
+            &headers,
+            &data,
+            &now,
+            &stamp,
+            &navtree,
+            &homestr,
+        ))
     }
 
     async fn get_image(&mut self, get: &CmsGetArgs, thumb: bool) -> ah::Result<CmsReply> {
@@ -317,6 +325,7 @@ impl CmsBack {
         let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, Some(&get.path)).await;
         let now = Utc::now();
         error = PageGen::new(get, Arc::clone(&self.config)).generate(
+            None,
             &title,
             &html_headers,
             &error_page_html,
