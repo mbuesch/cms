@@ -33,10 +33,10 @@ pub enum Msg {
         get_title: bool,
         get_data: bool,
         get_stamp: bool,
-        get_prio: bool,
+        get_prio: bool, //TODO remove this
         get_redirect: bool,
-        get_nav_stop: bool,
-        get_nav_label: bool,
+        get_nav_stop: bool,  //TODO move this to GetSubPages
+        get_nav_label: bool, //TODO remove this
     },
     GetHeaders {
         path: Ident,
