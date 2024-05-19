@@ -17,10 +17,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::comm::CmsComm;
+use crate::comm::{CmsComm, CommGetPage, CommPage, CommSubPages};
 use async_recursion::async_recursion;
 use cms_ident::CheckedIdent;
-use cms_socket_db::Msg as MsgDb;
 
 const MAX_DEPTH: usize = 64;
 
@@ -86,55 +85,38 @@ impl NavTree {
             return vec![];
         }
 
-        let reply = comm
-            .comm_db(&MsgDb::GetPage {
-                path: base.downgrade_clone(),
-                get_title: false,
-                get_data: false,
-                get_stamp: false,
-                get_prio: false,
-                get_redirect: false,
+        let Ok(CommPage { nav_stop, .. }) = comm
+            .get_db_page(CommGetPage {
+                path: base.clone(),
                 get_nav_stop: true,
-                get_nav_label: false,
+                ..Default::default()
             })
-            .await;
-        let Ok(MsgDb::Page { nav_stop, .. }) = reply else {
+            .await
+        else {
             return vec![];
         };
         if nav_stop.unwrap_or(true) {
             return vec![];
         }
 
-        let reply = comm
-            .comm_db(&MsgDb::GetSubPages {
-                path: base.downgrade_clone(),
-            })
-            .await;
-        let Ok(MsgDb::SubPages {
+        let Ok(CommSubPages {
             names,
             nav_labels,
             prios,
-        }) = reply
+        }) = comm.get_db_sub_pages(base).await
         else {
             return vec![];
         };
         let count = names.len();
-        if count != nav_labels.len() || count != prios.len() {
-            return vec![];
-        }
 
         let mut ret = Vec::with_capacity(count);
         for i in 0..count {
-            let Ok(sub_nav_label) = String::from_utf8(nav_labels[i].clone()) else {
-                continue;
-            };
+            let sub_nav_label = &nav_labels[i];
             if sub_nav_label.trim().is_empty() {
                 continue;
             }
-            let Ok(sub_name) = String::from_utf8(names[i].clone()) else {
-                continue;
-            };
-            let Ok(sub_ident) = base.clone_append(&sub_name).into_checked() else {
+            let sub_name = &names[i];
+            let Ok(sub_ident) = base.clone_append(sub_name).into_checked() else {
                 continue;
             };
             let sub_prio = prios[i];
@@ -145,8 +127,8 @@ impl NavTree {
             let sub_children = Self::build_sub(comm, &sub_ident, active, depth + 1).await;
 
             ret.push(NavElem {
-                name: sub_name,
-                nav_label: sub_nav_label,
+                name: sub_name.clone(),
+                nav_label: sub_nav_label.clone(),
                 path: sub_ident,
                 prio: sub_prio,
                 active: sub_active,

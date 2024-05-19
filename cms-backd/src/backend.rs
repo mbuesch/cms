@@ -20,7 +20,7 @@
 use crate::{
     args::{get_query_var, html_safe_escape, CmsGetArgs, CmsPostArgs},
     cache::CmsCache,
-    comm::CmsComm,
+    comm::{CmsComm, CommGetPage, CommPage},
     config::CmsConfig,
     navtree::NavTree,
     pagegen::PageGen,
@@ -30,13 +30,7 @@ use crate::{
 use anyhow as ah;
 use chrono::prelude::*;
 use cms_ident::{CheckedIdent, UrlComp};
-use cms_socket_db::Msg as MsgDb;
-use cms_socket_post::Msg as MsgPost;
 use std::{io::Cursor, path::Path, sync::Arc};
-
-fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
-    DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
-}
 
 #[rustfmt::skip]
 macro_rules! make_resolver_vars {
@@ -100,58 +94,56 @@ impl CmsBack {
 
     async fn get_page(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
         // Get the page data.
-        let reply = self
-            .comm
-            .comm_db(&MsgDb::GetPage {
-                path: get.path.downgrade_clone(),
-                get_title: true,
-                get_data: true,
-                get_stamp: true,
-                get_prio: false,
-                get_redirect: true,
-                get_nav_stop: false,
-                get_nav_label: false,
-            })
-            .await;
-        let Ok(MsgDb::Page {
+        let Ok(CommPage {
             title,
             data,
             stamp,
             redirect,
             ..
-        }) = reply
+        }) = self
+            .comm
+            .get_db_page(CommGetPage {
+                path: get.path.clone(),
+                get_title: true,
+                get_data: true,
+                get_stamp: true,
+                get_redirect: true,
+                ..Default::default()
+            })
+            .await
         else {
             return Ok(CmsReply::internal_error("Invalid database reply"));
         };
+        let mut title = title.unwrap_or_default();
+        let mut data = data.unwrap_or_default();
+        let stamp = stamp.unwrap_or_default();
+        let redirect = redirect.unwrap_or_default();
 
-        let redirect = String::from_utf8(redirect.unwrap_or_default()).unwrap_or_default();
+        // Redirect to another page?
         if !redirect.is_empty() {
             return Ok(CmsReply::redirect(&redirect));
         }
 
-        // Convert data to strings.
-        let mut title = String::from_utf8(title.unwrap_or_default()).unwrap_or_default();
-        let mut data = String::from_utf8(data.unwrap_or_default()).unwrap_or_default();
-        let stamp = epoch_stamp(stamp.unwrap_or_default());
-
         // Page not found?
         if data.is_empty() {
-            return Ok(CmsReply::not_found("Page not available"));
+            let url = get.path.url(UrlComp {
+                protocol: None,
+                domain: Some(self.config.domain()),
+                base: Some(self.config.url_base()),
+            });
+            return Ok(CmsReply::not_found(&format!("{url}: Page not available")));
         }
 
-        let reply = self
+        // Get the page header data and strings.
+        let mut headers = self
             .comm
-            .comm_db(&MsgDb::GetHeaders {
-                path: get.path.downgrade_clone(),
-            })
-            .await;
-        let Ok(MsgDb::Headers { data: headers }) = reply else {
-            return Ok(CmsReply::internal_error("GetHeaders: Invalid db reply"));
-        };
-
-        let mut headers = String::from_utf8(headers).unwrap_or_default();
-        let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, Some(&get.path)).await;
+            .get_db_headers(&get.path)
+            .await
+            .unwrap_or_default();
         let mut homestr = self.comm.get_db_string("home").await.unwrap_or_default();
+
+        // Build the navigation tree.
+        let navtree = NavTree::build(&mut self.comm, &CheckedIdent::ROOT, Some(&get.path)).await;
 
         // Resolve all data and strings.
         let mut vars = make_resolver_vars!(get, self.config);
@@ -265,7 +257,7 @@ impl CmsBack {
         };
 
         // Generate a human readable error page.
-        if !reply.is_ok() {
+        if reply.error_page_required() {
             reply = self.get_error_page(get, reply).await;
         }
 
@@ -334,6 +326,7 @@ impl CmsBack {
             &homestr,
         );
 
+        //TODO: use original status code?
         error
     }
 }

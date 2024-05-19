@@ -120,8 +120,8 @@ impl CmsReply {
         self.status
     }
 
-    pub fn is_ok(&self) -> bool {
-        self.status() == HttpStatus::Ok
+    pub fn error_page_required(&self) -> bool {
+        self.status() != HttpStatus::Ok
     }
 
     pub fn error_msg(&self) -> &str {
