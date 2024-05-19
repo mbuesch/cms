@@ -264,17 +264,30 @@ impl CmsBack {
             }
         };
 
-        // Generate a human readable error page.
         if reply.error_page_required() {
+            // Generate a human readable error page.
             reply = self.get_error_page(get, reply).await;
+        } else {
+            // Add Cache-Control header.
+            let mime = reply.mime();
+            if mime.contains("html") {
+                reply.add_http_header("Cache-Control: max-age=10");
+            } else if mime.starts_with("image/") {
+                reply.add_http_header("Cache-Control: max-age=3600");
+            } else if mime.starts_with("text/css") {
+                reply.add_http_header("Cache-Control: max-age=600");
+            }
         }
 
         reply
     }
 
     pub async fn post(&mut self, get: &CmsGetArgs, post: &CmsPostArgs) -> CmsReply {
+        let mut reply: CmsReply = Default::default();
         //TODO
-        Default::default()
+
+        reply.add_http_header("Cache-Control: no-cache");
+        reply
     }
 
     async fn get_error_page(&mut self, get: &CmsGetArgs, mut error: CmsReply) -> CmsReply {
@@ -338,6 +351,7 @@ impl CmsBack {
         );
 
         error.set_status(orig_status);
+        error.add_http_header("Cache-Control: no-store");
         error
     }
 }

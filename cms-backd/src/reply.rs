@@ -124,6 +124,10 @@ impl CmsReply {
         self.status = status;
     }
 
+    pub fn mime(&self) -> &str {
+        &self.mime
+    }
+
     pub fn error_page_required(&self) -> bool {
         self.status() != HttpStatus::Ok
     }
@@ -143,6 +147,10 @@ impl CmsReply {
 
     pub fn remove_error_msg(&mut self) {
         self.error_msg.clear();
+    }
+
+    pub fn add_http_header(&mut self, http_header: &str) {
+        self.extra_http_headers.push(http_header.to_string());
     }
 }
 
