@@ -85,6 +85,7 @@ impl CmsReply {
     }
 
     pub fn redirect(location: &str) -> Self {
+        let location = location.trim();
         Self {
             status: HttpStatus::MovedPermanently,
             body: format!(
