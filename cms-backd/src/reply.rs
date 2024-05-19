@@ -120,6 +120,10 @@ impl CmsReply {
         self.status
     }
 
+    pub fn set_status(&mut self, status: HttpStatus) {
+        self.status = status;
+    }
+
     pub fn error_page_required(&self) -> bool {
         self.status() != HttpStatus::Ok
     }

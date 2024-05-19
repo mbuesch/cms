@@ -278,6 +278,8 @@ impl CmsBack {
     }
 
     async fn get_error_page(&mut self, get: &CmsGetArgs, mut error: CmsReply) -> CmsReply {
+        let orig_status = error.status();
+
         // Remove detailed error information, if not debugging.
         if error.status() == HttpStatus::InternalServerError && !self.config.debug() {
             error.set_status_as_body();
@@ -335,7 +337,7 @@ impl CmsBack {
             &homestr,
         );
 
-        //TODO: use original status code?
+        error.set_status(orig_status);
         error
     }
 }
