@@ -26,6 +26,7 @@ mod cache;
 mod comm;
 mod config;
 mod cookie;
+mod formfields;
 mod index;
 mod itertools;
 mod navtree;

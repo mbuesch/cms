@@ -24,6 +24,7 @@ crunchy = { git = "https://github.com/mbuesch/crunchy.git", rev = "433a4d08b8590
 html-escape = "0.2"
 image = { version = "0.25", default-features = false, features = [ "jpeg", "png", "gif", "webp" ] }
 lru = "0.12"
+multer = { version = "3", features = [ "tokio-io" ] }
 peekable-fwd-bwd = "1"
 rand = "0.8"
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros" ] }

@@ -20,8 +20,9 @@
 use crate::{
     args::{get_query_var, html_safe_escape, CmsGetArgs, CmsPostArgs},
     cache::CmsCache,
-    comm::{CmsComm, CommGetPage, CommPage},
+    comm::{CmsComm, CommGetPage, CommPage, CommPostHandlerResult, CommRunPostHandler},
     config::CmsConfig,
+    formfields::FormFields,
     navtree::NavTree,
     pagegen::PageGen,
     reply::{CmsReply, HttpStatus},
@@ -282,11 +283,50 @@ impl CmsBack {
         reply
     }
 
-    pub async fn post(&mut self, get: &CmsGetArgs, post: &CmsPostArgs) -> CmsReply {
-        let mut reply: CmsReply = Default::default();
-        //TODO
+    async fn do_post(&mut self, get: &CmsGetArgs, post: &CmsPostArgs) -> ah::Result<CmsReply> {
+        let path = get.path.clone_append("post.py").into_checked()?;
+        let form_fields = match FormFields::new(&post.body, &post.body_mime).await {
+            Ok(form_fields) => form_fields,
+            Err(e) => {
+                return Ok(CmsReply::bad_request(&format!(
+                    "Failed to parse form-fields: {e}"
+                )))
+            }
+        };
 
-        reply.add_http_header("Cache-Control: no-cache");
+        let Ok(CommPostHandlerResult { error, body, mime }) = self
+            .comm
+            .run_post_handler(CommRunPostHandler {
+                path,
+                query: get.query.clone().into_items(),
+                form_fields: form_fields.into_items(),
+            })
+            .await
+        else {
+            return Ok(CmsReply::internal_error("Invalid postd reply"));
+        };
+        let error = error.trim();
+
+        if !error.is_empty() {
+            return Ok(CmsReply::bad_request(&format!(
+                "Failed to run POST handler: {error}"
+            )));
+        }
+
+        Ok(CmsReply::ok(body, &mime))
+    }
+
+    pub async fn post(&mut self, get: &CmsGetArgs, post: &CmsPostArgs) -> CmsReply {
+        let mut reply: CmsReply = self.do_post(get, post).await.into();
+
+        if reply.error_page_required() {
+            // Generate a human readable error page.
+            reply = self.get_error_page(get, reply).await;
+        } else {
+            // Add Cache-Control header.
+            reply.add_http_header("Cache-Control: no-cache");
+        }
+
         reply
     }
 

@@ -23,7 +23,10 @@ use cms_ident::{CheckedIdent, CheckedIdentElem};
 use cms_socket::{CmsSocketConn, MsgSerde as _};
 use cms_socket_db::{Msg as MsgDb, SOCK_FILE as SOCK_FILE_DB};
 use cms_socket_post::{Msg as MsgPost, SOCK_FILE as SOCK_FILE_POST};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
     DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
@@ -57,6 +60,20 @@ pub struct CommSubPages {
     pub names: Vec<String>,
     pub nav_labels: Vec<String>,
     pub prios: Vec<u64>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct CommRunPostHandler {
+    pub path: CheckedIdent,
+    pub query: HashMap<String, Vec<u8>>,
+    pub form_fields: HashMap<String, Vec<u8>>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct CommPostHandlerResult {
+    pub error: String,
+    pub body: Vec<u8>,
+    pub mime: String,
 }
 
 /// Communication with database and post handler.
@@ -236,6 +253,24 @@ impl CmsComm {
             Ok(data)
         } else {
             Err(err!("Image: Invalid db reply."))
+        }
+    }
+
+    pub async fn run_post_handler(
+        &mut self,
+        run: CommRunPostHandler,
+    ) -> ah::Result<CommPostHandlerResult> {
+        let reply = self
+            .comm_post(&MsgPost::RunPostHandler {
+                path: run.path.downgrade_clone(),
+                query: run.query,
+                form_fields: run.form_fields,
+            })
+            .await;
+        if let Ok(MsgPost::PostHandlerResult { error, body, mime }) = reply {
+            Ok(CommPostHandlerResult { error, body, mime })
+        } else {
+            Err(err!("RunPostHandler: Invalid postd reply."))
         }
     }
 }

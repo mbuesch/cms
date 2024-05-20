@@ -84,6 +84,21 @@ impl CmsReply {
         }
     }
 
+    pub fn bad_request(msg: &str) -> Self {
+        Self {
+            status: HttpStatus::BadRequest,
+            body: format!(
+                r#"<p style="font-size: large;">{}: {}</p>"#,
+                HttpStatus::BadRequest,
+                msg
+            )
+            .into_bytes(),
+            mime: "text/html".to_string(),
+            error_msg: msg.to_string(),
+            ..Default::default()
+        }
+    }
+
     pub fn redirect(location: &str) -> Self {
         let location = location.trim();
         Self {

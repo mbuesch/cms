@@ -20,6 +20,7 @@
 use crate::numparse::parse_i64;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug)]
 pub struct Query {
     items: HashMap<String, Vec<u8>>,
 }
@@ -27,6 +28,10 @@ pub struct Query {
 impl Query {
     pub fn new(items: HashMap<String, Vec<u8>>) -> Self {
         Self { items }
+    }
+
+    pub fn into_items(self) -> HashMap<String, Vec<u8>> {
+        self.items
     }
 
     pub fn get(&self, name: &str) -> Option<Vec<u8>> {
