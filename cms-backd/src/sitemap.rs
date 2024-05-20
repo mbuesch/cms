@@ -17,11 +17,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::{comm::CmsComm, config::CmsConfig};
+use anyhow as ah;
+use cms_ident::CheckedIdent;
+use std::sync::Arc;
+
+pub struct SiteMapContext<'a> {
+    pub comm: &'a mut CmsComm,
+    pub config: Arc<CmsConfig>,
+    pub root: &'a CheckedIdent,
+    pub protocol: &'a str,
+}
+
+/// Site map generator.
+/// Specification: https://www.sitemaps.org/protocol.html
 pub struct SiteMap {}
 
 impl SiteMap {
-    pub fn new() -> Self {
-        Self {}
+    pub async fn build(ctx: SiteMapContext<'_>) -> ah::Result<Self> {
+        Ok(Self {})
+    }
+
+    pub fn get_xml(&self) -> String {
+        String::new() //TODO
     }
 }
 

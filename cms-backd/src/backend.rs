@@ -27,6 +27,7 @@ use crate::{
     pagegen::PageGen,
     reply::{CmsReply, HttpStatus},
     resolver::{getvar, Resolver, ResolverVars},
+    sitemap::{SiteMap, SiteMapContext},
 };
 use anyhow as ah;
 use chrono::prelude::*;
@@ -225,8 +226,15 @@ impl CmsBack {
     }
 
     async fn get_sitemap(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
-        //TODO
-        Ok(Default::default())
+        let sitemap = SiteMap::build(SiteMapContext {
+            comm: &mut self.comm,
+            config: Arc::clone(&self.config),
+            root: &CheckedIdent::ROOT,
+            protocol: get.protocol_str(),
+        })
+        .await?;
+        let xml = sitemap.get_xml();
+        Ok(CmsReply::ok(xml.into_bytes(), "text/xml; charset=UTF-8"))
     }
 
     async fn get_css(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
