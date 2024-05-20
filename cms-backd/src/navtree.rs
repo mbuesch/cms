@@ -29,7 +29,7 @@ fn elem_sort_cmp(a: &NavElem, b: &NavElem) -> Ordering {
     if a.prio() == b.prio() {
         let a = a.nav_label().trim().as_bytes();
         let b = b.nav_label().trim().as_bytes();
-        a.cmp(&b)
+        a.cmp(b)
     } else {
         a.prio().cmp(&b.prio())
     }
