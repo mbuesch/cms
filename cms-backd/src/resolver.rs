@@ -643,18 +643,6 @@ impl<'a> Resolver<'a> {
         Ok(cleaned)
     }
 
-    async fn expand_statement_file_exists(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
-    }
-
-    async fn expand_statement_file_mdatet(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
-        let args = self.parse_args(chars).await?;
-        //TODO
-        Ok(String::new())
-    }
-
     /// Generate the site index.
     ///
     /// Statement: $(index)
@@ -930,10 +918,6 @@ impl<'a> Resolver<'a> {
             "contains" => self.expand_statement_contains(chars).await,
             "substr" => self.expand_statement_substr(chars).await,
             "sanitize" => self.expand_statement_sanitize(chars).await,
-
-            // filesystem access
-            "file_exists" => self.expand_statement_file_exists(chars).await,
-            "file_mdatet" => self.expand_statement_file_mdatet(chars).await,
 
             // page index / page info
             "index" => self.expand_statement_index(chars).await,
