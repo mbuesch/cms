@@ -103,6 +103,9 @@ while [ $# -ge 1 ]; do
         --no-python|-P)
             python=0
             ;;
+        --debug|-d)
+            release="debug"
+            ;;
         --release|-r)
             release="release"
             ;;

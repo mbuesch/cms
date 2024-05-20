@@ -27,6 +27,9 @@ die()
 release="debug"
 while [ $# -ge 1 ]; do
     case "$1" in
+        --debug|-d)
+            release="debug"
+            ;;
         --release|-r)
             release="release"
             ;;

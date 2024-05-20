@@ -44,7 +44,7 @@ try_systemctl()
 
 entry_checks()
 {
-    [ -d "$basedir/target/release" ] ||\
+    [ -d "$target" ] ||\
         die "CMS is not built! Run ./build.sh"
 
     [ "$(id -u)" = "0" ] ||\
@@ -102,7 +102,7 @@ install_fsd()
 {
     do_install \
         -o root -g root -m 0755 \
-        "$basedir/target/release/cms-fsd" \
+        "$target/cms-fsd" \
         /opt/cms/bin/
 
     do_install \
@@ -123,7 +123,7 @@ install_postd()
 {
     do_install \
         -o root -g root -m 0755 \
-        "$basedir/target/release/cms-postd" \
+        "$target/cms-postd" \
         /opt/cms/bin/
 
     do_install \
@@ -144,7 +144,7 @@ install_cgi()
 {
     do_install \
         -o root -g root -m 0755 --no-target-directory \
-        "$basedir/target/release/cms-cgi" \
+        "$target/cms-cgi" \
         /opt/cms/libexec/cms-cgi/cms.cgi
 }
 
@@ -152,7 +152,7 @@ install_backd()
 {
     do_install \
         -o root -g root -m 0755 \
-        "$basedir/target/release/cms-backd" \
+        "$target/cms-backd" \
         /opt/cms/bin/
 
     do_install \
@@ -212,7 +212,25 @@ install_conf()
 }
 
 python=1
-[ "$1" = "--no-python" -o "$1" = "-P" ] && python=0
+release="release"
+while [ $# -ge 1 ]; do
+    case "$1" in
+        --no-python|-P)
+            python=0
+            ;;
+        --debug|-d)
+            release="debug"
+            ;;
+        --release|-r)
+            release="release"
+            ;;
+        *)
+            die "Invalid option: $1"
+            ;;
+    esac
+    shift
+done
+target="$basedir/target/$release"
 
 [ $python -eq 0 ] && info "Python backend disabled."
 entry_checks
