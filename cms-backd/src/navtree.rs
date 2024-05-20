@@ -34,6 +34,7 @@ pub struct NavElem {
 }
 
 impl NavElem {
+    #[allow(dead_code)]
     pub fn name(&self) -> &str {
         &self.name
     }
