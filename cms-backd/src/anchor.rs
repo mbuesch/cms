@@ -31,7 +31,7 @@ pub struct Anchor {
 impl Anchor {
     pub fn new(name: &str, text: &str, indent: i64, no_index: bool) -> Self {
         let indent = if indent >= 0 {
-            Some(indent.clamp(0, usize::MAX as i64) as usize)
+            Some(indent.clamp(0, u8::MAX.into()).try_into().unwrap())
         } else {
             None
         };

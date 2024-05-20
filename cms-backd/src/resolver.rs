@@ -889,8 +889,12 @@ impl<'a> Resolver<'a> {
             return self.stmterr("ROUND: invalid args");
         }
         let a = parse_f64(&args[0]).unwrap_or(0.0);
-        let b = if nargs >= 2 {
-            parse_i64(&args[1]).unwrap_or(0).clamp(0, 64) as usize
+        let b: usize = if nargs >= 2 {
+            parse_i64(&args[1])
+                .unwrap_or(0)
+                .clamp(0, 64)
+                .try_into()
+                .unwrap()
         } else {
             0
         };
