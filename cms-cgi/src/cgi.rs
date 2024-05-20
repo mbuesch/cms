@@ -90,8 +90,8 @@ fn response_200_ok(
     }
     outstr(&mut f, "Status: 200 Ok\n");
     if let Some(start_stamp) = start_stamp {
-        let walltime = (Instant::now() - start_stamp).as_micros();
-        outstr(&mut f, &format!("X-CMS-Walltime: {walltime} us\n"));
+        let runtime = (Instant::now() - start_stamp).as_micros();
+        outstr(&mut f, &format!("X-CMS-Cgi-Runtime: {runtime} us\n"));
     }
     outstr(&mut f, "\n");
     if let Some(body) = body {

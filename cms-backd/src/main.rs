@@ -44,12 +44,18 @@ use crate::{
     config::CmsConfig,
     cookie::Cookie,
     query::Query,
+    reply::CmsReply,
 };
 use anyhow::{self as ah, format_err as err, Context as _};
 use clap::Parser;
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
 use cms_socket_back::{Msg, SOCK_FILE};
-use std::{num::NonZeroUsize, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    num::NonZeroUsize,
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 use tokio::{
     runtime,
     signal::unix::{signal, SignalKind},
@@ -81,10 +87,17 @@ async fn process_conn(
     cache: Arc<CmsCache>,
     opts: Arc<Opts>,
 ) -> ah::Result<()> {
-    let mut back = CmsBack::new(config, cache, &opts.rundir).await;
+    let mut back = CmsBack::new(Arc::clone(&config), cache, &opts.rundir).await;
     loop {
         let msg = conn.recv_msg(Msg::try_msg_deserialize).await?;
-        match msg {
+
+        let start_stamp = if config.debug() {
+            Some(Instant::now())
+        } else {
+            None
+        };
+
+        let mut reply: CmsReply = match msg {
             Some(Msg::Get {
                 host,
                 path,
@@ -94,18 +107,14 @@ async fn process_conn(
             }) => {
                 let path = path.into_cleaned_path().into_checked_sys()?;
 
-                let reply = back
-                    .get(&CmsGetArgs {
-                        host,
-                        path,
-                        _cookie: Cookie::new(cookie),
-                        query: Query::new(query),
-                        https,
-                    })
-                    .await;
-
-                let reply: Msg = reply.into();
-                conn.send_msg(&reply).await?;
+                back.get(&CmsGetArgs {
+                    host,
+                    path,
+                    _cookie: Cookie::new(cookie),
+                    query: Query::new(query),
+                    https,
+                })
+                .await
             }
             Some(Msg::Post {
                 host,
@@ -118,31 +127,36 @@ async fn process_conn(
             }) => {
                 let path = path.into_cleaned_path().into_checked()?;
 
-                let reply = back
-                    .post(
-                        &CmsGetArgs {
-                            host,
-                            path,
-                            _cookie: Cookie::new(cookie),
-                            query: Query::new(query),
-                            https,
-                        },
-                        &CmsPostArgs { body, body_mime },
-                    )
-                    .await;
-
-                let reply: Msg = reply.into();
-                conn.send_msg(&reply).await?;
+                back.post(
+                    &CmsGetArgs {
+                        host,
+                        path,
+                        _cookie: Cookie::new(cookie),
+                        query: Query::new(query),
+                        https,
+                    },
+                    &CmsPostArgs { body, body_mime },
+                )
+                .await
             }
             Some(Msg::Reply { .. }) => {
                 eprintln!("Received unsupported message.");
+                continue;
             }
             None => {
                 #[cfg(debug_assertions)]
                 eprintln!("Client disconnected.");
                 return Ok(());
             }
+        };
+
+        if let Some(start_stamp) = start_stamp {
+            let runtime = (Instant::now() - start_stamp).as_micros();
+            reply.add_http_header(&format!("X-CMS-Backend-Runtime: {runtime} us"));
         }
+
+        let reply_msg: Msg = reply.into();
+        conn.send_msg(&reply_msg).await?;
     }
 }
 
