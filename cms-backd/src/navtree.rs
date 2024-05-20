@@ -20,8 +20,20 @@
 use crate::comm::{CmsComm, CommGetPage, CommPage, CommSubPages};
 use async_recursion::async_recursion;
 use cms_ident::CheckedIdent;
+use std::cmp::Ordering;
 
 const MAX_DEPTH: usize = 64;
+
+fn elem_sort_cmp(a: &NavElem, b: &NavElem) -> Ordering {
+    // compare a(prio|nav_label) to b(prio|nav_label)
+    if a.prio() == b.prio() {
+        let a = a.nav_label().trim().as_bytes();
+        let b = b.nav_label().trim().as_bytes();
+        a.cmp(&b)
+    } else {
+        a.prio().cmp(&b.prio())
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct NavElem {
@@ -136,6 +148,7 @@ impl NavTree {
                 children: sub_children,
             });
         }
+        ret.sort_unstable_by(elem_sort_cmp);
         ret
     }
 
