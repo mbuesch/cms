@@ -10,14 +10,18 @@
 
 use anyhow::{self as ah, format_err as err, Context as _};
 use chrono::prelude::*;
-use cms_ident::{CheckedIdent, CheckedIdentElem};
+use cms_ident::{CheckedIdent, CheckedIdentElem, Tail};
 use cms_socket::{CmsSocketConn, MsgSerde as _};
 use cms_socket_db::{Msg as MsgDb, SOCK_FILE as SOCK_FILE_DB};
 use cms_socket_post::{Msg as MsgPost, SOCK_FILE as SOCK_FILE_POST};
+use lru::LruCache;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+
+const DEBUG: bool = false;
+const MACRO_CACHE_SIZE: usize = 512;
 
 fn epoch_stamp(seconds: u64) -> DateTime<Utc> {
     DateTime::from_timestamp(seconds.try_into().unwrap_or_default(), 0).unwrap_or_default()
@@ -73,6 +77,7 @@ pub struct CmsComm {
     sock_path_post: PathBuf,
     sock_db: Option<CmsSocketConn>,
     sock_post: Option<CmsSocketConn>,
+    macro_cache: LruCache<String, String>,
 }
 
 impl CmsComm {
@@ -84,6 +89,7 @@ impl CmsComm {
             sock_path_post,
             sock_db: None,
             sock_post: None,
+            macro_cache: LruCache::new(MACRO_CACHE_SIZE.try_into().unwrap()),
         }
     }
 
@@ -102,6 +108,9 @@ impl CmsComm {
     }
 
     async fn comm_db(&mut self, request: &MsgDb) -> ah::Result<MsgDb> {
+        if DEBUG {
+            println!("DB comm: {request:?}");
+        }
         let sock = self.sock_db().await?;
         sock.send_msg(request).await?;
         if let Some(reply) = sock.recv_msg(MsgDb::try_msg_deserialize).await? {
@@ -112,6 +121,9 @@ impl CmsComm {
     }
 
     async fn comm_post(&mut self, request: &MsgPost) -> ah::Result<MsgPost> {
+        if DEBUG {
+            println!("Post comm: {request:?}");
+        }
         let sock = self.sock_post().await?;
         sock.send_msg(request).await?;
         if let Some(reply) = sock.recv_msg(MsgPost::try_msg_deserialize).await? {
@@ -221,6 +233,18 @@ impl CmsComm {
         parent: Option<&CheckedIdent>,
         name: &CheckedIdentElem,
     ) -> ah::Result<String> {
+        let cache_name = if let Some(parent) = parent {
+            parent.to_fs_path(Path::new(""), &Tail::One(name.clone()))
+        } else {
+            name.to_fs_path(Path::new(""), &Tail::None)
+        };
+        let cache_name = cache_name.into_os_string().into_string().unwrap();
+
+        // Try to get it from the cache.
+        if let Some(data) = self.macro_cache.get(&cache_name) {
+            return Ok(data.clone());
+        }
+
         let reply = self
             .comm_db(&MsgDb::GetMacro {
                 parent: parent.unwrap_or(&CheckedIdent::ROOT).downgrade_clone(),
@@ -228,7 +252,11 @@ impl CmsComm {
             })
             .await;
         if let Ok(MsgDb::Macro { data }) = reply {
-            Ok(String::from_utf8(data).context("Macro: Data is not valid UTF-8")?)
+            let data = String::from_utf8(data).context("Macro: Data is not valid UTF-8")?;
+
+            // Put it into the cache.
+            self.macro_cache.push(cache_name, data.clone());
+            Ok(data)
         } else {
             Err(err!("Macro: Invalid db reply."))
         }
