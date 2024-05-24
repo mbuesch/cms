@@ -224,7 +224,7 @@ impl CmsBack {
             protocol: get.protocol_str(),
         })
         .await?;
-        let xml = sitemap.get_xml();
+        let xml = sitemap.get_xml()?;
         Ok(CmsReply::ok(xml.into_bytes(), "text/xml; charset=UTF-8"))
     }
 
