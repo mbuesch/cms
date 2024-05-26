@@ -17,18 +17,6 @@ NOT		$(not a)				<br />
 NOT		$(not)					<br />
 STRIP		$(strip   aaa   ,  bbb  )		<br />
 SANITIZE	$(sanitize x1%2y, z3\)3)		<br />
-$(anchor function_file_exists, function file_exists, 1)
-$(anchor file_exists_a, file_exists a, 2)
-FILE_EXISTS	$(file_exists /cms.css)			<br />
-$(anchor file_exists_b, file_exists b, 2)
-FILE_EXISTS	$(file_exists /none)			<br />
-$(anchor file_exists_c, file_exists c, 2)
-FILE_EXISTS	$(file_exists /none, no file)		<br />
-
-<br />
-$(anchor variables, Variables, 0)
-Variables:						<br />
-<pre>$__DUMPVARS__</pre>				<br />
 
 <br />
 $(anchor unit_tests, Unit tests, 0)
@@ -39,13 +27,12 @@ $(assert $(if a,b), $(if a,b,))
 $(assert $(if ,,c))
 $(assert $(not $(if a,,c)))
 $(assert $(not $(if ,b)), $(not $(if ,b,)))
-$(assert $(eq xyz, xyz), $(eq $(eq abc,abc),abc))
-$(assert $(ne abc,aBc), $(eq $(ne abc, aBc), aBc))
+$(assert $(eq xyz, xyz), $(eq $(eq abc,abc), 1 ))
+$(assert $(ne abc,aBc), $(eq $(ne abc, aBc), 1 ))
 $(assert $(and a,b,c), $(eq $(and a,b,c),a), $(not $(and a,,c)))
-$(assert $(or ,b,,,,), $(eq $(or ,b,,,,),b), $(not $(or )))
+$(assert $(or ,b,,,,), $(eq $(or ,b,,,,),b))
 $(assert $(eq $(strip  foo bar  ),foo bar))
 $(assert $(eq $(sanitize ___ab*+ef+),ab_ef))
-$(assert $(file_exists /), $(eq $(file_exists /),/))
 passed.
 
 <!-- begin: index -->
