@@ -25,6 +25,7 @@ die()
 }
 
 release="debug"
+get_path="/"
 while [ $# -ge 1 ]; do
     case "$1" in
         --debug|-d)
@@ -34,7 +35,7 @@ while [ $# -ge 1 ]; do
             release="release"
             ;;
         *)
-            die "Invalid option: $1"
+            get_path="$1"
             ;;
     esac
     shift
@@ -47,7 +48,7 @@ binary="$target/cms-cgi"
 rundir="$basedir/run"
 export QUERY_STRING=
 export REQUEST_METHOD=GET
-export PATH_INFO=/
+export PATH_INFO="$get_path"
 export CONTENT_LENGTH=
 export CONTENT_TYPE=
 export HTTPS=on
