@@ -1,0 +1,11 @@
+@SUB(An error occurred)
+<p>
+	The page could not be accessed, because: <i>$HTTP_STATUS</i>
+</p>
+$(if $ERROR_MESSAGE,<pre>$ERROR_MESSAGE</pre>)
+<p>
+	We're sorry for the inconvenience.<br />
+	Please check the navigation bar to
+	find the desired page.
+</p>
+@ENDSUB()
