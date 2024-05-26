@@ -1,3 +1,0 @@
-[submodule "submodules/multipart"]
-	path = submodules/multipart
-	url = https://github.com/defnull/multipart.git

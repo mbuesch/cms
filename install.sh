@@ -88,14 +88,6 @@ install_dirs()
     do_install \
         -o root -g root -m 0755 \
         -d /opt/cms/libexec/cms-cgi
-
-    do_install \
-        -o root -g root -m 0755 \
-        -d /opt/cms/lib/python3/site-packages/cms
-
-    do_install \
-        -o root -g root -m 0755 \
-        -d /opt/cms/lib/python3/site-packages/cms_cython
 }
 
 install_fsd()
@@ -169,38 +161,6 @@ install_backd()
     do_systemctl enable cms-backd.socket
 }
 
-install_py()
-{
-    do_install \
-        -o root -g root -m 0644 \
-        "$basedir"/cms/*.py \
-        /opt/cms/lib/python3/site-packages/cms/
-
-    do_install \
-        -o root -g root -m 0755 \
-        "$basedir/cmsbackpy/cms-backd" \
-        /opt/cms/bin/
-
-    do_install \
-        -o root -g root -m 0644 \
-        "$basedir/cmsbackpy/cms-backd.service" \
-        /etc/systemd/system/
-
-    do_install \
-        -o root -g root -m 0644 \
-        "$basedir/cmsbackpy/cms-backd.socket" \
-        /etc/systemd/system/
-
-    do_install \
-        -o root -g root -m 0644 \
-        "$basedir"/build/lib.*cpython*/cms_cython/*.py \
-        "$basedir"/build/lib.*cpython*/cms_cython/*.so \
-        /opt/cms/lib/python3/site-packages/cms_cython/
-
-    do_systemctl enable cms-backd.service
-    do_systemctl enable cms-backd.socket
-}
-
 install_conf()
 {
     if ! [ -f /opt/cms/etc/cms/backd.conf ]; then
@@ -211,13 +171,9 @@ install_conf()
     fi
 }
 
-python=1
 release="release"
 while [ $# -ge 1 ]; do
     case "$1" in
-        --no-python|-P)
-            python=0
-            ;;
         --debug|-d)
             release="debug"
             ;;
@@ -232,15 +188,13 @@ while [ $# -ge 1 ]; do
 done
 target="$basedir/target/$release"
 
-[ $python -eq 0 ] && info "Python backend disabled."
 entry_checks
 stop_services
 install_dirs
 install_fsd
 install_postd
 install_cgi
-[ $python -ne 0 ] && install_py
-[ $python -eq 0 ] && install_backd
+install_backd
 install_conf
 start_services
 
