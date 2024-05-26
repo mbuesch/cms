@@ -50,7 +50,6 @@ pub struct SiteMapContext<'a> {
 }
 
 struct SiteMapElem {
-    depth: usize,
     loc: String,
     lastmod: String,
     changefreq: String,
@@ -112,7 +111,6 @@ async fn build_elems(
     }
 
     elems.push(SiteMapElem {
-        depth,
         loc,
         lastmod,
         changefreq,
@@ -128,6 +126,33 @@ async fn build_elems(
     Ok(())
 }
 
+async fn build_user_elems(
+    ctx: &mut SiteMapContext<'_>,
+    elems: &mut Vec<SiteMapElem>,
+) -> ah::Result<()> {
+    let user_site_map = ctx.comm.get_db_string("site-map").await?;
+    for line in user_site_map.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut line = line.split_whitespace();
+        let Some(loc) = line.next() else {
+            continue;
+        };
+        let loc = format!("{}://{}/{}", ctx.protocol, ctx.config.domain(), loc);
+        let priority = line.next().unwrap_or("0.7");
+        let changefreq = line.next().unwrap_or("always");
+        elems.push(SiteMapElem {
+            loc,
+            lastmod: String::new(),
+            changefreq: changefreq.to_string(),
+            priority: priority.to_string(),
+        });
+    }
+    Ok(())
+}
+
 /// Site map generator.
 /// Specification: https://www.sitemaps.org/protocol.html
 pub struct SiteMap {
@@ -139,15 +164,18 @@ impl SiteMap {
         let mut elems = Vec::with_capacity(DEFAULT_ELEMS_ALLOC);
         let root = ctx.root.clone();
         build_elems(&mut ctx, &mut elems, &root, 0).await?;
+        build_user_elems(&mut ctx, &mut elems).await?;
         Ok(Self { elems })
     }
 
-    fn add_user_url_elems(&self, b: &mut String) -> ah::Result<()> {
-        //TODO
-        Ok(())
-    }
-
-    fn add_url_elems(&self, b: &mut String) -> ah::Result<()> {
+    #[rustfmt::skip]
+    pub fn get_xml(&self) -> ah::Result<String> {
+        let mut b = String::with_capacity(DEFAULT_HTML_ALLOC);
+        ln!(b, r#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
+        wr!(b, r#"<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" "#)?;
+        wr!(b, r#"xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance" "#)?;
+        wr!(b, r#"xsi:schemaLocation="https://www.sitemaps.org/schemas/sitemap/0.9 "#)?;
+        ln!(b, r#"https://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">"#)?;
         for elem in &self.elems {
             let loc = xml_escape(elem.loc.clone());
             let lastmod = xml_escape(elem.lastmod.clone());
@@ -169,19 +197,6 @@ impl SiteMap {
             }
             ln!(b, r#"</url>"#)?;
         }
-        Ok(())
-    }
-
-    #[rustfmt::skip]
-    pub fn get_xml(&self) -> ah::Result<String> {
-        let mut b = String::with_capacity(DEFAULT_HTML_ALLOC);
-        ln!(b, r#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
-        wr!(b, r#"<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" "#)?;
-        wr!(b, r#"xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance" "#)?;
-        wr!(b, r#"xsi:schemaLocation="https://www.sitemaps.org/schemas/sitemap/0.9 "#)?;
-        ln!(b, r#"https://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">"#)?;
-        self.add_url_elems(&mut b)?;
-        self.add_user_url_elems(&mut b)?;
         wr!(b, r#"</urlset>"#)?;
         Ok(b)
     }
