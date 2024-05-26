@@ -4,7 +4,7 @@
 name = "cms-backd"
 version = "1.0.0"
 edition = "2021"
-license = "GPL-2.0-or-later"
+license = "MIT OR Apache-2.0"
 authors = [ "Michael Büsch <m@bues.ch>" ]
 publish = false
 
