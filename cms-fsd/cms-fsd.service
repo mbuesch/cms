@@ -1,6 +1,5 @@
 [Unit]
 Description=CMS fs daemon
-PartOf=cms-fsd.socket
 
 [Service]
 Type=notify
@@ -15,6 +14,3 @@ User=cms-fsd
 Group=cms-fsd
 Nice=0
 #Environment=RUST_BACKTRACE=1
-
-[Install]
-WantedBy=multi-user.target

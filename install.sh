@@ -60,6 +60,12 @@ stop_services()
     try_systemctl stop cms-postd.service
     try_systemctl stop cms-fsd.socket
     try_systemctl stop cms-fsd.service
+    try_systemctl disable cms-backd.socket
+    try_systemctl disable cms-backd.service
+    try_systemctl disable cms-postd.socket
+    try_systemctl disable cms-postd.service
+    try_systemctl disable cms-fsd.socket
+    try_systemctl disable cms-fsd.service
 }
 
 start_services()
@@ -107,7 +113,6 @@ install_fsd()
         "$basedir/cms-fsd/cms-fsd.socket" \
         /etc/systemd/system/
 
-    do_systemctl enable cms-fsd.service
     do_systemctl enable cms-fsd.socket
 }
 
@@ -128,7 +133,6 @@ install_postd()
         "$basedir/cms-postd/cms-postd.socket" \
         /etc/systemd/system/
 
-    do_systemctl enable cms-postd.service
     do_systemctl enable cms-postd.socket
 }
 
@@ -157,7 +161,6 @@ install_backd()
         "$basedir/cms-backd/cms-backd.socket" \
         /etc/systemd/system/
 
-    do_systemctl enable cms-backd.service
     do_systemctl enable cms-backd.socket
 }
 
