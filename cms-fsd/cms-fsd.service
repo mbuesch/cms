@@ -4,6 +4,7 @@ PartOf=cms-fsd.socket
 
 [Service]
 Type=notify
+NotifyAccess=main
 ExecStart=/opt/cms/bin/cms-fsd /opt/cms/etc/cms/db
 ExecReload=/bin/kill -HUP $MAINPID
 StandardOutput=journal
