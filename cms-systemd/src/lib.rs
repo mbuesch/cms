@@ -8,7 +8,7 @@
 // or the MIT license, at your option.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use anyhow::{self as ah, Context as _};
+use anyhow::{self as ah, format_err as err, Context as _};
 use std::os::{fd::FromRawFd as _, unix::net::UnixListener};
 
 /// Create a new [UnixListener] with the socket provided by systemd.
@@ -21,6 +21,10 @@ pub fn unix_from_systemd() -> ah::Result<Option<UnixListener>> {
             // SAFETY:
             // The fd from systemd is good and lives for the lifetime of the program.
             return Ok(Some(unsafe { UnixListener::from_raw_fd(fd) }));
+        } else {
+            return Err(err!(
+                "Booted with systemd, but no listen_fds received from systemd."
+            ));
         }
     }
     Ok(None)
