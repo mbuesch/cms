@@ -1,5 +1,6 @@
 [Unit]
 Description=CMS post daemon
+PartOf=cms-postd.socket
 
 [Service]
 Type=notify
@@ -14,3 +15,6 @@ User=cms-postd
 Group=cms-postd
 Nice=5
 #Environment=RUST_BACKTRACE=1
+
+[Install]
+WantedBy=multi-user.target

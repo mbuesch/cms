@@ -1,7 +1,6 @@
 [Unit]
 Description=CMS post daemon socket
 Requires=cms-postd.service
-PartOf=cms-postd.service
 AssertPathExists=/run
 
 [Socket]

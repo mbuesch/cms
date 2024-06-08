@@ -1,7 +1,8 @@
 [Unit]
 Description=CMS backend daemon
-Requires=cms-fsd.service cms-postd.service
-After=cms-fsd.service cms-postd.service
+PartOf=cms-backd.socket
+Requires=cms-fsd.service
+Requires=cms-postd.service
 
 [Service]
 Type=notify
@@ -16,3 +17,6 @@ User=cms-backd
 Group=cms-backd
 Nice=0
 #Environment=RUST_BACKTRACE=1
+
+[Install]
+WantedBy=multi-user.target

@@ -1,8 +1,6 @@
 [Unit]
 Description=CMS backend daemon socket
-Requires=cms-backd.service cms-fsd.service cms-postd.service
-After=cms-fsd.service cms-postd.service
-PartOf=cms-backd.service
+Requires=cms-backd.service
 AssertPathExists=/run
 
 [Socket]
