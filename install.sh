@@ -60,6 +60,12 @@ stop_services()
     try_systemctl stop cms-postd.service
     try_systemctl stop cms-fsd.socket
     try_systemctl stop cms-fsd.service
+    try_systemctl disable cms-backd.socket
+    try_systemctl disable cms-backd.service
+    try_systemctl disable cms-postd.socket
+    try_systemctl disable cms-postd.service
+    try_systemctl disable cms-fsd.socket
+    try_systemctl disable cms-fsd.service
 }
 
 start_services()
