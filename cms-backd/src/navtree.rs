@@ -16,11 +16,11 @@ use std::cmp::Ordering;
 const MAX_DEPTH: usize = 64;
 
 fn elem_sort_cmp(a: &NavElem, b: &NavElem) -> Ordering {
-    // compare a(prio|nav_label) to b(prio|nav_label)
+    // compare a(prio|nav_label.lower) to b(prio|nav_label.lower)
     if a.prio() == b.prio() {
-        let a = a.nav_label().trim().as_bytes();
-        let b = b.nav_label().trim().as_bytes();
-        a.cmp(b)
+        let a = a.nav_label().trim().to_lowercase();
+        let b = b.nav_label().trim().to_lowercase();
+        a.cmp(&b)
     } else {
         a.prio().cmp(&b.prio())
     }
