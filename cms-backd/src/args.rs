@@ -16,7 +16,7 @@ pub fn html_safe_escape(text: &str) -> String {
 }
 
 pub struct CmsGetArgs {
-    pub host: String,
+    pub _host: String,
     pub path: CheckedIdent,
     pub _cookie: Cookie,
     pub query: Query,

@@ -99,7 +99,7 @@ async fn process_conn(
                 let path = path.into_cleaned_path().into_checked_sys()?;
 
                 back.get(&CmsGetArgs {
-                    host,
+                    _host: host,
                     path,
                     _cookie: Cookie::new(cookie),
                     query: Query::new(query),
@@ -120,7 +120,7 @@ async fn process_conn(
 
                 back.post(
                     &CmsGetArgs {
-                        host,
+                        _host: host,
                         path,
                         _cookie: Cookie::new(cookie),
                         query: Query::new(query),
