@@ -33,10 +33,8 @@ pub struct CommGetPage {
     pub get_title: bool,
     pub get_data: bool,
     pub get_stamp: bool,
-    pub get_prio: bool,
     pub get_redirect: bool,
     pub get_nav_stop: bool,
-    pub get_nav_label: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -44,10 +42,8 @@ pub struct CommPage {
     pub title: Option<String>,
     pub data: Option<String>,
     pub stamp: Option<DateTime<Utc>>,
-    pub prio: Option<u64>,
     pub redirect: Option<String>,
     pub nav_stop: Option<bool>,
-    pub nav_label: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -140,30 +136,24 @@ impl CmsComm {
                 get_title: get.get_title,
                 get_data: get.get_data,
                 get_stamp: get.get_stamp,
-                get_prio: get.get_prio,
                 get_redirect: get.get_redirect,
                 get_nav_stop: get.get_nav_stop,
-                get_nav_label: get.get_nav_label,
             })
             .await;
         if let Ok(MsgDb::Page {
             title,
             data,
             stamp,
-            prio,
             redirect,
             nav_stop,
-            nav_label,
         }) = reply
         {
             Ok(CommPage {
                 title: title.and_then(|x| String::from_utf8(x).ok()),
                 data: data.and_then(|x| String::from_utf8(x).ok()),
                 stamp: stamp.map(epoch_stamp),
-                prio,
                 redirect: redirect.and_then(|x| String::from_utf8(x).ok()),
                 nav_stop,
-                nav_label: nav_label.and_then(|x| String::from_utf8(x).ok()),
             })
         } else {
             Err(err!("Page: Invalid db reply."))

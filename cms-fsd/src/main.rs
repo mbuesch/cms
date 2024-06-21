@@ -57,18 +57,14 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 get_title,
                 get_data,
                 get_stamp,
-                get_prio,
                 get_redirect,
                 get_nav_stop,
-                get_nav_label,
             }) => {
                 let mut title = None;
                 let mut data = None;
                 let mut stamp = None;
-                let mut prio = None;
                 let mut redirect = None;
                 let mut nav_stop = None;
-                let mut nav_label = None;
 
                 //TODO: Cleaning should be done in the backd.
                 if let Ok(path) = path.into_cleaned_path().into_checked() {
@@ -81,17 +77,11 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                     if get_stamp {
                         stamp = Some(db.get_page_stamp(&path).await);
                     }
-                    if get_prio {
-                        prio = Some(db.get_page_prio(&path).await);
-                    }
                     if get_redirect {
                         redirect = Some(db.get_page_redirect(&path).await);
                     }
                     if get_nav_stop {
                         nav_stop = Some(db.get_nav_stop(&path).await);
-                    }
-                    if get_nav_label {
-                        nav_label = Some(db.get_nav_label(&path).await);
                     }
                 };
 
@@ -99,10 +89,8 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                     title,
                     data,
                     stamp,
-                    prio,
                     redirect,
                     nav_stop,
-                    nav_label,
                 };
                 conn.send_msg(&reply).await?;
             }

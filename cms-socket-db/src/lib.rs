@@ -24,10 +24,8 @@ pub enum Msg {
         get_title: bool,
         get_data: bool,
         get_stamp: bool,
-        get_prio: bool, //TODO remove this
         get_redirect: bool,
-        get_nav_stop: bool,  //TODO move this to GetSubPages
-        get_nav_label: bool, //TODO remove this
+        get_nav_stop: bool, //TODO move this to GetSubPages
     },
     GetHeaders {
         path: Ident,
@@ -51,10 +49,8 @@ pub enum Msg {
         title: Option<Vec<u8>>,
         data: Option<Vec<u8>>,
         stamp: Option<u64>,
-        prio: Option<u64>,
         redirect: Option<Vec<u8>>,
         nav_stop: Option<bool>,
-        nav_label: Option<Vec<u8>>,
     },
     Headers {
         data: Vec<u8>,
