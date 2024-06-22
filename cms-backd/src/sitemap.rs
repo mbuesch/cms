@@ -63,21 +63,12 @@ async fn do_build_elems(
     elems: &mut Vec<SiteMapElem>,
     ident: &CheckedIdent,
     stamp: DateTime<Utc>,
+    nav_stop: bool,
     depth: usize,
 ) -> ah::Result<()> {
     if depth >= MAX_DEPTH {
         return Ok(());
     }
-
-    let Ok(CommSubPages {
-        mut names,
-        nav_stops,
-        stamps,
-        ..
-    }) = ctx.comm.get_db_sub_pages(ident).await
-    else {
-        return Ok(());
-    };
 
     let loc = ident.url(UrlComp {
         protocol: Some(ctx.protocol),
@@ -106,11 +97,21 @@ async fn do_build_elems(
         priority,
     });
 
-    names.sort_unstable();
-    for i in 0..names.len() {
-        if !nav_stops[i] {
+    if !nav_stop {
+        let Ok(CommSubPages {
+            mut names,
+            nav_stops,
+            stamps,
+            ..
+        }) = ctx.comm.get_db_sub_pages(ident).await
+        else {
+            return Ok(());
+        };
+
+        names.sort_unstable();
+        for i in 0..names.len() {
             let sub_ident = ident.clone_append(&names[i]).into_checked()?;
-            do_build_elems(ctx, elems, &sub_ident, stamps[i], depth + 1).await?;
+            do_build_elems(ctx, elems, &sub_ident, stamps[i], nav_stops[i], depth + 1).await?;
         }
     }
 
@@ -133,7 +134,7 @@ async fn build_elems(
     else {
         return Ok(());
     };
-    do_build_elems(ctx, elems, ident, stamp.unwrap_or_default(), 0).await
+    do_build_elems(ctx, elems, ident, stamp.unwrap_or_default(), false, 0).await
 }
 
 async fn build_user_elems(
