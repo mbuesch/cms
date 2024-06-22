@@ -101,7 +101,6 @@ impl CmsBack {
                 get_data: true,
                 get_stamp: true,
                 get_redirect: true,
-                ..Default::default()
             })
             .await
         else {

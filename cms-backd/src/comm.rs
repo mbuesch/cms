@@ -34,7 +34,6 @@ pub struct CommGetPage {
     pub get_data: bool,
     pub get_stamp: bool,
     pub get_redirect: bool,
-    pub get_nav_stop: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -43,13 +42,14 @@ pub struct CommPage {
     pub data: Option<String>,
     pub stamp: Option<DateTime<Utc>>,
     pub redirect: Option<String>,
-    pub nav_stop: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct CommSubPages {
     pub names: Vec<String>,
     pub nav_labels: Vec<String>,
+    pub nav_stops: Vec<bool>,
+    pub stamps: Vec<DateTime<Utc>>,
     pub prios: Vec<u64>,
 }
 
@@ -137,7 +137,6 @@ impl CmsComm {
                 get_data: get.get_data,
                 get_stamp: get.get_stamp,
                 get_redirect: get.get_redirect,
-                get_nav_stop: get.get_nav_stop,
             })
             .await;
         if let Ok(MsgDb::Page {
@@ -145,7 +144,6 @@ impl CmsComm {
             data,
             stamp,
             redirect,
-            nav_stop,
         }) = reply
         {
             Ok(CommPage {
@@ -153,7 +151,6 @@ impl CmsComm {
                 data: data.and_then(|x| String::from_utf8(x).ok()),
                 stamp: stamp.map(epoch_stamp),
                 redirect: redirect.and_then(|x| String::from_utf8(x).ok()),
-                nav_stop,
             })
         } else {
             Err(err!("Page: Invalid db reply."))
@@ -164,15 +161,26 @@ impl CmsComm {
         let reply = self
             .comm_db(&MsgDb::GetSubPages {
                 path: path.downgrade_clone(),
+                get_nav_labels: true,
+                get_nav_stops: true,
+                get_stamps: true,
+                get_prios: true,
             })
             .await;
         if let Ok(MsgDb::SubPages {
             names,
             nav_labels,
+            nav_stops,
+            stamps,
             prios,
         }) = reply
         {
-            if names.len() == nav_labels.len() && names.len() == prios.len() {
+            let count = names.len();
+            if nav_labels.len() == count
+                && nav_stops.len() == count
+                && stamps.len() == count
+                && prios.len() == count
+            {
                 Ok(CommSubPages {
                     names: names
                         .into_iter()
@@ -182,6 +190,8 @@ impl CmsComm {
                         .into_iter()
                         .map(|x| String::from_utf8(x).unwrap_or_default())
                         .collect(),
+                    nav_stops,
+                    stamps: stamps.into_iter().map(epoch_stamp).collect(),
                     prios,
                 })
             } else {

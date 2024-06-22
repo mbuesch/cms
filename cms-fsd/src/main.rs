@@ -58,13 +58,11 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 get_data,
                 get_stamp,
                 get_redirect,
-                get_nav_stop,
             }) => {
                 let mut title = None;
                 let mut data = None;
                 let mut stamp = None;
                 let mut redirect = None;
-                let mut nav_stop = None;
 
                 //TODO: Cleaning should be done in the backd.
                 if let Ok(path) = path.into_cleaned_path().into_checked() {
@@ -80,9 +78,6 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                     if get_redirect {
                         redirect = Some(db.get_page_redirect(&path).await);
                     }
-                    if get_nav_stop {
-                        nav_stop = Some(db.get_nav_stop(&path).await);
-                    }
                 };
 
                 let reply = Msg::Page {
@@ -90,7 +85,6 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                     data,
                     stamp,
                     redirect,
-                    nav_stop,
                 };
                 conn.send_msg(&reply).await?;
             }
@@ -106,30 +100,47 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 let reply = Msg::Headers { data };
                 conn.send_msg(&reply).await?;
             }
-            Some(Msg::GetSubPages { path }) => {
+            Some(Msg::GetSubPages {
+                path,
+                get_nav_labels: _,
+                get_nav_stops: _,
+                get_stamps: _,
+                get_prios: _,
+            }) => {
                 //TODO: Cleaning should be done in the backd.
                 let mut names;
                 let mut nav_labels;
+                let mut nav_stops;
+                let mut stamps;
                 let mut prios;
                 if let Ok(path) = path.into_cleaned_path().into_checked() {
                     let mut infos = db.get_subpages(&path).await;
-                    names = Vec::with_capacity(infos.len());
-                    nav_labels = Vec::with_capacity(infos.len());
-                    prios = Vec::with_capacity(infos.len());
+                    let count = infos.len();
+                    names = Vec::with_capacity(count);
+                    nav_labels = Vec::with_capacity(count);
+                    nav_stops = Vec::with_capacity(count);
+                    stamps = Vec::with_capacity(count);
+                    prios = Vec::with_capacity(count);
                     for info in infos.drain(..) {
                         names.push(info.name);
                         nav_labels.push(info.nav_label);
+                        nav_stops.push(info.nav_stop);
+                        stamps.push(info.stamp);
                         prios.push(info.prio);
                     }
                 } else {
                     names = vec![];
                     nav_labels = vec![];
+                    nav_stops = vec![];
+                    stamps = vec![];
                     prios = vec![];
                 }
 
                 let reply = Msg::SubPages {
                     names,
                     nav_labels,
+                    nav_stops,
+                    stamps,
                     prios,
                 };
                 conn.send_msg(&reply).await?;

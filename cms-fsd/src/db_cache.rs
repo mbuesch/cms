@@ -21,7 +21,6 @@ enum CacheKey {
     PageTitle(Ident),
     PageStamp(Ident),
     Subpages(Ident),
-    NavStop(Ident),
     Macro(Ident, Ident),
     String(Ident),
     Image(Ident),
@@ -32,7 +31,6 @@ enum CacheKey {
 enum CacheValue {
     Blob(Vec<u8>),
     PageInfoList(Vec<PageInfo>),
-    Bool(bool),
     U64(u64),
 }
 
@@ -159,11 +157,6 @@ impl DbCache {
     pub async fn get_subpages(&self, page: &CheckedIdent) -> Vec<PageInfo> {
         let key = CacheKey::Subpages(page.downgrade_clone());
         get_cached!(self, key, PageInfoList, get_subpages(page))
-    }
-
-    pub async fn get_nav_stop(&self, page: &CheckedIdent) -> bool {
-        let key = CacheKey::NavStop(page.downgrade_clone());
-        get_cached!(self, key, Bool, get_nav_stop(page))
     }
 
     pub async fn get_macro(&self, page: &CheckedIdent, name: &CheckedIdentElem) -> Vec<u8> {

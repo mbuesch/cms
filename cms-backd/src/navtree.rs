@@ -8,7 +8,7 @@
 // or the MIT license, at your option.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::comm::{CmsComm, CommGetPage, CommPage, CommSubPages};
+use crate::comm::{CmsComm, CommSubPages};
 use async_recursion::async_recursion;
 use cms_ident::CheckedIdent;
 use std::cmp::Ordering;
@@ -89,24 +89,12 @@ impl NavTree {
             return vec![];
         }
 
-        let Ok(CommPage { nav_stop, .. }) = comm
-            .get_db_page(CommGetPage {
-                path: base.clone(),
-                get_nav_stop: true,
-                ..Default::default()
-            })
-            .await
-        else {
-            return vec![];
-        };
-        if nav_stop.unwrap_or(true) {
-            return vec![];
-        }
-
         let Ok(CommSubPages {
             names,
             nav_labels,
+            nav_stops,
             prios,
+            ..
         }) = comm.get_db_sub_pages(base).await
         else {
             return vec![];
@@ -124,11 +112,16 @@ impl NavTree {
                 continue;
             };
             let sub_prio = prios[i];
+            let sub_nav_stop = nav_stops[i];
             let sub_active = active
                 .map(|a| a.starts_with(sub_ident.as_downgrade_ref()))
                 .unwrap_or(false);
 
-            let sub_children = Self::build_sub(comm, &sub_ident, active, depth + 1).await;
+            let sub_children = if sub_nav_stop {
+                vec![]
+            } else {
+                Self::build_sub(comm, &sub_ident, active, depth + 1).await
+            };
 
             ret.push(NavElem {
                 name: sub_name.clone(),

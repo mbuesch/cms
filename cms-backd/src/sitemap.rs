@@ -14,6 +14,7 @@ use crate::{
 };
 use anyhow as ah;
 use async_recursion::async_recursion;
+use chrono::prelude::*;
 use cms_ident::{CheckedIdent, UrlComp};
 use std::{fmt::Write as _, sync::Arc, write as wr, writeln as ln};
 
@@ -57,36 +58,24 @@ struct SiteMapElem {
 }
 
 #[async_recursion]
-async fn build_elems(
+async fn do_build_elems(
     ctx: &mut SiteMapContext<'_>,
     elems: &mut Vec<SiteMapElem>,
     ident: &CheckedIdent,
+    stamp: DateTime<Utc>,
     depth: usize,
 ) -> ah::Result<()> {
     if depth >= MAX_DEPTH {
         return Ok(());
     }
 
-    let Ok(CommPage {
-        nav_stop, stamp, ..
-    }) = ctx
-        .comm
-        .get_db_page(CommGetPage {
-            path: ident.clone(),
-            get_nav_stop: true,
-            get_stamp: true,
-            ..Default::default()
-        })
-        .await
+    let Ok(CommSubPages {
+        mut names,
+        nav_stops,
+        stamps,
+        ..
+    }) = ctx.comm.get_db_sub_pages(ident).await
     else {
-        return Ok(());
-    };
-    if nav_stop.unwrap_or(true) {
-        return Ok(());
-    }
-    let stamp = stamp.unwrap_or_default().format("%Y-%m-%dT%H:%M:%SZ");
-
-    let Ok(CommSubPages { mut names, .. }) = ctx.comm.get_db_sub_pages(ident).await else {
         return Ok(());
     };
 
@@ -105,7 +94,7 @@ async fn build_elems(
         priority = "0.3".to_string();
     } else {
         // Pages, main page and sub groups
-        lastmod = stamp.to_string();
+        lastmod = stamp.format("%Y-%m-%dT%H:%M:%SZ").to_string();
         changefreq = String::new();
         priority = "0.7".to_string();
     }
@@ -118,12 +107,33 @@ async fn build_elems(
     });
 
     names.sort_unstable();
-    for name in &names {
-        let sub_ident = ident.clone_append(name).into_checked()?;
-        build_elems(ctx, elems, &sub_ident, depth + 1).await?;
+    for i in 0..names.len() {
+        if !nav_stops[i] {
+            let sub_ident = ident.clone_append(&names[i]).into_checked()?;
+            do_build_elems(ctx, elems, &sub_ident, stamps[i], depth + 1).await?;
+        }
     }
 
     Ok(())
+}
+
+async fn build_elems(
+    ctx: &mut SiteMapContext<'_>,
+    elems: &mut Vec<SiteMapElem>,
+    ident: &CheckedIdent,
+) -> ah::Result<()> {
+    let Ok(CommPage { stamp, .. }) = ctx
+        .comm
+        .get_db_page(CommGetPage {
+            path: ident.clone(),
+            get_stamp: true,
+            ..Default::default()
+        })
+        .await
+    else {
+        return Ok(());
+    };
+    do_build_elems(ctx, elems, ident, stamp.unwrap_or_default(), 0).await
 }
 
 async fn build_user_elems(
@@ -163,7 +173,7 @@ impl SiteMap {
     pub async fn build(mut ctx: SiteMapContext<'_>) -> ah::Result<Self> {
         let mut elems = Vec::with_capacity(DEFAULT_ELEMS_ALLOC);
         let root = ctx.root.clone();
-        build_elems(&mut ctx, &mut elems, &root, 0).await?;
+        build_elems(&mut ctx, &mut elems, &root).await?;
         build_user_elems(&mut ctx, &mut elems).await?;
         Ok(Self { elems })
     }

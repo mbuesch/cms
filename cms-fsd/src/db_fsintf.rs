@@ -133,6 +133,8 @@ async fn fs_file_read_bool(path: &Path, watches: &mut Watches) -> ah::Result<boo
 pub struct PageInfo {
     pub name: Vec<u8>,
     pub nav_label: Vec<u8>,
+    pub nav_stop: bool,
+    pub stamp: u64,
     pub prio: u64,
 }
 
@@ -247,10 +249,14 @@ impl DbFsIntf {
                 };
 
                 let nav_label = self.get_nav_label(&subpage_ident, watches).await;
+                let nav_stop = self.get_nav_stop(&subpage_ident, watches).await;
+                let stamp = self.get_page_stamp(&subpage_ident, watches).await;
                 let prio = self.get_page_prio(&subpage_ident, watches).await;
                 let info = PageInfo {
                     name: ename.into_encoded_bytes(),
                     nav_label,
+                    nav_stop,
+                    stamp,
                     prio,
                 };
                 subpages.push(info);

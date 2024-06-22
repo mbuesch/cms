@@ -25,13 +25,16 @@ pub enum Msg {
         get_data: bool,
         get_stamp: bool,
         get_redirect: bool,
-        get_nav_stop: bool, //TODO move this to GetSubPages
     },
     GetHeaders {
         path: Ident,
     },
     GetSubPages {
         path: Ident,
+        get_nav_labels: bool,
+        get_nav_stops: bool,
+        get_stamps: bool,
+        get_prios: bool,
     },
     GetMacro {
         parent: Ident,
@@ -50,7 +53,6 @@ pub enum Msg {
         data: Option<Vec<u8>>,
         stamp: Option<u64>,
         redirect: Option<Vec<u8>>,
-        nav_stop: Option<bool>,
     },
     Headers {
         data: Vec<u8>,
@@ -58,6 +60,8 @@ pub enum Msg {
     SubPages {
         names: Vec<Vec<u8>>,
         nav_labels: Vec<Vec<u8>>,
+        nav_stops: Vec<bool>,
+        stamps: Vec<u64>,
         prios: Vec<u64>,
     },
     Macro {
