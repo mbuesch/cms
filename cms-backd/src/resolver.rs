@@ -21,7 +21,6 @@ use crate::{
 };
 use anyhow::{self as ah, format_err as err};
 use cms_ident::{CheckedIdent, Ident};
-use crunchy::unroll;
 use peekable_fwd_bwd::Peekable;
 use rand::prelude::*;
 use std::{collections::HashMap, sync::Arc};
@@ -183,14 +182,11 @@ impl<'a> Resolver<'a> {
     pub fn escape(text: &str) -> String {
         let mut escaped = String::with_capacity(text.len() * 2);
         'mainloop: for c in text.chars() {
-            debug_assert_eq!(ESCAPE_CHARS.len(), 6);
-            unroll! {
-                for i in 0..6 {
-                    if c == ESCAPE_CHARS[i] {
-                        escaped.push('\\');
-                        escaped.push(c);
-                        continue 'mainloop;
-                    }
+            for e in ESCAPE_CHARS {
+                if c == e {
+                    escaped.push('\\');
+                    escaped.push(c);
+                    continue 'mainloop;
                 }
             }
             escaped.push(c);

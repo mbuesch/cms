@@ -269,7 +269,6 @@ dependencies = [
  "cms-socket-db",
  "cms-socket-post",
  "configparser",
- "crunchy",
  "html-escape",
  "image",
  "lru",
@@ -425,11 +424,6 @@ checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
 ]
-
-[[package]]
-name = "crunchy"
-version = "0.2.3"
-source = "git+https://github.com/mbuesch/crunchy.git?rev=433a4d08b859031f22d80197931c555c8af7b1fb#433a4d08b859031f22d80197931c555c8af7b1fb"
 
 [[package]]
 name = "encoding_rs"
