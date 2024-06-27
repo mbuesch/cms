@@ -9,7 +9,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::comm::{CmsComm, CommSubPages};
-use async_recursion::async_recursion;
 use cms_ident::CheckedIdent;
 use std::cmp::Ordering;
 
@@ -78,7 +77,6 @@ impl NavTree {
         Self { tree }
     }
 
-    #[async_recursion]
     async fn build_sub(
         comm: &mut CmsComm,
         base: &CheckedIdent,
@@ -120,7 +118,7 @@ impl NavTree {
             let sub_children = if sub_nav_stop {
                 vec![]
             } else {
-                Self::build_sub(comm, &sub_ident, active, depth + 1).await
+                Box::pin(Self::build_sub(comm, &sub_ident, active, depth + 1)).await
             };
 
             ret.push(NavElem {

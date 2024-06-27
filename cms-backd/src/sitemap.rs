@@ -13,7 +13,6 @@ use crate::{
     config::CmsConfig,
 };
 use anyhow as ah;
-use async_recursion::async_recursion;
 use chrono::prelude::*;
 use cms_ident::{CheckedIdent, UrlComp};
 use std::{fmt::Write as _, sync::Arc, write as wr, writeln as ln};
@@ -57,7 +56,6 @@ struct SiteMapElem {
     priority: String,
 }
 
-#[async_recursion]
 async fn do_build_elems(
     ctx: &mut SiteMapContext<'_>,
     elems: &mut Vec<SiteMapElem>,
@@ -111,7 +109,15 @@ async fn do_build_elems(
         names.sort_unstable();
         for i in 0..names.len() {
             let sub_ident = ident.clone_append(&names[i]).into_checked()?;
-            do_build_elems(ctx, elems, &sub_ident, stamps[i], nav_stops[i], depth + 1).await?;
+            Box::pin(do_build_elems(
+                ctx,
+                elems,
+                &sub_ident,
+                stamps[i],
+                nav_stops[i],
+                depth + 1,
+            ))
+            .await?;
         }
     }
 

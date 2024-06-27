@@ -20,7 +20,6 @@ use crate::{
     pagegen::PageGen,
 };
 use anyhow::{self as ah, format_err as err};
-use async_recursion::async_recursion;
 use cms_ident::{CheckedIdent, Ident};
 use crunchy::unroll;
 use peekable_fwd_bwd::Peekable;
@@ -257,7 +256,6 @@ impl<'a> Resolver<'a> {
         Err(e)
     }
 
-    #[async_recursion]
     async fn parse_args(&mut self, chars: &mut Chars<'_>) -> ah::Result<Vec<String>> {
         if self.args_recursion > NUM_ARG_RECURSION_MAX {
             self.stmterr("Argument parsing recursion too deep")?;
@@ -274,7 +272,7 @@ impl<'a> Resolver<'a> {
                     unreachable!();
                 }
                 self.args_recursion += 1;
-                let arg = self.expand(chars, &[',', ')']).await?;
+                let arg = Box::pin(self.expand(chars, &[',', ')'])).await?;
                 self.args_recursion -= 1;
                 ret.push(arg);
                 if chars.peek_bwd() == Some(&')') {
@@ -285,7 +283,6 @@ impl<'a> Resolver<'a> {
         Ok(ret)
     }
 
-    #[async_recursion]
     async fn do_macro(
         &mut self,
         macro_name_str: &str,
@@ -328,7 +325,7 @@ impl<'a> Resolver<'a> {
         let el = ResolverStackElem::new(1, macro_name_str, args);
 
         self.stack.push(el);
-        let data = self.expand(&mut data, &[]).await?;
+        let data = Box::pin(self.expand(&mut data, &[])).await?;
         self.stack.pop();
 
         Ok(data)
