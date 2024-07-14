@@ -23,6 +23,43 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = [ "Michael Büsch <m@bues.ch>" ]
+
+[workspace.dependencies]
+anyhow = "1"
+bincode = "1"
+build-target = "0.4"
+chrono = "0.4"
+clap = "4"
+configparser = "3"
+html-escape = "0.2"
+image = { version = "0.25", default-features = false }
+inotify = "0.10"
+lazy_static = "1"
+libc = "0.2"
+lru = "0.12"
+multer = "3"
+peekable-fwd-bwd = "1"
+pyo3 = "0.21"
+querystrong = "0.3"
+rand = "0.8"
+sd-notify = "0.4"
+seccompiler = "0.4"
+serde = "1"
+tokio = "1"
+url-escape = "0.1"
+
+cms-ident = { version = "1", path = "./cms-ident" }
+cms-seccomp = { version = "1", path = "./cms-seccomp" }
+cms-socket = { version = "1", path = "./cms-socket" }
+cms-socket-back = { version = "1", path = "./cms-socket-back" }
+cms-socket-db = { version = "1", path = "./cms-socket-db" }
+cms-socket-post = { version = "1", path = "./cms-socket-post" }
+cms-systemd = { version = "1", path = "./cms-systemd" }
+
 [profile.release]
 opt-level = 3
 lto = "fat"

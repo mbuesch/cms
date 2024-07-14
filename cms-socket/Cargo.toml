@@ -3,17 +3,17 @@
 [package]
 name = "cms-socket"
 version = "1.0.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = [ "Michael Büsch <m@bues.ch>" ]
+edition = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
 publish = false
 
 [dependencies]
-anyhow = "1"
-bincode = "1"
-cms-systemd = { path = "../cms-systemd" }
-libc = "0.2"
-serde = { version = "1", features = [ "derive" ] }
-tokio = { version = "1", features = [ "net" ] }
+anyhow = { workspace = true }
+bincode = { workspace = true }
+cms-systemd = { workspace = true }
+libc = { workspace = true }
+serde = { workspace = true, features = [ "derive" ] }
+tokio = { workspace = true, features = [ "net" ] }
 
 # vim: ts=4 sw=4 expandtab

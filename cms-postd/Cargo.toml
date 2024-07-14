@@ -3,18 +3,18 @@
 [package]
 name = "cms-postd"
 version = "1.0.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = [ "Michael Büsch <m@bues.ch>" ]
+edition = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
 publish = false
 
 [dependencies]
-anyhow = "1"
-clap = { version = "4", features = ["derive"] }
-cms-ident = { path = "../cms-ident" }
-cms-socket = { path = "../cms-socket" }
-cms-socket-post = { path = "../cms-socket-post" }
-pyo3 = { version = "0.21", features = [ "abi3", "auto-initialize", "anyhow" ] }
-tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros", "fs", "io-util", "time" ] }
+anyhow = { workspace = true }
+clap = { workspace = true, features = [ "derive" ] }
+cms-ident = { workspace = true }
+cms-socket = { workspace = true }
+cms-socket-post = { workspace = true }
+pyo3 = { workspace = true, features = [ "abi3", "auto-initialize", "anyhow" ] }
+tokio = { workspace = true, features = [ "rt", "rt-multi-thread", "sync", "signal", "macros", "fs", "io-util", "time" ] }
 
 # vim: ts=4 sw=4 expandtab

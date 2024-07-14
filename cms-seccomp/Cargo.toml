@@ -2,10 +2,10 @@
 
 [package]
 name = "cms-seccomp"
-version = "0.1.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = [ "Michael Büsch <m@bues.ch>" ]
+version = "1.0.0"
+edition = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
 publish = false
 
 [features]
@@ -14,8 +14,8 @@ default = []
 oldsyscalls = []
 
 [dependencies]
-anyhow = "1"
-libc = "0.2"
-seccompiler = "0.4"
+anyhow = { workspace = true }
+libc = { workspace = true }
+seccompiler = { workspace = true }
 
 # vim: ts=4 sw=4 expandtab

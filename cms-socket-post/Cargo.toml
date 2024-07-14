@@ -3,16 +3,16 @@
 [package]
 name = "cms-socket-post"
 version = "1.0.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = [ "Michael Büsch <m@bues.ch>" ]
+edition = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
 publish = false
 
 [dependencies]
-anyhow = "1"
-bincode = "1"
-cms-ident = { path = "../cms-ident" }
-cms-socket = { path = "../cms-socket" }
-serde = { version = "1", features = [ "derive" ] }
+anyhow = { workspace = true }
+bincode = { workspace = true }
+cms-ident = { workspace = true }
+cms-socket = { workspace = true }
+serde = { workspace = true, features = [ "derive" ] }
 
 # vim: ts=4 sw=4 expandtab

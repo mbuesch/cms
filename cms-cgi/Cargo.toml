@@ -3,22 +3,22 @@
 [package]
 name = "cms-cgi"
 version = "1.0.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = [ "Michael Büsch <m@bues.ch>" ]
+edition = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
 publish = false
 
 [dependencies]
-anyhow = "1"
-clap = { version = "4", features = ["derive"] }
-cms-ident = { path = "../cms-ident" }
-cms-seccomp = { path = "../cms-seccomp" }
-cms-socket = { path = "../cms-socket" }
-cms-socket-back = { path = "../cms-socket-back" }
-querystrong = "0.3"
+anyhow = { workspace = true }
+clap = { workspace = true, features = [ "derive" ] }
+cms-ident = { workspace = true }
+cms-seccomp = { workspace = true }
+cms-socket = { workspace = true }
+cms-socket-back = { workspace = true }
+querystrong = { workspace = true }
 
 [build-dependencies]
-build-target = "0.4"
-cms-seccomp = { path = "../cms-seccomp" }
+build-target = { workspace = true }
+cms-seccomp = { workspace = true }
 
 # vim: ts=4 sw=4 expandtab

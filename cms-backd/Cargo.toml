@@ -3,29 +3,29 @@
 [package]
 name = "cms-backd"
 version = "1.0.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = [ "Michael Büsch <m@bues.ch>" ]
+edition = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
 publish = false
 
 [dependencies]
-anyhow = "1"
-chrono = "0.4"
-clap = { version = "4", features = ["derive"] }
-cms-ident = { path = "../cms-ident" }
-cms-seccomp = { path = "../cms-seccomp" }
-cms-socket = { path = "../cms-socket" }
-cms-socket-back = { path = "../cms-socket-back" }
-cms-socket-db = { path = "../cms-socket-db" }
-cms-socket-post = { path = "../cms-socket-post" }
-configparser = "3"
-html-escape = "0.2"
-image = { version = "0.25", default-features = false, features = [ "jpeg", "png", "gif", "webp" ] }
-lru = "0.12"
-multer = { version = "3", features = [ "tokio-io" ] }
-peekable-fwd-bwd = "1"
-rand = "0.8"
-tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros" ] }
-url-escape = "0.1"
+anyhow = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true, features = [ "derive" ] }
+cms-ident = { workspace = true }
+cms-seccomp = { workspace = true }
+cms-socket = { workspace = true }
+cms-socket-back = { workspace = true }
+cms-socket-db = { workspace = true }
+cms-socket-post = { workspace = true }
+configparser = { workspace = true }
+html-escape = { workspace = true }
+image = { workspace = true, default-features = false, features = [ "jpeg", "png", "gif", "webp" ] }
+lru = { workspace = true }
+multer = { workspace = true, features = [ "tokio-io" ] }
+peekable-fwd-bwd = { workspace = true }
+rand = { workspace = true }
+tokio = { workspace = true, features = [ "rt", "rt-multi-thread", "sync", "signal", "macros" ] }
+url-escape = { workspace = true }
 
 # vim: ts=4 sw=4 expandtab

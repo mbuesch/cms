@@ -3,21 +3,21 @@
 [package]
 name = "cms-fsd"
 version = "1.0.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = [ "Michael Büsch <m@bues.ch>" ]
+edition = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
 publish = false
 
 [dependencies]
-anyhow = "1"
-clap = { version = "4", features = ["derive"] }
-cms-ident = { path = "../cms-ident" }
-cms-seccomp = { path = "../cms-seccomp" }
-cms-socket = { path = "../cms-socket" }
-cms-socket-db = { path = "../cms-socket-db" }
-inotify = "0.10"
-lazy_static = "1"
-lru = "0.12"
-tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "signal", "macros", "fs", "io-util", "time" ] }
+anyhow = { workspace = true }
+clap = { workspace = true, features = [ "derive" ] }
+cms-ident = { workspace = true }
+cms-seccomp = { workspace = true }
+cms-socket = { workspace = true }
+cms-socket-db = { workspace = true }
+inotify = { workspace = true }
+lazy_static = { workspace = true }
+lru = { workspace = true }
+tokio = { workspace = true }
 
 # vim: ts=4 sw=4 expandtab
