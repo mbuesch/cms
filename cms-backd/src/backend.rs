@@ -174,7 +174,7 @@ impl CmsBack {
             Ok(CmsReply::ok(img_data, "image/svg+xml"))
         } else {
             let img_cursor = Cursor::new(&img_data);
-            let image = match image::io::Reader::new(img_cursor).with_guessed_format() {
+            let image = match image::ImageReader::new(img_cursor).with_guessed_format() {
                 Ok(image) => image,
                 Err(_) => return Ok(CmsReply::not_found("Invalid image format")),
             };
