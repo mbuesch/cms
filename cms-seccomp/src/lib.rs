@@ -174,7 +174,6 @@ pub fn seccomp_compile_for_arch(
             Allow::Stat => {
                 #[cfg(feature = "oldsyscalls")]
                 rules.insert(libc::SYS_stat, vec![]);
-                #[cfg(feature = "oldsyscalls")]
                 rules.insert(libc::SYS_fstat, vec![]);
                 #[cfg(feature = "oldsyscalls")]
                 rules.insert(libc::SYS_lstat, vec![]);
