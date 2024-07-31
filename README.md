@@ -21,10 +21,10 @@ After installing all build dependencies, run the build script:
 
 ## Installing
 
-After building, run the `install-users.sh` script to create the user/group structure for CMS in the operating system:
+After building, run the `create-users.sh` script to create the user/group structure for CMS in the operating system:
 
 ```sh
-./install-users.sh
+./create-users.sh
 ```
 
 After that, run the `install.sh` script.
