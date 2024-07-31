@@ -10,7 +10,7 @@
 
 use anyhow::{self as ah, format_err as err, Context as _};
 use cms_ident::Ident;
-use cms_seccomp::{seccomp_install, Filter};
+use cms_seccomp::Filter;
 use cms_socket::{CmsSocketConnSync, MsgSerde as _};
 use cms_socket_back::{Msg, SOCK_FILE};
 use querystrong::QueryStrong;
@@ -142,10 +142,11 @@ impl Cgi {
         // Install seccomp filter.
         // See build.rs for the filter definition.
         {
-            seccomp_install(Filter::deserialize(include_bytes!(concat!(
+            Filter::deserialize(include_bytes!(concat!(
                 env!("OUT_DIR"),
                 "/seccomp_filter.bpf"
-            ))))
+            )))
+            .install()
             .context("Install seccomp filter")?;
         }
 

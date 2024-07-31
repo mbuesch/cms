@@ -11,13 +11,13 @@
 #![forbid(unsafe_code)]
 
 use build_target::target_arch;
-use cms_seccomp::{seccomp_compile_for_arch, Action, Allow};
+use cms_seccomp::{Action, Allow, Filter};
 use std::{env, fs::OpenOptions, io::Write, path::Path};
 
 fn main() {
     let arch = target_arch().expect("Failed to get build target architecture");
 
-    let seccomp_filter = seccomp_compile_for_arch(
+    let seccomp_filter = Filter::compile_for_arch(
         &[
             Allow::Read,
             Allow::Write,

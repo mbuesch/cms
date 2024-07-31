@@ -16,7 +16,7 @@ mod db_fsintf;
 use crate::{db_cache::DbCache, db_fsintf::DbFsIntf};
 use anyhow::{self as ah, format_err as err, Context as _};
 use clap::Parser;
-use cms_seccomp::{seccomp_compile, seccomp_install, Action, Allow};
+use cms_seccomp::{Action, Allow, Filter};
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
 use cms_socket_db::{Msg, SOCK_FILE};
 use std::{num::NonZeroUsize, path::PathBuf, sync::Arc, time::Duration};
@@ -214,33 +214,31 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
 
     let mut sock = CmsSocket::from_systemd_or_path(opts.no_systemd, &opts.rundir.join(SOCK_FILE))?;
 
-    seccomp_install(
-        seccomp_compile(
-            &[
-                Allow::Open,
-                Allow::Read,
-                Allow::Write,
-                Allow::Stat,
-                Allow::Listdir,
-                Allow::Recv,
-                Allow::Send,
-                Allow::Futex,
-                Allow::UnixListen,
-                Allow::SignalReturn,
-                Allow::SignalMask,
-                Allow::Mmap,
-                Allow::Mprotect,
-                Allow::Threading,
-                Allow::Inotify,
-                Allow::Prctl,
-                Allow::Timer,
-                Allow::ClockGet,
-                Allow::Sleep,
-            ],
-            Action::Kill,
-        )
-        .context("Compile seccomp filter")?,
+    Filter::compile(
+        &[
+            Allow::Open,
+            Allow::Read,
+            Allow::Write,
+            Allow::Stat,
+            Allow::Listdir,
+            Allow::Recv,
+            Allow::Send,
+            Allow::Futex,
+            Allow::UnixListen,
+            Allow::Signal,
+            Allow::Mmap,
+            Allow::Mprotect,
+            Allow::Threading,
+            Allow::Inotify,
+            Allow::Prctl,
+            Allow::Timer,
+            Allow::ClockGet,
+            Allow::Sleep,
+        ],
+        Action::Kill,
     )
+    .context("Compile seccomp filter")?
+    .install()
     .context("Install seccomp filter")?;
 
     // Task: Socket handler.

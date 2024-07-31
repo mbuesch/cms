@@ -8,11 +8,6 @@ license = { workspace = true }
 authors = { workspace = true }
 publish = false
 
-[features]
-default = []
-# Include old syscalls in filters that are usually not used by modern libc.
-oldsyscalls = []
-
 [dependencies]
 anyhow = { workspace = true }
 libc = { workspace = true }
