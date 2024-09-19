@@ -8,7 +8,7 @@
 // or the MIT license, at your option.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)] // `deny` instead of `forbid`, because pyo3 uses `#[allow(unsafe_code)]` in macros.
 
 mod reply;
 mod request;
