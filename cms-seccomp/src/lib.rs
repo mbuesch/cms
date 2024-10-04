@@ -12,7 +12,8 @@
 
 use anyhow::{self as ah, Context as _};
 use seccompiler::{
-    apply_filter_all_threads, sock_filter, BpfProgram, SeccompAction, SeccompFilter,
+    apply_filter_all_threads, sock_filter, BpfProgram, SeccompAction, SeccompCmpArgLen,
+    SeccompCmpOp, SeccompCondition, SeccompFilter, SeccompRule,
 };
 use std::{collections::BTreeMap, env::consts::ARCH};
 
@@ -22,6 +23,23 @@ macro_rules! sys {
         let id: i64 = libc::$ident.into();
         id
     }};
+}
+
+macro_rules! args {
+    ($($arg:literal == $value:expr),*) => {
+        SeccompRule::new(
+            vec![
+                $(
+                    SeccompCondition::new(
+                        $arg,
+                        SeccompCmpArgLen::Dword,
+                        SeccompCmpOp::Eq,
+                        ($value) as _,
+                    )?,
+                )*
+            ]
+        )?
+    };
 }
 
 /// Returns `true` if seccomp is supported on this platform.
@@ -105,35 +123,49 @@ impl Filter {
         deny_action: Action,
         arch: &str,
     ) -> ah::Result<Filter> {
-        let mut rules: BTreeMap<_, _> = [
-            (sys!(SYS_brk), vec![]),
-            (sys!(SYS_close), vec![]),
-            #[cfg(not(target_os = "android"))]
-            (sys!(SYS_close_range), vec![]),
-            (sys!(SYS_exit), vec![]),
-            (sys!(SYS_exit_group), vec![]),
-            (sys!(SYS_getpid), vec![]),
-            (sys!(SYS_getrandom), vec![]),
-            (sys!(SYS_gettid), vec![]),
-            (sys!(SYS_madvise), vec![]),
-            (sys!(SYS_munmap), vec![]),
-            (sys!(SYS_sched_getaffinity), vec![]),
-            (sys!(SYS_sigaltstack), vec![]),
-            (sys!(SYS_gettimeofday), vec![]),
-        ]
-        .into();
+        type RulesMap = BTreeMap<i64, Vec<SeccompRule>>;
 
-        let add_read_write_rules = |rules: &mut BTreeMap<_, _>| {
-            rules.insert(sys!(SYS_epoll_create1), vec![]);
-            rules.insert(sys!(SYS_epoll_ctl), vec![]);
-            rules.insert(sys!(SYS_epoll_pwait), vec![]);
+        fn add_sys(map: &mut RulesMap, sys: i64) {
+            let _rules = map.entry(sys).or_default();
+        }
+
+        fn add_sys_args_match(map: &mut RulesMap, sys: i64, rule: SeccompRule) {
+            let rules = map.entry(sys).or_default();
+            rules.push(rule);
+        }
+
+        let mut map: RulesMap = [].into();
+
+        add_sys(&mut map, sys!(SYS_brk));
+        add_sys(&mut map, sys!(SYS_close));
+        #[cfg(not(target_os = "android"))]
+        add_sys(&mut map, sys!(SYS_close_range));
+        add_sys(&mut map, sys!(SYS_exit));
+        add_sys(&mut map, sys!(SYS_exit_group));
+        add_sys(&mut map, sys!(SYS_getpid));
+        add_sys(&mut map, sys!(SYS_getrandom));
+        add_sys(&mut map, sys!(SYS_gettid));
+        add_sys(&mut map, sys!(SYS_madvise));
+        add_sys(&mut map, sys!(SYS_munmap));
+        add_sys(&mut map, sys!(SYS_sched_getaffinity));
+        add_sys(&mut map, sys!(SYS_sigaltstack));
+        add_sys(&mut map, sys!(SYS_nanosleep));
+        add_sys(&mut map, sys!(SYS_clock_gettime));
+        add_sys(&mut map, sys!(SYS_clock_getres));
+        add_sys(&mut map, sys!(SYS_clock_nanosleep));
+        add_sys(&mut map, sys!(SYS_gettimeofday));
+
+        fn add_read_write_rules(map: &mut RulesMap) {
+            add_sys(map, sys!(SYS_epoll_create1));
+            add_sys(map, sys!(SYS_epoll_ctl));
+            add_sys(map, sys!(SYS_epoll_pwait));
             #[cfg(all(any(target_arch = "x86_64", target_arch = "arm"), target_os = "linux"))]
-            rules.insert(sys!(SYS_epoll_pwait2), vec![]);
-            rules.insert(sys!(SYS_epoll_wait), vec![]);
-            rules.insert(sys!(SYS_lseek), vec![]);
-            rules.insert(sys!(SYS_ppoll), vec![]);
-            rules.insert(sys!(SYS_pselect6), vec![]);
-        };
+            add_sys(map, sys!(SYS_epoll_pwait2));
+            add_sys(map, sys!(SYS_epoll_wait));
+            add_sys(map, sys!(SYS_lseek));
+            add_sys(map, sys!(SYS_ppoll));
+            add_sys(map, sys!(SYS_pselect6));
+        }
 
         for allow in allow {
             match *allow {
@@ -143,122 +175,123 @@ impl Filter {
                         target_arch = "x86_64",
                         target_arch = "aarch64"
                     ))]
-                    rules.insert(sys!(SYS_mmap), vec![]);
+                    add_sys(&mut map, sys!(SYS_mmap));
                     #[cfg(any(target_arch = "x86", target_arch = "arm"))]
-                    rules.insert(sys!(SYS_mmap2), vec![]);
-                    rules.insert(sys!(SYS_mremap), vec![]);
-                    rules.insert(sys!(SYS_munmap), vec![]);
+                    add_sys(&mut map, sys!(SYS_mmap2));
+                    add_sys(&mut map, sys!(SYS_mremap));
+                    add_sys(&mut map, sys!(SYS_munmap));
                 }
                 Allow::Mprotect => {
-                    rules.insert(sys!(SYS_mprotect), vec![]);
+                    add_sys(&mut map, sys!(SYS_mprotect));
                 }
                 Allow::UnixConnect => {
-                    rules.insert(sys!(SYS_connect), vec![]);
-                    rules.insert(sys!(SYS_socket), vec![]); //TODO: Restrict to AF_UNIX
-                    rules.insert(sys!(SYS_getsockopt), vec![]);
+                    add_sys(&mut map, sys!(SYS_connect));
+                    add_sys_args_match(&mut map, sys!(SYS_socket), args!(0 == libc::AF_UNIX));
+                    add_sys(&mut map, sys!(SYS_getsockopt));
                 }
                 Allow::UnixListen => {
-                    rules.insert(sys!(SYS_accept4), vec![]);
-                    rules.insert(sys!(SYS_bind), vec![]);
-                    rules.insert(sys!(SYS_listen), vec![]);
-                    rules.insert(sys!(SYS_socket), vec![]); //TODO: Restrict to AF_UNIX
-                    rules.insert(sys!(SYS_getsockopt), vec![]);
+                    add_sys(&mut map, sys!(SYS_accept4));
+                    add_sys(&mut map, sys!(SYS_bind));
+                    add_sys(&mut map, sys!(SYS_listen));
+                    add_sys_args_match(&mut map, sys!(SYS_socket), args!(0 == libc::AF_INET));
+                    add_sys_args_match(&mut map, sys!(SYS_socket), args!(0 == libc::AF_INET6));
+                    add_sys(&mut map, sys!(SYS_getsockopt));
                 }
                 Allow::Open => {
                     //TODO: This should be restricted
-                    rules.insert(sys!(SYS_open), vec![]);
-                    rules.insert(sys!(SYS_openat), vec![]);
+                    add_sys(&mut map, sys!(SYS_open));
+                    add_sys(&mut map, sys!(SYS_openat));
                 }
                 Allow::Read => {
-                    rules.insert(sys!(SYS_pread64), vec![]);
-                    rules.insert(sys!(SYS_preadv2), vec![]);
-                    rules.insert(sys!(SYS_read), vec![]);
-                    rules.insert(sys!(SYS_readv), vec![]);
-                    add_read_write_rules(&mut rules);
+                    add_sys(&mut map, sys!(SYS_pread64));
+                    add_sys(&mut map, sys!(SYS_preadv2));
+                    add_sys(&mut map, sys!(SYS_read));
+                    add_sys(&mut map, sys!(SYS_readv));
+                    add_read_write_rules(&mut map);
                 }
                 Allow::Write => {
-                    rules.insert(sys!(SYS_fdatasync), vec![]);
-                    rules.insert(sys!(SYS_fsync), vec![]);
-                    rules.insert(sys!(SYS_pwrite64), vec![]);
-                    rules.insert(sys!(SYS_pwritev2), vec![]);
-                    rules.insert(sys!(SYS_write), vec![]);
-                    rules.insert(sys!(SYS_writev), vec![]);
-                    add_read_write_rules(&mut rules);
+                    add_sys(&mut map, sys!(SYS_fdatasync));
+                    add_sys(&mut map, sys!(SYS_fsync));
+                    add_sys(&mut map, sys!(SYS_pwrite64));
+                    add_sys(&mut map, sys!(SYS_pwritev2));
+                    add_sys(&mut map, sys!(SYS_write));
+                    add_sys(&mut map, sys!(SYS_writev));
+                    add_read_write_rules(&mut map);
                 }
                 Allow::Stat => {
-                    rules.insert(sys!(SYS_fstat), vec![]);
-                    rules.insert(sys!(SYS_statx), vec![]);
-                    rules.insert(sys!(SYS_newfstatat), vec![]);
+                    add_sys(&mut map, sys!(SYS_fstat));
+                    add_sys(&mut map, sys!(SYS_statx));
+                    add_sys(&mut map, sys!(SYS_newfstatat));
                 }
                 Allow::Listdir => {
-                    rules.insert(sys!(SYS_getdents64), vec![]);
+                    add_sys(&mut map, sys!(SYS_getdents64));
                 }
                 Allow::Recv => {
-                    rules.insert(sys!(SYS_recvfrom), vec![]);
-                    rules.insert(sys!(SYS_recvmsg), vec![]);
-                    rules.insert(sys!(SYS_recvmmsg), vec![]);
+                    add_sys(&mut map, sys!(SYS_recvfrom));
+                    add_sys(&mut map, sys!(SYS_recvmsg));
+                    add_sys(&mut map, sys!(SYS_recvmmsg));
                 }
                 Allow::Send => {
-                    rules.insert(sys!(SYS_sendto), vec![]);
-                    rules.insert(sys!(SYS_sendmsg), vec![]);
-                    rules.insert(sys!(SYS_sendmmsg), vec![]);
+                    add_sys(&mut map, sys!(SYS_sendto));
+                    add_sys(&mut map, sys!(SYS_sendmsg));
+                    add_sys(&mut map, sys!(SYS_sendmmsg));
                 }
                 Allow::Sendfile => {
-                    rules.insert(sys!(SYS_sendfile), vec![]);
+                    add_sys(&mut map, sys!(SYS_sendfile));
                 }
                 Allow::Futex => {
-                    rules.insert(sys!(SYS_futex), vec![]);
-                    rules.insert(sys!(SYS_get_robust_list), vec![]);
-                    rules.insert(sys!(SYS_set_robust_list), vec![]);
+                    add_sys(&mut map, sys!(SYS_futex));
+                    add_sys(&mut map, sys!(SYS_get_robust_list));
+                    add_sys(&mut map, sys!(SYS_set_robust_list));
                     #[cfg(all(
                         any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"),
                         target_os = "linux"
                     ))]
-                    rules.insert(sys!(SYS_futex_waitv), vec![]);
-                    //rules.insert(sys!(SYS_futex_wake), vec![]);
-                    //rules.insert(sys!(SYS_futex_wait), vec![]);
-                    //rules.insert(sys!(SYS_futex_requeue), vec![]);
+                    add_sys(&mut map, sys!(SYS_futex_waitv));
+                    //add_sys(&mut map, sys!(SYS_futex_wake));
+                    //add_sys(&mut map, sys!(SYS_futex_wait));
+                    //add_sys(&mut map, sys!(SYS_futex_requeue));
                 }
                 Allow::Signal => {
-                    rules.insert(sys!(SYS_rt_sigreturn), vec![]);
-                    rules.insert(sys!(SYS_rt_sigprocmask), vec![]);
+                    add_sys(&mut map, sys!(SYS_rt_sigreturn));
+                    add_sys(&mut map, sys!(SYS_rt_sigprocmask));
                 }
                 Allow::Threading => {
-                    rules.insert(sys!(SYS_clone3), vec![]); //TODO restrict to threads
-                    rules.insert(sys!(SYS_rseq), vec![]);
+                    add_sys(&mut map, sys!(SYS_clone3)); //TODO restrict to threads
+                    add_sys(&mut map, sys!(SYS_rseq));
                 }
                 Allow::Inotify => {
-                    rules.insert(sys!(SYS_inotify_init), vec![]);
-                    rules.insert(sys!(SYS_inotify_add_watch), vec![]);
-                    rules.insert(sys!(SYS_inotify_rm_watch), vec![]);
+                    add_sys(&mut map, sys!(SYS_inotify_init));
+                    add_sys(&mut map, sys!(SYS_inotify_add_watch));
+                    add_sys(&mut map, sys!(SYS_inotify_rm_watch));
                 }
                 Allow::Prctl => {
                     //TODO: This should be restricted
-                    rules.insert(sys!(SYS_prctl), vec![]);
+                    add_sys(&mut map, sys!(SYS_prctl));
                 }
                 Allow::Timer => {
-                    rules.insert(sys!(SYS_timer_create), vec![]);
-                    rules.insert(sys!(SYS_timer_settime), vec![]);
-                    rules.insert(sys!(SYS_timer_gettime), vec![]);
-                    rules.insert(sys!(SYS_timer_getoverrun), vec![]);
-                    rules.insert(sys!(SYS_timer_delete), vec![]);
+                    add_sys(&mut map, sys!(SYS_timer_create));
+                    add_sys(&mut map, sys!(SYS_timer_settime));
+                    add_sys(&mut map, sys!(SYS_timer_gettime));
+                    add_sys(&mut map, sys!(SYS_timer_getoverrun));
+                    add_sys(&mut map, sys!(SYS_timer_delete));
                 }
                 Allow::ClockGet => {
-                    rules.insert(sys!(SYS_clock_gettime), vec![]);
-                    rules.insert(sys!(SYS_clock_getres), vec![]);
+                    add_sys(&mut map, sys!(SYS_clock_gettime));
+                    add_sys(&mut map, sys!(SYS_clock_getres));
                 }
                 Allow::ClockSet => {
-                    rules.insert(sys!(SYS_clock_settime), vec![]);
+                    add_sys(&mut map, sys!(SYS_clock_settime));
                 }
                 Allow::Sleep => {
-                    rules.insert(sys!(SYS_nanosleep), vec![]);
-                    rules.insert(sys!(SYS_clock_nanosleep), vec![]);
+                    add_sys(&mut map, sys!(SYS_nanosleep));
+                    add_sys(&mut map, sys!(SYS_clock_nanosleep));
                 }
             }
         }
 
         let filter = SeccompFilter::new(
-            rules,
+            map,
             match deny_action {
                 Action::Kill => SeccompAction::KillProcess,
                 Action::Log => SeccompAction::Log,
