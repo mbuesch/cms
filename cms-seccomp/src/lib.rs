@@ -69,9 +69,7 @@ pub enum Allow {
     Inotify,
     Prctl,
     Timer,
-    ClockGet,
     ClockSet,
-    Sleep,
 }
 
 /// Action to be performed, if a syscall is executed that is not in the allow-list.
@@ -276,16 +274,8 @@ impl Filter {
                     add_sys(&mut map, sys!(SYS_timer_getoverrun));
                     add_sys(&mut map, sys!(SYS_timer_delete));
                 }
-                Allow::ClockGet => {
-                    add_sys(&mut map, sys!(SYS_clock_gettime));
-                    add_sys(&mut map, sys!(SYS_clock_getres));
-                }
                 Allow::ClockSet => {
                     add_sys(&mut map, sys!(SYS_clock_settime));
-                }
-                Allow::Sleep => {
-                    add_sys(&mut map, sys!(SYS_nanosleep));
-                    add_sys(&mut map, sys!(SYS_clock_nanosleep));
                 }
             }
         }
