@@ -191,8 +191,7 @@ impl Filter {
                     add_sys(&mut map, sys!(SYS_accept4));
                     add_sys(&mut map, sys!(SYS_bind));
                     add_sys(&mut map, sys!(SYS_listen));
-                    add_sys_args_match(&mut map, sys!(SYS_socket), args!(0 == libc::AF_INET));
-                    add_sys_args_match(&mut map, sys!(SYS_socket), args!(0 == libc::AF_INET6));
+                    add_sys_args_match(&mut map, sys!(SYS_socket), args!(0 == libc::AF_UNIX));
                     add_sys(&mut map, sys!(SYS_getsockopt));
                 }
                 Allow::Open => {
