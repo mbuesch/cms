@@ -291,9 +291,7 @@ impl<'a> Resolver<'a> {
         if macro_name_str.len() > MACRO_NAME_SIZE_MAX {
             return self.stmterr("Macro name is too long");
         }
-        let Ok(macro_name) = macro_name_str.parse::<Ident>() else {
-            return self.stmterr("Macro name is invalid");
-        };
+        let Ok(macro_name) = macro_name_str.parse::<Ident>();
         let Ok(macro_name) = macro_name.into_checked_element() else {
             return self.stmterr("Macro name contains invalid characters");
         };
@@ -687,9 +685,7 @@ impl<'a> Resolver<'a> {
         if nargs != 1 {
             return self.stmterr("PAGELIST: no base page argument");
         }
-        let Ok(base_page_ident) = args[0].parse::<Ident>() else {
-            return self.stmterr("PAGELIST: invalid base page name");
-        };
+        let Ok(base_page_ident) = args[0].parse::<Ident>();
         let Ok(base_page_ident) = base_page_ident.into_cleaned_path().into_checked() else {
             return self.stmterr("PAGELIST: invalid base page name");
         };

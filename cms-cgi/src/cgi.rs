@@ -174,10 +174,7 @@ impl Cgi {
     }
 
     pub fn run(&mut self) {
-        let Ok(path) = self.path.parse::<Ident>() else {
-            response_400_bad_request("Failed to parse PATH_INFO string.");
-            return;
-        };
+        let Ok(path) = self.path.parse::<Ident>();
         let Ok(path) = path.into_checked_sys() else {
             response_400_bad_request("URI path contains invalid chars.");
             return;

@@ -194,7 +194,7 @@ impl Ident {
         let mut s = self.0;
 
         // Strip leading and trailing whitespace and slashes.
-        let trimmed = s.trim_matches(&[' ', '\t', '/']);
+        let trimmed = s.trim_matches([' ', '\t', '/']);
         if s != trimmed {
             s = trimmed.to_string();
         }
