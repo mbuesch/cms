@@ -31,7 +31,7 @@ cd "$basedir" || die "cd basedir failed."
 cargo build || die "Cargo build (debug) failed."
 cargo test || die "Cargo test failed."
 cargo auditable build --release || die "Cargo build (release) failed."
-cargo audit bin --deny warnings \
+cargo audit --deny warnings bin \
     target/release/cms-backd \
     target/release/cms-cgi \
     target/release/cms-fsd \
