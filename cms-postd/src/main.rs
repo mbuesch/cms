@@ -158,8 +158,9 @@ fn main() -> ah::Result<()> {
     let opts = Arc::new(Opts::parse());
 
     runtime::Builder::new_multi_thread()
-        .thread_keep_alive(Duration::from_millis(1000))
         .worker_threads(opts.worker_threads.into())
+        .max_blocking_threads(opts.worker_threads.into())
+        .thread_keep_alive(Duration::from_millis(1000))
         .enable_all()
         .build()
         .context("Tokio runtime builder")?
