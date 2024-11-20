@@ -17,7 +17,7 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyDict, PyString},
 };
-use std::{os::unix::fs::PermissionsExt as _, path::Path};
+use std::{ffi::CString, os::unix::fs::PermissionsExt as _, path::Path};
 use tokio::{fs, task};
 
 fn sanitize_python_module_name_char(c: char) -> char {
@@ -103,26 +103,26 @@ impl<'a> Runner for PyRunner<'a> {
         let runner_task = task::spawn_blocking(move || {
             Ok(Python::with_gil(|py| -> PyResult<Reply> {
                 // Create Python objects for locals context.
-                let request_query = PyDict::new_bound(py);
+                let request_query = PyDict::new(py);
                 for (k, v) in request.query.iter() {
                     request_query
-                        .set_item(PyString::new_bound(py, k), PyBytes::new_bound(py, v))
+                        .set_item(PyString::new(py, k), PyBytes::new(py, v))
                         .context("Request query to Python")?;
                 }
-                let request_form_fields = PyDict::new_bound(py);
+                let request_form_fields = PyDict::new(py);
                 for (k, v) in request.form_fields.iter() {
                     request_form_fields
-                        .set_item(PyString::new_bound(py, k), PyBytes::new_bound(py, v))
+                        .set_item(PyString::new(py, k), PyBytes::new(py, v))
                         .context("Request form-fields to Python")?;
                 }
-                let handler_mod_path = PyString::new_bound(py, &mod_path_string);
-                let handler_mod_name = PyString::new_bound(py, &mod_name);
-                let handler_mod_dir = PyString::new_bound(py, &mod_dir_string);
+                let handler_mod_path = PyString::new(py, &mod_path_string);
+                let handler_mod_name = PyString::new(py, &mod_name);
+                let handler_mod_dir = PyString::new(py, &mod_dir_string);
 
                 // Prepare Python locals context dict.
-                let locals = PyDict::new_bound(py);
+                let locals = PyDict::new(py);
                 locals
-                    .set_item("CMSPostException", py.get_type_bound::<CMSPostException>())
+                    .set_item("CMSPostException", py.get_type::<CMSPostException>())
                     .context("Construct Python locals")?;
                 locals
                     .set_item("handler_mod_name", handler_mod_name)
@@ -140,17 +140,21 @@ impl<'a> Runner for PyRunner<'a> {
                     .set_item("request_form_fields", request_form_fields)
                     .context("Construct Python locals")?;
                 locals
-                    .set_item("reply_body", PyBytes::new_bound(py, b""))
+                    .set_item("reply_body", PyBytes::new(py, b""))
                     .context("Construct Python locals")?;
                 locals
-                    .set_item("reply_mime", PyString::new_bound(py, ""))
+                    .set_item("reply_mime", PyString::new(py, ""))
                     .context("Construct Python locals")?;
 
                 //TODO pyo3 can't do subinterpreters. As workaround run the handler with multiprocessing and poll the result with the gil released.
 
                 // Run the Python post handler.
-                let runner_result =
-                    py.run_bound(include_str!("python_stub.py"), None, Some(&locals));
+                let runner_result = py.run(
+                    &CString::new(include_str!("python_stub.py"))
+                        .expect("python_stub.py CString decode failed"),
+                    None,
+                    Some(&locals),
+                );
 
                 // Handle post handler exception.
                 match runner_result {
