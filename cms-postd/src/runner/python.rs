@@ -47,7 +47,7 @@ impl<'a> PyRunner<'a> {
     }
 }
 
-impl<'a> Runner for PyRunner<'a> {
+impl Runner for PyRunner<'_> {
     async fn run(&mut self, request: Request) -> ah::Result<Reply> {
         // We only support execution of post.py.
         if request.path.last_element_str().unwrap_or("") != "post.py" {
