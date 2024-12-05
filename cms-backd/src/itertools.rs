@@ -27,8 +27,7 @@ pub trait Peek {
 impl<I, const A: usize, const B: usize> Peek for peekable_fwd_bwd::Peekable<I, A, B>
 where
     I: Iterator,
-    I::Item: Char,
-    I::Item: Clone,
+    I::Item: Char + Clone,
 {
     #[inline]
     fn peek_next(&mut self) -> Option<&impl Char> {
