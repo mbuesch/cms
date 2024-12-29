@@ -43,7 +43,7 @@ struct Opts {
     no_systemd: bool,
 
     /// Set the number async worker threads.
-    #[arg(long, default_value = "1")]
+    #[arg(long, default_value = "2")]
     worker_threads: NonZeroUsize,
 }
 
