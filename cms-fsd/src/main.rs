@@ -46,6 +46,9 @@ struct Opts {
     /// Set the number async worker threads.
     #[arg(long, default_value = "3")]
     worker_threads: NonZeroUsize,
+
+    /// Print debugging information.
+    debug: bool,
 }
 
 async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<()> {
@@ -271,6 +274,19 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
             db_clone.check_inotify().await;
         }
     });
+
+    // Task: Debugging.
+    if opts.debug {
+        let db_clone = Arc::clone(&db);
+        task::spawn(async move {
+            let mut interval = time::interval(Duration::from_millis(10000));
+            interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+            loop {
+                interval.tick().await;
+                db_clone.print_debug().await;
+            }
+        });
+    }
 
     // Main task.
     let db_clone = Arc::clone(&db);

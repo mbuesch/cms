@@ -134,6 +134,19 @@ impl DbCache {
         }
     }
 
+    pub async fn print_debug(&self) {
+        if let Some(cache) = &self.cache {
+            let usage;
+            let capacity;
+            {
+                let cache = cache.lock().await;
+                usage = cache.len();
+                capacity = cache.cap();
+            }
+            println!("DB cache utilization: {usage} / {capacity}");
+        }
+    }
+
     pub async fn get_page(&self, page: &CheckedIdent) -> Vec<u8> {
         let key = CacheKey::Page(page.downgrade_clone());
         get_cached!(self, key, Blob, get_page(page))
