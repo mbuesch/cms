@@ -11,7 +11,10 @@
 use anyhow::{self as ah, format_err as err, Context as _};
 use cms_ident::{CheckedIdent, CheckedIdentElem, Ident, Strip, Tail};
 use inotify::{WatchMask, Watches};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 use tokio::{
     fs::{read_dir, File, OpenOptions},
     io::AsyncReadExt as _,
@@ -29,24 +32,23 @@ fn syselem(e: &'static str) -> CheckedIdentElem {
     ident.into_checked_sys_element().unwrap()
 }
 
-lazy_static::lazy_static! {
-    static ref TAIL_CONTENT_HTML: Tail = Tail::One(elem("content.html"));
-    static ref TAIL_HEADER_HTML: Tail = Tail::One(elem("header.html"));
-    static ref TAIL_REDIRECT: Tail = Tail::One(elem("redirect"));
-    static ref TAIL_TITLE: Tail = Tail::One(elem("title"));
-    static ref TAIL_PRIORITY: Tail = Tail::One(elem("priority"));
-    static ref TAIL_NAV_STOP: Tail = Tail::One(elem("nav_stop"));
-    static ref TAIL_NAV_LABEL: Tail = Tail::One(elem("nav_label"));
-    static ref ELEM_MACROS: CheckedIdentElem = syselem("__macros");
-    static ref WATCH_MASK: WatchMask =
-        WatchMask::CREATE
+static TAIL_CONTENT_HTML: LazyLock<Tail> = LazyLock::new(|| Tail::One(elem("content.html")));
+static TAIL_HEADER_HTML: LazyLock<Tail> = LazyLock::new(|| Tail::One(elem("header.html")));
+static TAIL_REDIRECT: LazyLock<Tail> = LazyLock::new(|| Tail::One(elem("redirect")));
+static TAIL_TITLE: LazyLock<Tail> = LazyLock::new(|| Tail::One(elem("title")));
+static TAIL_PRIORITY: LazyLock<Tail> = LazyLock::new(|| Tail::One(elem("priority")));
+static TAIL_NAV_STOP: LazyLock<Tail> = LazyLock::new(|| Tail::One(elem("nav_stop")));
+static TAIL_NAV_LABEL: LazyLock<Tail> = LazyLock::new(|| Tail::One(elem("nav_label")));
+static ELEM_MACROS: LazyLock<CheckedIdentElem> = LazyLock::new(|| syselem("__macros"));
+static WATCH_MASK: LazyLock<WatchMask> = LazyLock::new(|| {
+    WatchMask::CREATE
         | WatchMask::DELETE
         | WatchMask::DELETE_SELF
         | WatchMask::MODIFY
         | WatchMask::MOVE_SELF
         | WatchMask::MOVE
-        | WatchMask::ATTRIB;
-}
+        | WatchMask::ATTRIB
+});
 
 #[inline]
 async fn fs_add_dir_watch(path: &Path, watches: &mut Watches) {

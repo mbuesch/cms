@@ -16,7 +16,6 @@ cms-seccomp = { workspace = true }
 cms-socket = { workspace = true }
 cms-socket-db = { workspace = true }
 inotify = { workspace = true }
-lazy_static = { workspace = true }
 lru = { workspace = true }
 tokio = { workspace = true }
 
