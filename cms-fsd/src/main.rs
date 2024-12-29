@@ -67,8 +67,7 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 let mut stamp = None;
                 let mut redirect = None;
 
-                //TODO: Cleaning should be done in the backd.
-                if let Ok(path) = path.into_cleaned_path().into_checked() {
+                if let Ok(path) = path.into_checked() {
                     if get_title {
                         title = Some(db.get_page_title(&path).await);
                     }
@@ -92,9 +91,8 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 conn.send_msg(&reply).await?;
             }
             Some(Msg::GetHeaders { path }) => {
-                //TODO: Cleaning should be done in the backd.
                 let data;
-                if let Ok(path) = path.into_cleaned_path().into_checked() {
+                if let Ok(path) = path.into_checked() {
                     data = db.get_headers(&path).await;
                 } else {
                     data = Default::default();
@@ -110,13 +108,12 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 get_stamps: _,
                 get_prios: _,
             }) => {
-                //TODO: Cleaning should be done in the backd.
                 let mut names;
                 let mut nav_labels;
                 let mut nav_stops;
                 let mut stamps;
                 let mut prios;
-                if let Ok(path) = path.into_cleaned_path().into_checked() {
+                if let Ok(path) = path.into_checked() {
                     let mut infos = db.get_subpages(&path).await;
                     let count = infos.len();
                     names = Vec::with_capacity(count);
@@ -149,9 +146,8 @@ async fn process_conn(mut conn: CmsSocketConn, db: Arc<DbCache>) -> ah::Result<(
                 conn.send_msg(&reply).await?;
             }
             Some(Msg::GetMacro { parent, name }) => {
-                //TODO: Cleaning should be done in the backd.
                 let data;
-                if let Ok(parent) = parent.into_cleaned_path().into_checked() {
+                if let Ok(parent) = parent.into_checked() {
                     if let Ok(name) = name.into_checked_element() {
                         data = db.get_macro(&parent, &name).await;
                     } else {
