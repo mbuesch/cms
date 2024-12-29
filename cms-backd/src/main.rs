@@ -166,33 +166,34 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
     let cache = Arc::new(CmsCache::new(opts.cache_size));
 
     // Task: Socket handler.
-    let config_sock = Arc::clone(&config);
-    let cache_sock = Arc::clone(&cache);
-    let opts_sock = Arc::clone(&opts);
-    task::spawn(async move {
-        loop {
-            let config = Arc::clone(&config_sock);
-            let cache = Arc::clone(&cache_sock);
-            let opts = Arc::clone(&opts_sock);
-            match sock.accept().await {
-                Ok(conn) => {
-                    // Socket connection handler.
-                    task::spawn(async move {
-                        if let Err(e) = process_conn(conn, config, cache, opts).await {
-                            eprintln!("Client error: {e}");
-                        }
-                    });
-                }
-                Err(e) => {
-                    let _ = main_exit_tx.send(Err(e)).await;
-                    break;
+    task::spawn({
+        let config = Arc::clone(&config);
+        let cache = Arc::clone(&cache);
+        let opts = Arc::clone(&opts);
+        async move {
+            loop {
+                let config = Arc::clone(&config);
+                let cache = Arc::clone(&cache);
+                let opts = Arc::clone(&opts);
+                match sock.accept().await {
+                    Ok(conn) => {
+                        // Socket connection handler.
+                        task::spawn(async move {
+                            if let Err(e) = process_conn(conn, config, cache, opts).await {
+                                eprintln!("Client error: {e}");
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        let _ = main_exit_tx.send(Err(e)).await;
+                        break;
+                    }
                 }
             }
         }
     });
 
     // Main task.
-    let cache_main = Arc::clone(&cache);
     let exitcode;
     loop {
         tokio::select! {
@@ -207,7 +208,7 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
             }
             _ = sighup.recv() => {
                 eprintln!("SIGHUP: Reloading.");
-                cache_main.clear().await;
+                cache.clear().await;
             }
             code = main_exit_rx.recv() => {
                 if let Some(code) = code {

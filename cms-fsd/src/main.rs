@@ -243,53 +243,58 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
     .context("Install seccomp filter")?;
 
     // Task: Socket handler.
-    let db_clone = Arc::clone(&db);
-    task::spawn(async move {
-        loop {
-            match sock.accept().await {
-                Ok(conn) => {
-                    // Socket connection handler.
-                    let db_clone = Arc::clone(&db_clone);
-                    task::spawn(async move {
-                        if let Err(e) = process_conn(conn, db_clone).await {
-                            eprintln!("Client error: {e}");
-                        }
-                    });
-                }
-                Err(e) => {
-                    let _ = main_exit_tx.send(Err(e)).await;
-                    break;
+    task::spawn({
+        let db = Arc::clone(&db);
+        async move {
+            loop {
+                match sock.accept().await {
+                    Ok(conn) => {
+                        // Socket connection handler.
+                        let db = Arc::clone(&db);
+                        task::spawn(async move {
+                            if let Err(e) = process_conn(conn, db).await {
+                                eprintln!("Client error: {e}");
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        let _ = main_exit_tx.send(Err(e)).await;
+                        break;
+                    }
                 }
             }
         }
     });
 
     // Task: Inotify handler.
-    let db_clone = Arc::clone(&db);
-    task::spawn(async move {
-        let mut interval = time::interval(Duration::from_millis(1000));
-        interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
-        loop {
-            interval.tick().await;
-            db_clone.check_inotify().await;
+    task::spawn({
+        let db = Arc::clone(&db);
+        async move {
+            let mut interval = time::interval(Duration::from_millis(1000));
+            interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+            loop {
+                interval.tick().await;
+                db.check_inotify().await;
+            }
         }
     });
 
     // Task: Debugging.
     if opts.debug {
-        let db_clone = Arc::clone(&db);
-        task::spawn(async move {
-            let mut interval = time::interval(Duration::from_millis(10000));
-            interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
-            loop {
-                interval.tick().await;
-                db_clone.print_debug().await;
+        task::spawn({
+            let db = Arc::clone(&db);
+            async move {
+                let mut interval = time::interval(Duration::from_millis(10000));
+                interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+                loop {
+                    interval.tick().await;
+                    db.print_debug().await;
+                }
             }
         });
     }
 
     // Main task.
-    let db_clone = Arc::clone(&db);
     let exitcode;
     loop {
         tokio::select! {
@@ -304,7 +309,7 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
             }
             _ = sighup.recv() => {
                 eprintln!("SIGHUP: Reloading.");
-                db_clone.clear().await;
+                db.clear().await;
             }
             code = main_exit_rx.recv() => {
                 if let Some(code) = code {

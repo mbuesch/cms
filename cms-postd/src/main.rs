@@ -103,22 +103,24 @@ async fn async_main(opts: Arc<Opts>) -> ah::Result<()> {
     //TODO: install seccomp filter.
 
     // Task: Socket handler.
-    let opts_clone = Arc::clone(&opts);
-    task::spawn(async move {
-        loop {
-            let opts_clone = Arc::clone(&opts_clone);
-            match sock.accept().await {
-                Ok(conn) => {
-                    // Socket connection handler.
-                    task::spawn(async move {
-                        if let Err(e) = process_conn(conn, opts_clone).await {
-                            eprintln!("Client error: {e}");
-                        }
-                    });
-                }
-                Err(e) => {
-                    let _ = main_exit_tx.send(Err(e)).await;
-                    break;
+    task::spawn({
+        let opts = Arc::clone(&opts);
+        async move {
+            loop {
+                let opts = Arc::clone(&opts);
+                match sock.accept().await {
+                    Ok(conn) => {
+                        // Socket connection handler.
+                        task::spawn(async move {
+                            if let Err(e) = process_conn(conn, opts).await {
+                                eprintln!("Client error: {e}");
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        let _ = main_exit_tx.send(Err(e)).await;
+                        break;
+                    }
                 }
             }
         }
