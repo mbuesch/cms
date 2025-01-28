@@ -22,7 +22,7 @@ use crate::{
 use anyhow::{self as ah, format_err as err};
 use cms_ident::{CheckedIdent, Ident};
 use peekable_fwd_bwd::Peekable;
-use rand::prelude::*;
+use rand::{prelude::*, rng};
 use std::{collections::HashMap, sync::Arc};
 
 pub type VarName<'a> = &'a str;
@@ -732,7 +732,7 @@ impl<'a> Resolver<'a> {
         } else {
             65535
         };
-        let random: i64 = thread_rng().gen_range(begin..=end);
+        let random: i64 = rng().random_range(begin..=end);
         Ok(random.to_string())
     }
 
@@ -743,7 +743,7 @@ impl<'a> Resolver<'a> {
     /// Returns: One random item of its arguments.
     async fn expand_statement_randitem(&mut self, chars: &mut Chars<'_>) -> ah::Result<String> {
         let args = self.parse_args(chars).await?;
-        let Some(item) = args.choose(&mut thread_rng()) else {
+        let Some(item) = args.choose(&mut rng()) else {
             return self.stmterr("RANDITEM: too few args");
         };
         Ok(item.to_string())
