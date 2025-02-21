@@ -12,8 +12,8 @@
 
 use anyhow::{self as ah, Context as _};
 use seccompiler::{
-    apply_filter_all_threads, sock_filter, BpfProgram, SeccompAction, SeccompCmpArgLen,
-    SeccompCmpOp, SeccompCondition, SeccompFilter, SeccompRule,
+    BpfProgram, SeccompAction, SeccompCmpArgLen, SeccompCmpOp, SeccompCondition, SeccompFilter,
+    SeccompRule, apply_filter_all_threads, sock_filter,
 };
 use std::{collections::BTreeMap, env::consts::ARCH};
 

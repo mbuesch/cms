@@ -8,8 +8,8 @@
 // or the MIT license, at your option.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::msg::{DeserializeResult, MsgSerde, MAX_RX_BUF, MSG_HDR_LEN};
-use anyhow::{self as ah, format_err as err, Context as _};
+use crate::msg::{DeserializeResult, MAX_RX_BUF, MSG_HDR_LEN, MsgSerde};
+use anyhow::{self as ah, Context as _, format_err as err};
 use std::{
     io::{Read as _, Write as _},
     os::unix::net::UnixStream,

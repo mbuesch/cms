@@ -8,7 +8,7 @@
 // or the MIT license, at your option.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use anyhow::{self as ah, format_err as err, Context as _};
+use anyhow::{self as ah, Context as _, format_err as err};
 use cms_ident::Ident;
 use cms_seccomp::Filter;
 use cms_socket::{CmsSocketConnSync, MsgSerde as _};

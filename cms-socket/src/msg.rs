@@ -87,7 +87,7 @@ macro_rules! impl_msg_serde {
             fn msg_serialize(&self) -> anyhow::Result<Vec<u8>> {
                 use anyhow::Context as _;
                 use bincode::Options as _;
-                use $crate::{bincode_config, MsgHdr};
+                use $crate::{MsgHdr, bincode_config};
 
                 let mut payload = bincode_config().serialize(self)?;
                 let mut ret = bincode_config().serialize(&MsgHdr::new($magic, payload.len()))?;
@@ -98,7 +98,7 @@ macro_rules! impl_msg_serde {
             fn try_msg_deserialize(buf: &[u8]) -> anyhow::Result<$crate::DeserializeResult<Msg>> {
                 use anyhow::Context as _;
                 use bincode::Options as _;
-                use $crate::{bincode_config, MsgHdr};
+                use $crate::{MsgHdr, bincode_config};
 
                 let hdr_len = MsgHdr::len();
                 if buf.len() < hdr_len {

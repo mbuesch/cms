@@ -14,7 +14,7 @@ mod db_cache;
 mod db_fsintf;
 
 use crate::{db_cache::DbCache, db_fsintf::DbFsIntf};
-use anyhow::{self as ah, format_err as err, Context as _};
+use anyhow::{self as ah, Context as _, format_err as err};
 use clap::Parser;
 use cms_seccomp::{Action, Allow, Filter};
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
@@ -22,7 +22,7 @@ use cms_socket_db::{Msg, SOCK_FILE};
 use std::{num::NonZeroUsize, path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     runtime,
-    signal::unix::{signal, SignalKind},
+    signal::unix::{SignalKind, signal},
     sync, task, time,
 };
 

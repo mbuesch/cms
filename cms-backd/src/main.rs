@@ -37,7 +37,7 @@ use crate::{
     query::Query,
     reply::CmsReply,
 };
-use anyhow::{self as ah, format_err as err, Context as _};
+use anyhow::{self as ah, Context as _, format_err as err};
 use clap::Parser;
 use cms_socket::{CmsSocket, CmsSocketConn, MsgSerde};
 use cms_socket_back::{Msg, SOCK_FILE};
@@ -49,7 +49,7 @@ use std::{
 };
 use tokio::{
     runtime,
-    signal::unix::{signal, SignalKind},
+    signal::unix::{SignalKind, signal},
     sync, task,
 };
 

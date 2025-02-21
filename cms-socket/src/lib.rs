@@ -15,7 +15,7 @@ mod sock_async;
 mod sock_sync;
 
 pub use crate::{
-    msg::{bincode_config, DeserializeResult, MsgHdr, MsgSerde},
+    msg::{DeserializeResult, MsgHdr, MsgSerde, bincode_config},
     sock_async::{CmsSocket, CmsSocketConn},
     sock_sync::CmsSocketConnSync,
 };

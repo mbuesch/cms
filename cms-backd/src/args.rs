@@ -25,11 +25,7 @@ pub struct CmsGetArgs {
 
 impl CmsGetArgs {
     pub fn protocol_str(&self) -> &str {
-        if self.https {
-            "https"
-        } else {
-            "http"
-        }
+        if self.https { "https" } else { "http" }
     }
 }
 

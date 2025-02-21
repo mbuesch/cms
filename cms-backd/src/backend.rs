@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::{
-    args::{get_query_var, html_safe_escape, CmsGetArgs, CmsPostArgs},
+    args::{CmsGetArgs, CmsPostArgs, get_query_var, html_safe_escape},
     cache::CmsCache,
     comm::{CmsComm, CommGetPage, CommPage, CommPostHandlerResult, CommRunPostHandler},
     config::CmsConfig,
@@ -17,7 +17,7 @@ use crate::{
     navtree::NavTree,
     pagegen::PageGen,
     reply::{CmsReply, HttpStatus},
-    resolver::{getvar, Resolver, ResolverVars},
+    resolver::{Resolver, ResolverVars, getvar},
     sitemap::{SiteMap, SiteMapContext},
 };
 use anyhow as ah;
@@ -288,7 +288,7 @@ impl CmsBack {
             Err(e) => {
                 return Ok(CmsReply::bad_request(&format!(
                     "Failed to parse form-fields: {e}"
-                )))
+                )));
             }
         };
 

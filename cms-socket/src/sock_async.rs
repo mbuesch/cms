@@ -8,8 +8,8 @@
 // or the MIT license, at your option.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::msg::{DeserializeResult, MsgSerde, MAX_RX_BUF};
-use anyhow::{self as ah, format_err as err, Context as _};
+use crate::msg::{DeserializeResult, MAX_RX_BUF, MsgSerde};
+use anyhow::{self as ah, Context as _, format_err as err};
 use cms_systemd::{systemd_notify_ready, unix_from_systemd};
 use libc::{S_IFMT, S_IFSOCK};
 use std::{

@@ -8,7 +8,7 @@
 // or the MIT license, at your option.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use anyhow::{self as ah, format_err as err, Context as _};
+use anyhow::{self as ah, Context as _, format_err as err};
 use cms_ident::{CheckedIdent, CheckedIdentElem, Ident, Strip, Tail};
 use inotify::{WatchMask, Watches};
 use std::{
@@ -16,7 +16,7 @@ use std::{
     sync::LazyLock,
 };
 use tokio::{
-    fs::{read_dir, File, OpenOptions},
+    fs::{File, OpenOptions, read_dir},
     io::AsyncReadExt as _,
 };
 

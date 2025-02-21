@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::{reply::Reply, request::Request, runner::Runner};
-use anyhow::{self as ah, format_err as err, Context as _};
+use anyhow::{self as ah, Context as _, format_err as err};
 use cms_ident::{Strip, Tail};
 use pyo3::{
     create_exception,
