@@ -23,6 +23,7 @@ fn main() {
             Allow::Write,
             Allow::Recv,
             Allow::Send,
+            Allow::Signal,
             Allow::Mmap,
         ],
         Action::Kill,
