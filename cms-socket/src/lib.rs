@@ -2,7 +2,7 @@
 //
 // Simple CMS
 //
-// Copyright (C) 2011-2024 Michael Büsch <m@bues.ch>
+// Copyright (C) 2011-2025 Michael Büsch <m@bues.ch>
 //
 // Licensed under the Apache License version 2.0
 // or the MIT license, at your option.
@@ -15,7 +15,7 @@ mod sock_async;
 mod sock_sync;
 
 pub use crate::{
-    msg::{DeserializeResult, MsgHdr, MsgSerde, bincode_config},
+    msg::{DeserializeResult, MSG_HDR_LEN, MsgHdr, MsgSerde, bincode_config},
     sock_async::{CmsSocket, CmsSocketConn},
     sock_sync::CmsSocketConnSync,
 };

@@ -2,14 +2,13 @@
 //
 // Simple CMS
 //
-// Copyright (C) 2011-2024 Michael Büsch <m@bues.ch>
+// Copyright (C) 2011-2025 Michael Büsch <m@bues.ch>
 //
 // Licensed under the Apache License version 2.0
 // or the MIT license, at your option.
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use anyhow as ah;
-use bincode::Options as _;
 use serde::{Deserialize, Serialize};
 
 pub const MSG_HDR_LEN: usize = 8;
@@ -27,12 +26,11 @@ pub trait MsgSerde<M> {
 }
 
 #[inline]
-pub fn bincode_config() -> impl bincode::Options {
-    bincode::DefaultOptions::new()
-        .with_limit(MAX_RX_BUF.try_into().unwrap())
-        .with_native_endian()
-        .with_fixint_encoding()
-        .reject_trailing_bytes()
+pub fn bincode_config() -> impl bincode::config::Config {
+    bincode::config::standard()
+        .with_limit::<MAX_RX_BUF>()
+        .with_little_endian()
+        .with_fixed_int_encoding()
 }
 
 /// Generic message header.
@@ -62,14 +60,15 @@ impl MsgHdr {
     pub fn len() -> usize {
         debug_assert_eq!(
             MSG_HDR_LEN,
-            bincode_config()
-                .serialized_size(&MsgHdr {
+            bincode::serde::encode_to_vec(
+                MsgHdr {
                     magic: 0,
                     payload_len: 0,
-                })
-                .unwrap()
-                .try_into()
-                .unwrap()
+                },
+                bincode_config()
+            )
+            .unwrap()
+            .len()
         );
         MSG_HDR_LEN
     }
@@ -86,27 +85,30 @@ macro_rules! impl_msg_serde {
         impl $crate::MsgSerde<$struct> for $struct {
             fn msg_serialize(&self) -> anyhow::Result<Vec<u8>> {
                 use anyhow::Context as _;
-                use bincode::Options as _;
+                use bincode::serde::encode_to_vec;
                 use $crate::{MsgHdr, bincode_config};
 
-                let mut payload = bincode_config().serialize(self)?;
-                let mut ret = bincode_config().serialize(&MsgHdr::new($magic, payload.len()))?;
+                let mut payload = encode_to_vec(self, bincode_config())?;
+                let mut ret = encode_to_vec(MsgHdr::new($magic, payload.len()), bincode_config())?;
                 ret.append(&mut payload);
                 Ok(ret)
             }
 
             fn try_msg_deserialize(buf: &[u8]) -> anyhow::Result<$crate::DeserializeResult<Msg>> {
                 use anyhow::Context as _;
-                use bincode::Options as _;
-                use $crate::{MsgHdr, bincode_config};
+                use bincode::serde::borrow_decode_from_slice;
+                use $crate::{MSG_HDR_LEN, MsgHdr, bincode_config};
 
                 let hdr_len = MsgHdr::len();
                 if buf.len() < hdr_len {
                     Ok($crate::DeserializeResult::Pending(hdr_len - buf.len()))
                 } else {
-                    let hdr: MsgHdr = bincode_config()
-                        .deserialize(&buf[0..hdr_len])
-                        .context("Deserialize MsgHdr")?;
+                    let (hdr, size): (MsgHdr, usize) =
+                        borrow_decode_from_slice(&buf[0..hdr_len], bincode_config())
+                            .context("Deserialize MsgHdr")?;
+                    if size != MSG_HDR_LEN {
+                        return Err(anyhow::format_err!("Deserialize: Invalid header size."));
+                    }
                     if hdr.magic() != $magic {
                         return Err(anyhow::format_err!("Deserialize: Invalid magic code."));
                     }
@@ -116,9 +118,12 @@ macro_rules! impl_msg_serde {
                     if buf.len() < full_len {
                         Ok($crate::DeserializeResult::Pending(full_len - buf.len()))
                     } else {
-                        let msg = bincode_config()
-                            .deserialize(&buf[hdr_len..full_len])
-                            .context("Deserialize Msg")?;
+                        let (msg, size) =
+                            borrow_decode_from_slice(&buf[hdr_len..full_len], bincode_config())
+                                .context("Deserialize Msg")?;
+                        if size != hdr.payload_len() {
+                            return Err(anyhow::format_err!("Deserialize: Invalid payload size."));
+                        }
                         Ok($crate::DeserializeResult::Ok(msg))
                     }
                 }
