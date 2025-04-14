@@ -139,7 +139,7 @@ impl Ident {
         if self.0.is_empty() {
             None
         } else {
-            self.elements().last()
+            self.elements().next_back()
         }
     }
 
