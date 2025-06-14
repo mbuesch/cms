@@ -32,7 +32,7 @@ rust-version = "1.87"
 [workspace.dependencies]
 anyhow = "1"
 bincode = "2"
-build-target = "0.4"
+build-target = "0.7"
 chrono = "0.4"
 clap = "4"
 configparser = "3"
