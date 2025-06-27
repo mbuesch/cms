@@ -870,7 +870,7 @@ impl<'a> Resolver<'a> {
             let rounded = a.round().clamp(i64::MIN as f64, i64::MAX as f64) as i64;
             Ok(rounded.to_string())
         } else {
-            Ok(format!("{:.1$}", a, b))
+            Ok(format!("{a:.b$}"))
         }
     }
 
