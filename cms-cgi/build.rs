@@ -10,12 +10,11 @@
 
 #![forbid(unsafe_code)]
 
-use build_target::target_arch;
 use cms_seccomp::{Action, Allow, Filter};
 use std::{env, fs::OpenOptions, io::Write, path::Path};
 
 fn main() {
-    let arch = target_arch().expect("Failed to get build target architecture");
+    let arch = env::var("CARGO_CFG_TARGET_ARCH").expect("Failed to get build target architecture");
 
     let seccomp_filter = Filter::compile_for_arch(
         &[
@@ -27,7 +26,7 @@ fn main() {
             Allow::Mmap,
         ],
         Action::Kill,
-        arch.as_str(),
+        &arch,
     )
     .expect("Failed to compile seccomp filter")
     .serialize();
