@@ -228,14 +228,14 @@ impl CmsBack {
     }
 
     async fn get_css(&mut self, get: &CmsGetArgs) -> ah::Result<CmsReply> {
-        if let Some(css_name) = get.path.nth_element_str(1) {
-            if css_name == "cms.css" {
-                let css = self.comm.get_db_string("css").await;
-                return Ok(match css {
-                    Ok(body) => CmsReply::ok(body.into_bytes(), "text/css; charset=UTF-8"),
-                    Err(e) => CmsReply::not_found(&e.to_string()),
-                });
-            }
+        if let Some(css_name) = get.path.nth_element_str(1)
+            && css_name == "cms.css"
+        {
+            let css = self.comm.get_db_string("css").await;
+            return Ok(match css {
+                Ok(body) => CmsReply::ok(body.into_bytes(), "text/css; charset=UTF-8"),
+                Err(e) => CmsReply::not_found(&e.to_string()),
+            });
         }
         Ok(CmsReply::not_found("Invalid CSS name"))
     }

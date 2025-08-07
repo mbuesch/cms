@@ -152,13 +152,12 @@ impl<'a> ResolverVars<'a> {
             return Resolver::escape(&fun(name));
         }
         // Find variable by prefix.
-        if let Some(index) = name.find('_') {
-            if index > 0 {
-                if let Some(fun) = self.prefixes.get(&name[..index]) {
-                    // Call the getter.
-                    return Resolver::escape(&fun(name));
-                }
-            }
+        if let Some(index) = name.find('_')
+            && index > 0
+            && let Some(fun) = self.prefixes.get(&name[..index])
+        {
+            // Call the getter.
+            return Resolver::escape(&fun(name));
         }
         // No variable found.
         String::new()

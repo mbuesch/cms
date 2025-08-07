@@ -27,10 +27,10 @@ pub struct CmsSocket {
 impl CmsSocket {
     /// Create a new [CmsSocket] with the specified path.
     fn new(sock_path: &Path) -> ah::Result<Self> {
-        if let Ok(meta) = metadata(sock_path) {
-            if meta.mode() & S_IFMT == S_IFSOCK {
-                remove_file(sock_path).context("Remove existing socket")?;
-            }
+        if let Ok(meta) = metadata(sock_path)
+            && meta.mode() & S_IFMT == S_IFSOCK
+        {
+            remove_file(sock_path).context("Remove existing socket")?;
         }
         let sock = UnixListener::bind(sock_path).context("Bind socket")?;
         Ok(Self::from_listener(sock))
@@ -51,13 +51,11 @@ impl CmsSocket {
     /// Create a new [CmsSocket] from Systemd environment
     /// or from the specified path, if there is no Systemd.
     pub fn from_systemd_or_path(no_systemd: bool, sock_path: &Path) -> ah::Result<Self> {
-        if !no_systemd {
-            if let Some(unix_listener) = unix_from_systemd()? {
-                println!("Using socket from systemd.");
-                let sock = Self::from_std_listener(unix_listener)?;
-                systemd_notify_ready()?;
-                return Ok(sock);
-            }
+        if !no_systemd && let Some(unix_listener) = unix_from_systemd()? {
+            println!("Using socket from systemd.");
+            let sock = Self::from_std_listener(unix_listener)?;
+            systemd_notify_ready()?;
+            return Ok(sock);
         }
         println!("Creating socket {sock_path:?}.");
         Self::new(sock_path)
