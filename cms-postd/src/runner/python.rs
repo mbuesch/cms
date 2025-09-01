@@ -101,7 +101,7 @@ impl Runner for PyRunner<'_> {
 
         // Spawn a blocking task for Python.
         let runner_task = task::spawn_blocking(move || {
-            Ok(Python::with_gil(|py| -> PyResult<Reply> {
+            Ok(Python::attach(|py| -> PyResult<Reply> {
                 // Create Python objects for locals context.
                 let request_query = PyDict::new(py);
                 for (k, v) in request.query.iter() {
