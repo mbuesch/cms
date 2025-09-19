@@ -99,7 +99,7 @@ impl Filter {
 
     /// Simple de-serialization, without serde.
     pub fn deserialize(raw: &[u8]) -> Self {
-        assert!(raw.len() % 8 == 0);
+        assert!(raw.len().is_multiple_of(8));
         let mut bpf = Vec::with_capacity(raw.len() / 8);
         for i in (0..raw.len()).step_by(8) {
             let code = u16::from_le_bytes(raw[i..i + 2].try_into().unwrap());
