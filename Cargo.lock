@@ -239,7 +239,6 @@ name = "cms-cgi"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "clap",
  "cms-ident",
  "cms-seccomp",
  "cms-socket",

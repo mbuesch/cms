@@ -10,7 +10,6 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
-clap = { workspace = true, features = [ "derive" ] }
 cms-ident = { workspace = true }
 cms-seccomp = { workspace = true }
 cms-socket = { workspace = true }
