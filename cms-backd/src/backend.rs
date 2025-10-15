@@ -278,7 +278,9 @@ impl CmsBack {
                 reply.add_http_header("Cache-Control: max-age=600");
             }
             let host_b64 = BASE64_URL_SAFE_NO_PAD.encode(&get.host);
-            reply.add_http_header(&format!("Set-Cookie: CMS-domain={host_b64}; Max-Age: 86400"));
+            reply.add_http_header(&format!(
+                "Set-Cookie: CMS-visited-domain-{host_b64}=1; Max-Age: 86400; Path=/"
+            ));
         }
 
         reply
@@ -328,7 +330,7 @@ impl CmsBack {
             reply.add_http_header("Cache-Control: no-cache");
             let host_b64 = BASE64_URL_SAFE_NO_PAD.encode(&get.host);
             reply.add_http_header(&format!(
-                "Set-Cookie: CMS-domain={host_b64}; Max-Age: 86400"
+                "Set-Cookie: CMS-visited-domain-{host_b64}=1; Max-Age: 86400; Path=/"
             ));
         }
 
