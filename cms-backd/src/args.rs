@@ -2,7 +2,7 @@
 //
 // Simple CMS
 //
-// Copyright (C) 2011-2024 Michael Büsch <m@bues.ch>
+// Copyright (C) 2011-2025 Michael Büsch <m@bues.ch>
 //
 // Licensed under the Apache License version 2.0
 // or the MIT license, at your option.
@@ -16,9 +16,10 @@ pub fn html_safe_escape(text: &str) -> String {
 }
 
 pub struct CmsGetArgs {
-    pub _host: String,
+    pub host: String,
     pub path: CheckedIdent,
-    pub _cookie: Cookie,
+    #[allow(dead_code)]
+    pub cookie: Cookie,
     pub query: Query,
     pub https: bool,
 }

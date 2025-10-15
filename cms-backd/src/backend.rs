@@ -2,7 +2,7 @@
 //
 // Simple CMS
 //
-// Copyright (C) 2011-2024 Michael Büsch <m@bues.ch>
+// Copyright (C) 2011-2025 Michael Büsch <m@bues.ch>
 //
 // Licensed under the Apache License version 2.0
 // or the MIT license, at your option.
@@ -21,6 +21,7 @@ use crate::{
     sitemap::{SiteMap, SiteMapContext},
 };
 use anyhow as ah;
+use base64::prelude::*;
 use chrono::prelude::*;
 use cms_ident::{CheckedIdent, UrlComp};
 use std::{io::Cursor, path::Path, sync::Arc};
@@ -276,6 +277,8 @@ impl CmsBack {
             } else if mime.starts_with("text/css") {
                 reply.add_http_header("Cache-Control: max-age=600");
             }
+            let host_b64 = BASE64_URL_SAFE.encode(&get.host);
+            reply.add_http_header(&format!("Set-Cookie: CMS-domain={host_b64}; Max-Age: 86400"));
         }
 
         reply
@@ -323,6 +326,10 @@ impl CmsBack {
         } else {
             // Add Cache-Control header.
             reply.add_http_header("Cache-Control: no-cache");
+            let host_b64 = BASE64_URL_SAFE.encode(&get.host);
+            reply.add_http_header(&format!(
+                "Set-Cookie: CMS-domain={host_b64}; Max-Age: 86400"
+            ));
         }
 
         reply

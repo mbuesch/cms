@@ -31,6 +31,7 @@ rust-version = "1.90"
 
 [workspace.dependencies]
 anyhow = "1"
+base64 = "0.22"
 bincode = "2"
 chrono = "0.4"
 clap = "4"
