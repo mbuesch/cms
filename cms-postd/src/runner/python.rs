@@ -177,7 +177,7 @@ impl Runner for PyRunner<'_> {
                 let Some(reply_body) = locals.get_item("reply_body").context("reply_body")? else {
                     return Err(err!("PyRunner: reply_body not in Python locals.").into());
                 };
-                let Ok(reply_body): Result<&Bound<PyBytes>, _> = reply_body.downcast() else {
+                let Ok(reply_body): Result<&Bound<PyBytes>, _> = reply_body.cast() else {
                     return Err(err!("PyRunner: reply_body not Python 'bytes'.").into());
                 };
                 let reply_body = reply_body.as_bytes().to_vec();
@@ -189,7 +189,7 @@ impl Runner for PyRunner<'_> {
                 let Some(reply_mime) = locals.get_item("reply_mime").context("reply_mime")? else {
                     return Err(err!("PyRunner: reply_mime not in Python locals.").into());
                 };
-                let Ok(reply_mime): Result<&Bound<PyString>, _> = reply_mime.downcast() else {
+                let Ok(reply_mime): Result<&Bound<PyString>, _> = reply_mime.cast() else {
                     return Err(err!("PyRunner: reply_mime not Python 'str'.").into());
                 };
                 let reply_mime = reply_mime
