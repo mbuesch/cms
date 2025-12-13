@@ -13,20 +13,20 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - 1.91.0 # MSRV
+          - 1.92.0 # MSRV
         os:
           - ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache Rust
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.rustup
           key: rustup-${{ runner.os }}-${{ matrix.toolchain }}
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo
           key: cargo-${{ runner.os }}-${{ matrix.toolchain }}
