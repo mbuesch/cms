@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use anyhow as ah;
-use serde::{Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 
 pub const MSG_HDR_LEN: usize = 8;
 pub const MAX_RX_BUF: usize = 1024 * 1024 * 64;
@@ -25,16 +25,8 @@ pub trait MsgSerde<M> {
     fn try_msg_deserialize(buf: &[u8]) -> ah::Result<DeserializeResult<M>>;
 }
 
-#[inline]
-pub fn bincode_config() -> impl bincode::config::Config {
-    bincode::config::standard()
-        .with_limit::<MAX_RX_BUF>()
-        .with_little_endian()
-        .with_fixed_int_encoding()
-}
-
 /// Generic message header.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Archive, Clone, Debug)]
 pub struct MsgHdr {
     magic: u32,
     payload_len: u32,
@@ -58,18 +50,7 @@ impl MsgHdr {
 
     #[inline]
     pub fn len() -> usize {
-        debug_assert_eq!(
-            MSG_HDR_LEN,
-            bincode::serde::encode_to_vec(
-                MsgHdr {
-                    magic: 0,
-                    payload_len: 0,
-                },
-                bincode_config()
-            )
-            .unwrap()
-            .len()
-        );
+        assert_eq!(std::mem::size_of::<ArchivedMsgHdr>(), MSG_HDR_LEN,);
         MSG_HDR_LEN
     }
 
@@ -85,30 +66,26 @@ macro_rules! impl_msg_serde {
         impl $crate::MsgSerde<$struct> for $struct {
             fn msg_serialize(&self) -> anyhow::Result<Vec<u8>> {
                 use anyhow::Context as _;
-                use bincode::serde::encode_to_vec;
-                use $crate::{MsgHdr, bincode_config};
+                use rkyv::{rancor::Error, to_bytes};
+                use $crate::MsgHdr;
 
-                let mut payload = encode_to_vec(self, bincode_config())?;
-                let mut ret = encode_to_vec(MsgHdr::new($magic, payload.len()), bincode_config())?;
+                let mut payload = to_bytes::<Error>(self)?.into_vec();
+                let mut ret = to_bytes::<Error>(&MsgHdr::new($magic, payload.len()))?.into_vec();
                 ret.append(&mut payload);
                 Ok(ret)
             }
 
             fn try_msg_deserialize(buf: &[u8]) -> anyhow::Result<$crate::DeserializeResult<Msg>> {
                 use anyhow::Context as _;
-                use bincode::serde::borrow_decode_from_slice;
-                use $crate::{MSG_HDR_LEN, MsgHdr, bincode_config};
+                use rkyv::{from_bytes, rancor::Error};
+                use $crate::{MSG_HDR_LEN, MsgHdr};
 
                 let hdr_len = MsgHdr::len();
                 if buf.len() < hdr_len {
                     Ok($crate::DeserializeResult::Pending(hdr_len - buf.len()))
                 } else {
-                    let (hdr, size): (MsgHdr, usize) =
-                        borrow_decode_from_slice(&buf[0..hdr_len], bincode_config())
-                            .context("Deserialize MsgHdr")?;
-                    if size != MSG_HDR_LEN {
-                        return Err(anyhow::format_err!("Deserialize: Invalid header size."));
-                    }
+                    let hdr = from_bytes::<MsgHdr, Error>(&buf[0..hdr_len])
+                        .context("Deserialize MsgHdr")?;
                     if hdr.magic() != $magic {
                         return Err(anyhow::format_err!("Deserialize: Invalid magic code."));
                     }
@@ -118,12 +95,8 @@ macro_rules! impl_msg_serde {
                     if buf.len() < full_len {
                         Ok($crate::DeserializeResult::Pending(full_len - buf.len()))
                     } else {
-                        let (msg, size) =
-                            borrow_decode_from_slice(&buf[hdr_len..full_len], bincode_config())
-                                .context("Deserialize Msg")?;
-                        if size != hdr.payload_len() {
-                            return Err(anyhow::format_err!("Deserialize: Invalid payload size."));
-                        }
+                        let msg = from_bytes::<Msg, Error>(&buf[hdr_len..full_len])
+                            .context("Deserialize Msg")?;
                         Ok($crate::DeserializeResult::Ok(msg))
                     }
                 }

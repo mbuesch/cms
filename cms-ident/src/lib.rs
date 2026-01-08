@@ -11,7 +11,7 @@
 #![forbid(unsafe_code)]
 
 use anyhow::{self as ah, format_err as err};
-use serde::{Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 use std::{
     convert::Infallible,
     ops::Deref,
@@ -64,7 +64,7 @@ fn check_ident_elem(elem: &str, fmt: ElemFmt) -> ah::Result<()> {
 }
 
 /// An unchecked identifier path.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Archive, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Ident(String);
 
 impl FromStr for Ident {

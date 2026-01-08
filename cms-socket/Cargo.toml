@@ -10,10 +10,9 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
-bincode = { workspace = true, features = [ "serde" ] }
 cms-systemd = { workspace = true }
 libc = { workspace = true }
-serde = { workspace = true, features = [ "derive" ] }
+rkyv = { workspace = true }
 tokio = { workspace = true, features = [ "net" ] }
 
 # vim: ts=4 sw=4 expandtab

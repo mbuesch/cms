@@ -12,12 +12,12 @@
 
 use cms_ident::Ident;
 use cms_socket::impl_msg_serde;
-use serde::{Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub const SOCK_FILE: &str = "cms-postd.sock";
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Archive, Clone, Debug)]
 pub enum Msg {
     // Getters
     RunPostHandler {

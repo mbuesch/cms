@@ -12,11 +12,11 @@
 
 use cms_ident::Ident;
 use cms_socket::impl_msg_serde;
-use serde::{Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 
 pub const SOCK_FILE: &str = "cms-fsd.sock";
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Archive, Clone, Debug)]
 pub enum Msg {
     // Getters
     GetPage {
