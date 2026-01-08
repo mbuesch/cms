@@ -60,11 +60,9 @@ cms-socket-post = { version = "1", path = "./cms-socket-post" }
 cms-systemd = { version = "1", path = "./cms-systemd" }
 
 [profile.release]
-opt-level = 3
 lto = "fat"
 panic = "abort"
 strip = "symbols"
-debug-assertions = false
 overflow-checks = true
 codegen-units = 1
 
