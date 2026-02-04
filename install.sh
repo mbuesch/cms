@@ -202,6 +202,7 @@ install_postd
 install_cgi
 install_backd
 install_conf
+do_systemctl daemon-reload
 start_services
 
 # vim: ts=4 sw=4 expandtab
