@@ -180,7 +180,7 @@ impl Cgi {
             return;
         };
 
-        let Ok(q) = QueryStrong::parse(&self.query) else {
+        let Ok(q) = QueryStrong::parse_strict(&self.query) else {
             response_400_bad_request("Invalid QUERY_STRING in URI.");
             return;
         };

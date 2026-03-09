@@ -31,10 +31,8 @@ pub fn unix_from_systemd() -> ah::Result<Option<UnixListener>> {
 }
 
 /// Notify ready-status to systemd.
-///
-/// All environment variables related to this operation will be cleared.
 pub fn systemd_notify_ready() -> ah::Result<()> {
-    sd_notify::notify(true, &[sd_notify::NotifyState::Ready])?;
+    sd_notify::notify(&[sd_notify::NotifyState::Ready])?;
     Ok(())
 }
 
