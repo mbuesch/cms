@@ -27,7 +27,7 @@ resolver = "3"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = [ "Michael Büsch <m@bues.ch>" ]
-rust-version = "1.93"
+rust-version = "1.94"
 
 [workspace.dependencies]
 anyhow = "1"
