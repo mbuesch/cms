@@ -3,6 +3,7 @@ name: Cargo Build & Test
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 env: 
   CARGO_TERM_COLOR: always
@@ -13,7 +14,7 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - 1.93.0 # MSRV
+          - stable
         os:
           - ubuntu-latest
     runs-on: ${{ matrix.os }}
@@ -34,9 +35,9 @@ jobs:
       - run: rustup update ${{ matrix.toolchain }}
       - run: rustup default ${{ matrix.toolchain }}
       - run: rustup component add clippy
-      - run: cargo build --verbose
+      - run: cargo build
       - run: cargo clippy -- --deny warnings
       - run: cargo clippy --tests -- --deny warnings
-      - run: cargo test --verbose
+      - run: cargo test
 
 # vim: ts=2 sw=2 expandtab
