@@ -939,10 +939,7 @@ impl<'a> Resolver<'a> {
         let _ = self.next(chars); // consume '-'
 
         // Consume comment body.
-        loop {
-            let Some(c) = self.next(chars) else {
-                break;
-            };
+        while let Some(c) = self.next(chars) {
             if c == '-'
                 && chars.peek_nth(0) == Some(&'-')
                 && chars.peek_nth(1) == Some(&'-')
