@@ -56,6 +56,7 @@ struct SiteMapElem {
     priority: String,
 }
 
+#[allow(clippy::needless_late_init)]
 async fn do_build_elems(
     ctx: &mut SiteMapContext<'_>,
     elems: &mut Vec<SiteMapElem>,
