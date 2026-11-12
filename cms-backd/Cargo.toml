@@ -14,7 +14,6 @@ base64 = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = [ "derive" ] }
 cms-ident = { workspace = true }
-cms-seccomp = { workspace = true }
 cms-socket = { workspace = true }
 cms-socket-back = { workspace = true }
 cms-socket-db = { workspace = true }

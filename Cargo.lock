@@ -233,7 +233,6 @@ dependencies = [
  "chrono",
  "clap",
  "cms-ident",
- "cms-seccomp",
  "cms-socket",
  "cms-socket-back",
  "cms-socket-db",
